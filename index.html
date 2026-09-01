@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Oxide</title>
+        <style>
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                background: #0a0c0a;
+                overflow: hidden;
+                font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+                color: #ded8c8;
+            }
+            #game {
+                display: block;
+                width: 100vw;
+                height: 100vh;
+                cursor:
+                    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='11' height='11'><circle cx='5.5' cy='5.5' r='3.4' fill='none' stroke='rgba(0,0,0,0.75)' stroke-width='2'/><circle cx='5.5' cy='5.5' r='2.6' fill='%23ffe9a8'/></svg>")
+                        5 5,
+                    crosshair;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="game"></canvas>
+        <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>

@@ -1,0 +1,18 @@
+# Indentation is four spaces, everywhere, for everyone.
+# Most editors honour this file with no plugin; the ones that don't are covered
+# by Prettier, which every `npm run format` and `npm run check` run enforces.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{json,yml,yaml}]
+indent_size = 2
