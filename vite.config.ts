@@ -9,6 +9,9 @@ export default defineConfig({
     resolve: {
         alias: {
             src: fileURLToPath(new URL('./src', import.meta.url)),
+            // Numbers the client and the server both need. One file, imported
+            // by both, so they cannot drift apart.
+            shared: fileURLToPath(new URL('./shared', import.meta.url)),
         },
     },
 });

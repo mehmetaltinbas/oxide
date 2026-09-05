@@ -19,6 +19,20 @@ export type ServerMessage =
       }
     | { t: 'state'; tick: number; players: NetPlayer[]; joined?: NetPlayer[]; left?: string[] }
     | { t: 'built'; structure: NetStructure }
+    | { t: 'deployed'; deployable: NetDeployable }
+    /**
+     * A placement the server would not accept. The client puts a piece down the
+     * moment you click, so it needs telling to take that one back.
+     */
+    | {
+          t: 'refused';
+          what: 'build';
+          kind: string;
+          gx: number;
+          gy: number;
+          side?: 'n' | 'w';
+          reason: string;
+      }
     | { t: 'destroyed'; id: number }
     | { t: 'door'; id: number; open: boolean }
     | { t: 'chat'; from: string; text: string }

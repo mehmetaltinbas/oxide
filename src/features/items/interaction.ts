@@ -29,6 +29,8 @@ import { randRange } from 'src/shared/utils/rand-range.util';
  */
 export interface InteractionHooks {
     player(): PlayerState;
+    /** Tell the server a door was opened or shut. Everybody shares the door. */
+    reportDoor(id: number, open: boolean): void;
     heldItem(): ItemStack | null;
     /** Using what you hold, for the interactions that are really a use. */
     held(): HeldItemSystem;
@@ -166,6 +168,7 @@ export class InteractionSystem {
                 return;
             }
             this.build.setDoorOpen(bestDoor, !bestDoor.open);
+            this.hooks.reportDoor(bestDoor.id, !!bestDoor.open);
             this.audio.build();
             return;
         }

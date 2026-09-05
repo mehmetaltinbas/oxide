@@ -1,3 +1,4 @@
+import BUILD_NUMBERS from 'shared/building.json';
 import { CELL } from 'src/features/building/constants/cell.constant';
 import { DOOR_HP_MUL } from 'src/features/building/constants/door-hp-mul.constant';
 import { FOUNDATION_HP_MUL } from 'src/features/building/constants/foundation-hp-mul.constant';
@@ -21,7 +22,9 @@ import { edgeSegment } from 'src/features/building/utils/edge-segment.util';
 import { clamp } from 'src/shared/utils/clamp.util';
 import { dist } from 'src/shared/utils/dist.util';
 
-const WALL_THICKNESS = 9;
+const WALL_THICKNESS = BUILD_NUMBERS.wallThickness;
+/** Half-width of a deployable's solid box. Shared: the server pushes players out of these too. */
+const DEPLOY_HALF = BUILD_NUMBERS.deployHalf;
 
 function cellKey(gx: number, gy: number): string {
     return `${gx},${gy}`;
@@ -400,7 +403,7 @@ export class BuildSystem {
                 }
                 const dep = this.deployCells.get(cellKey(gx, gy));
                 if (dep && dep.kind !== 'sleeping_bag') {
-                    const half = 22;
+                    const half = DEPLOY_HALF;
                     const nx = clamp(x, dep.x - half, dep.x + half);
                     const ny = clamp(y, dep.y - half, dep.y + half);
                     const d = dist(x, y, nx, ny);

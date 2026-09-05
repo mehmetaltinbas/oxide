@@ -61,6 +61,12 @@ export interface HeldItemHooks {
     survival(): SurvivalSystem;
     damageBuilt(id: number, dmg: number, fx: number, fy: number, melee: boolean): void;
     notify(text: string): void;
+    /**
+     * Tell the server what was just put down. Placement is optimistic: the
+     * piece is already on the local map by the time this is called, and the
+     * server answers by confirming it or taking it back.
+     */
+    reportBuild(kind: string, gx: number, gy: number, side?: 'n' | 'w'): void;
 }
 
 export class HeldItemSystem {
@@ -388,18 +394,21 @@ export class HeldItemSystem {
         if (prev.kind === 'foundation') {
             this.payTier('twig');
             this.build.placeFoundation(prev.gx, prev.gy, 0);
+            this.hooks.reportBuild('foundation', prev.gx, prev.gy);
             this.npcs.invalidateNavigation();
         } else if (prev.kind === 'door') {
             const doorway = this.build.edgeAt(prev.gx, prev.gy, prev.side!);
             if (!doorway) return;
             this.payTier('twig');
             this.build.installDoor(doorway, 0);
+            this.hooks.reportBuild('door', prev.gx, prev.gy, prev.side as 'n' | 'w');
         } else {
             this.payTier('twig');
             this.build.placeEdge(prev.gx, prev.gy, prev.side!, prev.kind as 'wall' | 'doorway', 0, {
                 x: this.hooks.player().x,
                 y: this.hooks.player().y,
             });
+            this.hooks.reportBuild(prev.kind, prev.gx, prev.gy, prev.side as 'n' | 'w');
             this.npcs.invalidateNavigation();
         }
         this.audio.build();
@@ -500,6 +509,7 @@ export class HeldItemSystem {
         removeAcross(this.hooks.containers(), id, 1);
         const hp = id === 'tool_cupboard' ? 400 : id === 'wooden_box' ? 200 : 250;
         this.build.deploy(id as DeployableKind, gx, gy, 0, hp);
+        this.hooks.reportBuild(id, gx, gy);
         this.npcs.invalidateNavigation();
         this.hooks.player().attackTimer = 0.4;
         this.audio.build();

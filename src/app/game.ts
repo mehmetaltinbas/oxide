@@ -16,6 +16,7 @@ import { Phase } from 'src/app/types/phase.type';
 import { BuildSystem } from 'src/features/building/building';
 import { CELL } from 'src/features/building/constants/cell.constant';
 import { CONTAINER_REACH_SLACK } from 'src/features/building/constants/container-reach-slack.constant';
+import { RemoteBuild } from 'src/features/building/remote-build';
 import { StructureSystem } from 'src/features/building/structures';
 import { BuildKind } from 'src/features/building/types/build-kind.type';
 import { Deployable } from 'src/features/building/types/deployable.interface';
@@ -76,6 +77,8 @@ export class Game {
     held!: HeldItemSystem;
     interaction!: InteractionSystem;
     structures!: StructureSystem;
+    /** The room's building, put on the local map. Online only. */
+    remoteBuild!: RemoteBuild;
     particles = new Particles();
     camera: Camera;
     audio = new Audio();
@@ -164,8 +167,13 @@ export class Game {
             hitNpc: (n, dmg, fx, fy, byClan) =>
                 this.npcs.damage(n, dmg, fx, fy, MELEE_KNOCKBACK, byClan ?? 0),
             hitPlayer: (dmg, fx, fy) => this.survival.hurtPlayer(dmg, fx, fy),
-            hitStructure: (id, dmg, fx, fy, melee) =>
-                this.structures.damageBuilt(id, dmg, fx, fy, melee),
+            hitStructure: (id, dmg, fx, fy, melee) => {
+                this.structures.damageBuilt(id, dmg, fx, fy, melee);
+                // Raiding is shared: the server keeps the health everybody
+                // agrees on and says when a piece is gone. Combat itself is
+                // still client-side, so this is a report, not a request.
+                if (this.net.online) this.net.reportDamage(id, dmg);
+            },
             explosion: (x, y, r, dmg, owner, stuckTo) =>
                 this.structures.explode(x, y, r, dmg, owner, stuckTo),
         });
@@ -274,6 +282,9 @@ export class Game {
                 damageBuilt: (id, dmg, fx, fy, melee) =>
                     this.structures.damageBuilt(id, dmg, fx, fy, melee),
                 notify: (text) => this.notify(text),
+                reportBuild: (kind, gx, gy, side) => {
+                    if (this.net.online) this.net.reportBuild(kind, gx, gy, side);
+                },
             },
         );
 
@@ -284,6 +295,9 @@ export class Game {
             this.audio,
             {
                 player: () => this.player,
+                reportDoor: (id, open) => {
+                    if (this.net.online) this.net.reportDoor(id, open);
+                },
                 heldItem: () => this.heldItem(),
                 held: () => this.held,
                 canReach: (x, y) => this.canReach(x, y),
@@ -300,6 +314,7 @@ export class Game {
             },
         );
 
+        this.remoteBuild = new RemoteBuild(this.build, () => this.net.youId ?? '');
         this.structures = new StructureSystem(
             this.build,
             this.npcs,
@@ -526,6 +541,33 @@ export class Game {
             this.notify('Joined the island.');
         };
         this.net.onChat = (from, text) => this.notify(`${from}: ${text}`);
+        // The server owns what is built. These four put its answer on the map,
+        // so a wall somebody else raised is the same object as one you raised.
+        this.net.onBuildSnapshot = (structures, deployables) => {
+            this.remoteBuild.applySnapshot(structures, deployables);
+            this.npcs.invalidateNavigation();
+        };
+        this.net.onBuilt = (piece) => {
+            this.remoteBuild.applyBuilt(piece);
+            this.npcs.invalidateNavigation();
+        };
+        this.net.onDeployed = (piece) => {
+            this.remoteBuild.applyDeployed(piece);
+            this.npcs.invalidateNavigation();
+        };
+        this.net.onDestroyed = (id) => {
+            this.remoteBuild.applyDestroyed(id);
+            this.npcs.invalidateNavigation();
+        };
+        this.net.onDoor = (id, open) => this.remoteBuild.applyDoor(id, open);
+        // Your own placement went down the moment you clicked. If the server
+        // will not have it, say so rather than leaving you with a wall nobody
+        // else can see.
+        this.net.onRefused = (r) => {
+            this.remoteBuild.applyRefused(r.kind, r.gx, r.gy, r.side);
+            this.npcs.invalidateNavigation();
+            this.notify(r.reason);
+        };
         this.net.connect(serverUrl, name);
     }
 
@@ -677,6 +719,7 @@ export class Game {
             !this.paused
         ) {
             this.net.leaveRoom();
+            this.remoteBuild.reset();
             this.phase = 'lobby';
             return;
         }

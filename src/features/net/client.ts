@@ -2,6 +2,7 @@ import { PROTOCOL_VERSION } from 'src/features/net/constants/protocol-version.co
 import { ClientMessage } from 'src/features/net/types/client-message.type';
 import { NetPlayer } from 'src/features/net/types/net-player.interface';
 import { NetStatus } from 'src/features/net/types/net-status.type';
+import { NetDeployable } from 'src/features/net/types/net-deployable.interface';
 import { NetStructure } from 'src/features/net/types/net-structure.interface';
 import { RoomSummary } from 'src/features/net/types/room-summary.interface';
 import { ServerMessage } from 'src/features/net/types/server-message.type';
@@ -41,6 +42,7 @@ export class NetClient {
     /** Everyone in the room except you, ready to draw. */
     others = new Map<string, NetPlayer>();
     structures = new Map<number, NetStructure>();
+    deployables = new Map<number, NetDeployable>();
 
     /** Server's last word on where you are. */
     serverX = 0;
@@ -51,6 +53,19 @@ export class NetClient {
 
     onChat: ((from: string, text: string) => void) | null = null;
     onJoined: ((seed: number) => void) | null = null;
+    /**
+     * The room's building, handed to whoever knows how to put it on the map.
+     * The net client holds the wire state and nothing else: it does not know
+     * what a foundation is.
+     */
+    onBuildSnapshot: ((s: NetStructure[], d: NetDeployable[]) => void) | null = null;
+    onBuilt: ((s: NetStructure) => void) | null = null;
+    onDeployed: ((d: NetDeployable) => void) | null = null;
+    onDestroyed: ((id: number) => void) | null = null;
+    onDoor: ((id: number, open: boolean) => void) | null = null;
+    onRefused:
+        | ((r: { kind: string; gx: number; gy: number; side?: 'n' | 'w'; reason: string }) => void)
+        | null = null;
 
     private ws: WebSocket | null = null;
     private seq = 0;
@@ -126,6 +141,7 @@ export class NetClient {
         this.status = 'lobby';
         this.others.clear();
         this.structures.clear();
+        this.deployables.clear();
     }
 
     chat(text: string): void {
@@ -134,6 +150,19 @@ export class NetClient {
 
     reportBuild(kind: string, gx: number, gy: number, side?: 'n' | 'w'): void {
         this.send({ t: 'build', kind, gx, gy, side });
+    }
+
+    reportDoor(id: number, open: boolean): void {
+        this.send({ t: 'door', id, open });
+    }
+
+    reportDamage(id: number, amount: number): void {
+        this.send({ t: 'damage', id, amount });
+    }
+
+    /** True while this client is in a room, so callers know to report at all. */
+    get online(): boolean {
+        return this.status === 'playing';
     }
 
     // ------------------------------------------------------------- prediction
@@ -232,6 +261,9 @@ export class NetClient {
                 }
                 this.structures.clear();
                 for (const s of msg.structures) this.structures.set(s.id, s);
+                this.deployables.clear();
+                for (const d of msg.deployables) this.deployables.set(d.id, d);
+                this.onBuildSnapshot?.(msg.structures, msg.deployables);
                 break;
             }
             case 'state': {
@@ -248,13 +280,30 @@ export class NetClient {
             }
             case 'built':
                 this.structures.set(msg.structure.id, msg.structure);
+                this.onBuilt?.(msg.structure);
+                break;
+            case 'deployed':
+                this.deployables.set(msg.deployable.id, msg.deployable);
+                this.onDeployed?.(msg.deployable);
+                break;
+            case 'refused':
+                this.onRefused?.({
+                    kind: msg.kind,
+                    gx: msg.gx,
+                    gy: msg.gy,
+                    side: msg.side,
+                    reason: msg.reason,
+                });
                 break;
             case 'destroyed':
                 this.structures.delete(msg.id);
+                this.deployables.delete(msg.id);
+                this.onDestroyed?.(msg.id);
                 break;
             case 'door': {
                 const s = this.structures.get(msg.id);
                 if (s) s.open = msg.open;
+                this.onDoor?.(msg.id, msg.open);
                 break;
             }
             case 'chat':

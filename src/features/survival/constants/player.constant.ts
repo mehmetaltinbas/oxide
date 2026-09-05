@@ -1,8 +1,10 @@
+import PLAYER_NUMBERS from 'shared/player.json';
+
 export const PLAYER = {
-    radius: 13,
+    radius: PLAYER_NUMBERS.radius,
     maxHealth: 100,
-    speed: 132,
-    sprint: 1.4,
+    speed: PLAYER_NUMBERS.speed,
+    sprint: PLAYER_NUMBERS.sprint,
     maxCalories: 100,
     maxHydration: 100,
     /**

@@ -830,16 +830,6 @@ export class Hud {
         }
         // Not from the worn slot: "Take off" already does that, and two
         // buttons doing the same thing is worse than one.
-        if (
-            sel.container !== game.player.hotbar &&
-            sel.container !== game.player.worn &&
-            isBeltItem(stack.id)
-        ) {
-            actions.push({
-                label: 'To belt',
-                run: () => game.interaction.moveToBelt(sel.container, sel.index),
-            });
-        }
         actions.push({
             label: 'Drop',
             run: () => {
