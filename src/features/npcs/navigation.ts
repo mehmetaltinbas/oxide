@@ -28,13 +28,35 @@ const MAX_EXPANSIONS = 420;
  */
 const SEARCHES_PER_FRAME = 3;
 
+/**
+ * Upper radius of each cached size class. A body is tested against the top of
+ * its class, so the grid is never more optimistic than the collision that
+ * follows it: planning a route a body cannot physically take is what leaves an
+ * agent grinding along an obstacle instead of walking around it.
+ */
+const SIZE_CLASSES = [14, 22, 32];
+
+function sizeClass(radius: number): number {
+    for (let i = 0; i < SIZE_CLASSES.length; i++) {
+        if (radius <= SIZE_CLASSES[i]) return i;
+    }
+    return SIZE_CLASSES.length - 1;
+}
+
 export class Navigator {
     /**
      * Lazily filled cache of which cells an agent can stand in: 0 unknown,
      * 1 free, 2 blocked. Testing this properly means a spatial query per cell,
      * which is far too expensive to redo on every A* expansion.
      */
-    private blockedCache = new Uint8Array(GRID_W * GRID_H);
+    /**
+     * One cache per size class, because whether a cell is standable depends on
+     * how wide the body is. A single shared cache let the first agent to ask
+     * decide for everybody, so a narrow one could mark a gap open and every
+     * wider one after it read "open" from the cache and walked into the edge
+     * of it. Three classes is enough at this cell size.
+     */
+    private caches = SIZE_CLASSES.map(() => new Uint8Array(GRID_W * GRID_H));
     private searchesThisFrame = 0;
 
     constructor(
@@ -49,16 +71,20 @@ export class Navigator {
 
     /** Drop the cache when the world changes shape under it. */
     invalidate(): void {
-        this.blockedCache.fill(0);
+        for (const cache of this.caches) cache.fill(0);
     }
 
     /** True when an agent cannot stand in the middle of a cell. */
     private cellBlocked(gx: number, gy: number, radius: number): boolean {
         if (gx < 0 || gy < 0 || gx >= GRID_W || gy >= GRID_H) return true;
         const key = gy * GRID_W + gx;
-        const cached = this.blockedCache[key];
+        const cache = this.caches[sizeClass(radius)];
+        const cached = cache[key];
         if (cached !== 0) return cached === 2;
 
+        // Test against the top of the size class rather than the exact body,
+        // so every member of a class agrees with the cached answer.
+        const r = SIZE_CLASSES[sizeClass(radius)];
         const cx = gx * CELL + CELL / 2;
         const cy = gy * CELL + CELL / 2;
         let blocked = false;
@@ -68,13 +94,13 @@ export class Navigator {
                 if (n.hp <= 0 || n.kind === 'hemp') continue;
                 const dx = cx - n.x;
                 const dy = cy - n.y;
-                if (dx * dx + dy * dy < (n.radius * 0.55 + radius) ** 2) {
+                if (dx * dx + dy * dy < (n.radius * 0.55 + r) ** 2) {
                     blocked = true;
                     break;
                 }
             }
         }
-        this.blockedCache[key] = blocked ? 2 : 1;
+        cache[key] = blocked ? 2 : 1;
         return blocked;
     }
 

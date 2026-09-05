@@ -82,14 +82,18 @@ export class NpcSystem {
         // Re-plan when the destination has moved, the route ran out, or the timer
         // came round. Everything else follows the route it already has.
         const goalMoved = dist(x, y, n.pathGoalX, n.pathGoalY) > CELL;
-        if (!n.path || n.pathIndex >= n.path.length || goalMoved || n.repathIn <= 0) {
-            if (goalMoved || !n.path || n.pathIndex >= n.path.length || n.repathIn <= 0) {
-                n.repathIn = REPATH_SECONDS;
-                n.pathGoalX = x;
-                n.pathGoalY = y;
-                n.path = this.nav.findPath(n.x, n.y, x, y, Math.min(n.radius, 14));
-                n.pathIndex = 0;
-            }
+        // A search that found nothing must wait out the cooldown before trying
+        // again. Treating "no path" as its own reason to re-plan re-ran A* every
+        // frame, and one agent walled in somewhere ate the whole per-frame
+        // search budget. An exhausted route still re-plans at once, because
+        // that one is about to succeed.
+        const exhausted = n.path !== null && n.pathIndex >= n.path.length;
+        if (exhausted || goalMoved || n.repathIn <= 0) {
+            n.repathIn = REPATH_SECONDS;
+            n.pathGoalX = x;
+            n.pathGoalY = y;
+            n.path = this.nav.findPath(n.x, n.y, x, y, n.radius);
+            n.pathIndex = 0;
         }
 
         if (!n.path || n.path.length === 0) {
