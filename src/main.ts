@@ -5,6 +5,7 @@ import { saveGame } from 'src/features/session/save';
 import { hasSave } from 'src/features/session/utils/has-save.util';
 import { loadGame } from 'src/features/session/utils/load-game.util';
 import { Hud } from 'src/features/ui/hud';
+import { listScenarios, runScenario } from 'src/features/dev/run-scenario.util';
 import { Input } from 'src/shared/core/input';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -115,4 +116,20 @@ function frame(now: number): void {
 requestAnimationFrame(frame);
 
 // Exposed for debugging in the console: window.oxide.game
-(window as unknown as Record<string, unknown>).oxide = { game, input, renderer, hud, saveGame };
+const harness: Record<string, unknown> = { game, input, renderer, hud, saveGame };
+(window as unknown as Record<string, unknown>).oxide = harness;
+
+// Jump straight to a state worth testing, so checking a change does not mean
+// playing from the beach to reach the situation it is about.
+//
+// Everything sits inside the dev check, the console helpers included:
+// `import.meta.env.DEV` folds to false in a build, so this block goes, and with
+// nothing left referencing the module it goes too. Hanging the helpers off the
+// harness unconditionally would ship the whole scenario table.
+if (import.meta.env.DEV) {
+    harness.scenario = (name: string) => runScenario(game, name);
+    harness.scenarios = listScenarios;
+    const wanted = new URLSearchParams(window.location.search).get('scenario');
+    if (wanted) runScenario(game, wanted);
+    else listScenarios();
+}

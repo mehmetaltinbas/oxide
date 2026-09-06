@@ -100,3 +100,38 @@ end: the critical path first, then the one or two edge cases most likely to brea
 
 It is the shortest thing that catches an integration mistake, and it tells whoever reads the change
 what "working" was taken to mean.
+
+## Jumping to a state worth testing
+
+Checking a change used to mean playing from the beach until the game reached the
+situation the change was about, which for anything past the first few minutes is
+a lot of gathering before you learn whether it even works.
+
+Add `?scenario=<name>` to the dev URL:
+
+```
+http://localhost:5173/?scenario=base
+```
+
+Or switch without reloading, from the browser console:
+
+```js
+oxide.scenarios(); // list them
+oxide.scenario('night');
+```
+
+They live in `src/features/dev/scenarios.ts`, one row each: a name, a line
+saying what it sets up, and a function that puts the game in that state. Adding
+one is a new row, not a new branch somewhere else.
+
+**Verify a scenario when you add it.** A harness that quietly fails to reach the
+state it advertises is worse than no harness: it turns a broken feature into a
+passing check. The first `night` here was exactly that. It called `skipTime`,
+which is creative-mode only and returns without doing anything outside sandbox,
+so the scenario advertised midnight and handed back broad daylight. It sets the
+clock directly now.
+
+None of it ships. The whole block in `main.ts`, the console helpers included,
+sits behind `import.meta.env.DEV`, which folds to false in a build and takes the
+module with it. Exposing the helpers unconditionally would keep the entire table
+in the bundle, so if you add to this, check `dist/` afterwards.
