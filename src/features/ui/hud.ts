@@ -103,7 +103,6 @@ export class Hud {
 
         game.uiHover = game.panel !== 'none' || game.paused;
 
-        this.drawTopBar(game, w);
         this.drawVitals(game, h);
         this.drawHotbar(game, w, h);
         this.drawMapPanel(game, w);
@@ -123,67 +122,6 @@ export class Hud {
     }
 
     // ------------------------------------------------------------------ bars
-
-    private drawTopBar(game: Game, w: number): void {
-        const ui = this.ui;
-        const f = game.dayFraction;
-        const hours = Math.floor(f * 24);
-        const mins = Math.floor((f * 24 - hours) * 60);
-        const clock = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-        const mon = game.world.monumentAt(game.player.x, game.player.y);
-        const biome = game.world.biomeAt(game.player.x, game.player.y);
-        const place = mon ? mon.def.name : biome.charAt(0).toUpperCase() + biome.slice(1);
-        const hot = mon ? game.world.radiationAt(game.player.x, game.player.y) > 0 : false;
-
-        // Frame counter sits above everything, deliberately quiet.
-        const fps = Math.round(game.fps);
-        ui.textOnDark(`${Math.min(fps, 120)} / 120 fps`, 16, 12, {
-            size: 'micro',
-            color: fps >= 50 ? UI.onDarkFaint : fps >= 30 ? UI.hot : UI.warn,
-        });
-
-        ui.textOnDark(`Day ${game.day}`, 16, 28, { size: 'heading', weight: 600 });
-        ui.textOnDark(clock, 16, 52, { size: 'label', color: UI.onDarkSubtle });
-        ui.textOnDark(game.isNight ? 'night' : 'day', 70, 52, {
-            size: 'label',
-            color: game.isNight ? UI.accentInk : UI.onDarkSubtle,
-        });
-        ui.textOnDark(place, 130, 30, {
-            size: 'label',
-            weight: 600,
-            color: hot ? WORLD.hazard : UI.onDark,
-        });
-        if (hot) ui.textOnDark('irradiated', 130, 50, { size: 'caption', color: '#e8836a' });
-
-        // Centre line: only when something is actually happening.
-        let banner = '';
-        let bannerColor: string = UI.onDarkSubtle;
-        if (game.clanSystem.raid) {
-            const raider = game.clanSystem.clans.find(
-                (c) => c.index === game.clanSystem.raid!.clan,
-            );
-            banner = `${raider?.name ?? 'A clan'} is raiding your base`;
-            bannerColor = UI.warn;
-        } else if (game.craftSystem.craftJob) {
-            const r = RECIPES[game.craftSystem.craftJob.recipeIndex];
-            const waiting = game.craftSystem.craftQueue.length - 1;
-            banner =
-                `Crafting ${ITEMS[r.out].name}, ${game.craftSystem.craftJob.remaining.toFixed(1)}s` +
-                (waiting > 0 ? `  ·  ${waiting} more queued` : '');
-        }
-        if (banner) {
-            ui.textOnDark(banner, w / 2, 22, {
-                size: 'body',
-                weight: 600,
-                color: bannerColor,
-                align: 'center',
-            });
-        }
-
-        const bench = game.craftSystem.benchLevel();
-        const hint = `${bench > 0 ? `bench ${bench}   ` : ''}tab · c · m · h`;
-        ui.textOnDark(hint, w - 16, 22, { size: 'label', color: UI.onDarkFaint, align: 'right' });
-    }
 
     private drawVitals(game: Game, h: number): void {
         const ui = this.ui;
