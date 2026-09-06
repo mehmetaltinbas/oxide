@@ -15,3 +15,17 @@ export const INTERPOLATION_DELAY = 0.1;
 
 /** How many states to keep, enough that a burst of jitter cannot empty it. */
 export const SNAPSHOT_BUFFER = 12;
+
+/**
+ * Ticks a second on the server. The blend runs on this clock rather than on
+ * when packets landed: arrival times carry the network's jitter, so blending
+ * across them stretches and squeezes every movement, which is its own kind of
+ * shake on top of the one interpolation is meant to cure.
+ */
+export const SERVER_TICK_HZ = 30;
+
+/** How far the playout clock may drift from the server before it is reset. */
+export const MAX_CLOCK_DRIFT_TICKS = 12;
+
+/** How hard the playout clock is steered per tick of error. */
+export const CLOCK_CATCHUP = 0.08;

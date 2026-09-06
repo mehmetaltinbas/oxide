@@ -104,10 +104,18 @@ function frame(now: number): void {
     }
     if (steps === 5) accumulator = 0;
 
+    // Smooth the room at the display's rate, not the simulation's, then draw
+    // between simulation steps rather than on them. The fixed step and the
+    // frames are not locked together, so some frames run no step and others run
+    // two, and everything landed on step boundaries.
+    game.smoothRoom();
+    game.beginFrame(accumulator / STEP);
+
     ctx!.fillStyle = WORLD.voidBackdrop;
     ctx!.fillRect(0, 0, viewW, viewH);
     renderer.draw(game);
     hud.draw(game, viewW, viewH);
+    game.endFrame();
 
     input.endFrame();
     requestAnimationFrame(frame);

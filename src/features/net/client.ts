@@ -1,6 +1,9 @@
 import PLAYER_NUMBERS from 'shared/player.json';
 import {
+    CLOCK_CATCHUP,
     INTERPOLATION_DELAY,
+    MAX_CLOCK_DRIFT_TICKS,
+    SERVER_TICK_HZ,
     SNAPSHOT_BUFFER,
 } from 'src/features/net/constants/interpolation-delay.constant';
 import { PROTOCOL_VERSION } from 'src/features/net/constants/protocol-version.constant';
@@ -56,7 +59,10 @@ export class NetClient {
      * can be drawn smoothly between two of them rather than snapped to the
      * newest. See `interpolate`.
      */
-    private snapshots: { at: number; players: Pose[] }[] = [];
+    /** The moment being drawn, in server ticks. See `interpolate`. */
+    private playout = 0;
+    private lastPlayout = 0;
+    private snapshots: { tick: number; at: number; players: Pose[] }[] = [];
     structures = new Map<number, NetStructure>();
     deployables = new Map<number, NetDeployable>();
 
@@ -236,22 +242,45 @@ export class NetClient {
      */
     interpolate(): void {
         if (this.snapshots.length < 2) return;
-        const target = performance.now() - INTERPOLATION_DELAY * 1000;
+
+        // Which moment to draw, on a clock of our own that runs at the server's
+        // rate and is steered gently toward it. Working it out from the newest
+        // packet every frame means the answer moves whenever a packet is early
+        // or late, feeding arrival jitter straight into how fast everything
+        // appears to move.
+        const now = performance.now();
+        const elapsed = this.lastPlayout > 0 ? (now - this.lastPlayout) / 1000 : 0;
+        this.lastPlayout = now;
+
+        const newest = this.snapshots[this.snapshots.length - 1];
+        const sinceNewest = (now - newest.at) / 1000;
+        const want = newest.tick + (sinceNewest - INTERPOLATION_DELAY) * SERVER_TICK_HZ;
+
+        if (this.playout === 0 || Math.abs(want - this.playout) > MAX_CLOCK_DRIFT_TICKS) {
+            this.playout = want;
+        } else {
+            // Always forward, never back: time running backwards shows as
+            // everything twitching on the spot.
+            const error = want - this.playout;
+            const rate = 1 + Math.max(-0.25, Math.min(0.25, error * CLOCK_CATCHUP));
+            this.playout += Math.max(0, elapsed * SERVER_TICK_HZ * rate);
+        }
+        const target = this.playout;
 
         // Past the end of the buffer, hold on the newest pair rather than
         // running ahead of what the server has actually said.
         let older = this.snapshots[this.snapshots.length - 2];
-        let newer = this.snapshots[this.snapshots.length - 1];
+        let newer = newest;
         for (let i = 0; i < this.snapshots.length - 1; i++) {
-            if (this.snapshots[i].at <= target && this.snapshots[i + 1].at >= target) {
+            if (this.snapshots[i].tick <= target && this.snapshots[i + 1].tick >= target) {
                 older = this.snapshots[i];
                 newer = this.snapshots[i + 1];
                 break;
             }
         }
 
-        const span = newer.at - older.at;
-        const t = span > 0 ? clamp01((target - older.at) / span) : 1;
+        const span = newer.tick - older.tick;
+        const t = span > 0 ? clamp01((target - older.tick) / span) : 1;
         for (const p of this.others.values()) {
             const a = older.players.find((x) => x.id === p.id);
             const b = newer.players.find((x) => x.id === p.id);
@@ -341,7 +370,11 @@ export class NetClient {
                 // mean blending mutated the state it was blending from: each
                 // frame pulled the newest position toward the older one, and
                 // instead of gliding, people stalled and jumped.
-                this.snapshots.push({ at: performance.now(), players: msg.players.map(pose) });
+                this.snapshots.push({
+                    tick: msg.tick,
+                    at: performance.now(),
+                    players: msg.players.map(pose),
+                });
                 if (this.snapshots.length > SNAPSHOT_BUFFER) this.snapshots.shift();
                 const seen = new Set<string>();
                 for (const p of msg.players) {

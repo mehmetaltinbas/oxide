@@ -16,6 +16,8 @@ import { Phase } from 'src/app/types/phase.type';
 import { BuildSystem } from 'src/features/building/building';
 import { CELL } from 'src/features/building/constants/cell.constant';
 import { CONTAINER_REACH_SLACK } from 'src/features/building/constants/container-reach-slack.constant';
+import { RenderLerp } from 'src/features/render/render-lerp';
+import { RenderLerpable } from 'src/features/render/render-lerp';
 import { RemoteBuild } from 'src/features/building/remote-build';
 import { StructureSystem } from 'src/features/building/structures';
 import { BuildKind } from 'src/features/building/types/build-kind.type';
@@ -625,7 +627,42 @@ export class Game {
 
     // ------------------------------------------------------------------ loop
 
+    /** Blending between simulation steps, so drawing is not tied to them. */
+    private readonly renderLerp = new RenderLerp();
+
+    /**
+     * Smooth the other survivors, at the display's rate rather than the
+     * simulation's. Their positions arrive 30 times a second, and drawing them
+     * as they land made everybody else step while your own survivor glided.
+     */
+    smoothRoom(): void {
+        if (this.mode === 'online') this.net.interpolate();
+    }
+
+    /**
+     * Everything whose drawn position should be blended between steps.
+     *
+     * Other survivors are left out online: they are already smoothed once a
+     * frame against the server's clock, and blending twice would only add lag.
+     */
+    private lerpables(): RenderLerpable[] {
+        return [this.player, ...this.npcs.list];
+    }
+
+    /** Called before each frame is drawn, with how far through the step we are. */
+    beginFrame(alpha: number): void {
+        this.renderLerp.apply(this.lerpables(), alpha);
+    }
+
+    /** Called straight after drawing, so nothing else sees a blended position. */
+    endFrame(): void {
+        this.renderLerp.restore();
+    }
+
     update(dt: number, firstStep = true): void {
+        // Where everything is before this step is where the next frame blends
+        // from.
+        this.renderLerp.capture(this.lerpables());
         this.camera.update(dt);
         this.edgeStep = firstStep;
 
@@ -652,10 +689,7 @@ export class Game {
         }
 
         this.survival.updateSurvival(dt);
-        // Smooth the other survivors before anything reads them. Their
-        // positions arrive 30 times a second, and drawing them as they land
-        // made everybody else step while your own survivor glided.
-        if (this.mode === 'online') this.net.interpolate();
+        this.smoothRoom();
         this.updatePlayer(dt);
         this.npcs.update(dt, this.player);
         this.combat.update(dt);
