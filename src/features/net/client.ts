@@ -56,7 +56,7 @@ export class NetClient {
      * can be drawn smoothly between two of them rather than snapped to the
      * newest. See `interpolate`.
      */
-    private snapshots: { at: number; players: NetPlayer[] }[] = [];
+    private snapshots: { at: number; players: Pose[] }[] = [];
     structures = new Map<number, NetStructure>();
     deployables = new Map<number, NetDeployable>();
 
@@ -336,7 +336,12 @@ export class NetClient {
             case 'state': {
                 // Kept with the moment it landed, so `interpolate` can draw
                 // between two states instead of jumping to this one.
-                this.snapshots.push({ at: performance.now(), players: msg.players });
+                // Copies, not the objects themselves. `others` points at the
+                // very objects the message arrived in, so keeping those would
+                // mean blending mutated the state it was blending from: each
+                // frame pulled the newest position toward the older one, and
+                // instead of gliding, people stalled and jumped.
+                this.snapshots.push({ at: performance.now(), players: msg.players.map(pose) });
                 if (this.snapshots.length > SNAPSHOT_BUFFER) this.snapshots.shift();
                 const seen = new Set<string>();
                 for (const p of msg.players) {
@@ -390,6 +395,18 @@ export class NetClient {
 }
 
 /** The movement rule. Must stay identical to the server's, or they will fight. */
+/** Just enough of a player to draw them between two moments. */
+interface Pose {
+    id: string;
+    x: number;
+    y: number;
+    facing: number;
+}
+
+function pose(p: { id: string; x: number; y: number; facing: number }): Pose {
+    return { id: p.id, x: p.x, y: p.y, facing: p.facing };
+}
+
 function clamp01(v: number): number {
     return v < 0 ? 0 : v > 1 ? 1 : v;
 }
