@@ -1,4 +1,8 @@
 import PLAYER_NUMBERS from 'shared/player.json';
+import {
+    INTERPOLATION_DELAY,
+    SNAPSHOT_BUFFER,
+} from 'src/features/net/constants/interpolation-delay.constant';
 import { PROTOCOL_VERSION } from 'src/features/net/constants/protocol-version.constant';
 import { ClientMessage } from 'src/features/net/types/client-message.type';
 import { NetPlayer } from 'src/features/net/types/net-player.interface';
@@ -47,6 +51,12 @@ export class NetClient {
     rooms: RoomSummary[] = [];
     /** Everyone in the room except you, ready to draw. */
     others = new Map<string, NetPlayer>();
+    /**
+     * The last few states, kept with the moment each arrived, so other players
+     * can be drawn smoothly between two of them rather than snapped to the
+     * newest. See `interpolate`.
+     */
+    private snapshots: { at: number; players: NetPlayer[] }[] = [];
     structures = new Map<number, NetStructure>();
     deployables = new Map<number, NetDeployable>();
 
@@ -212,6 +222,46 @@ export class NetClient {
      * Fold the server's answer back in: replay every input it has not seen yet,
      * then ease onto the result rather than snapping.
      */
+    /**
+     * Draw other players where they were a moment ago, smoothly.
+     *
+     * Called once a frame, before anything reads `others`. They used to be
+     * snapped to the newest state, so everybody else moved in 33ms steps while
+     * your own survivor, predicted locally, glided. This walks back
+     * `INTERPOLATION_DELAY` and blends the two states either side of it.
+     *
+     * Positions and facings only. Health and the rest stay at the newest the
+     * server sent: a stale number is a lie, a stale position is just where
+     * somebody was.
+     */
+    interpolate(): void {
+        if (this.snapshots.length < 2) return;
+        const target = performance.now() - INTERPOLATION_DELAY * 1000;
+
+        // Past the end of the buffer, hold on the newest pair rather than
+        // running ahead of what the server has actually said.
+        let older = this.snapshots[this.snapshots.length - 2];
+        let newer = this.snapshots[this.snapshots.length - 1];
+        for (let i = 0; i < this.snapshots.length - 1; i++) {
+            if (this.snapshots[i].at <= target && this.snapshots[i + 1].at >= target) {
+                older = this.snapshots[i];
+                newer = this.snapshots[i + 1];
+                break;
+            }
+        }
+
+        const span = newer.at - older.at;
+        const t = span > 0 ? clamp01((target - older.at) / span) : 1;
+        for (const p of this.others.values()) {
+            const a = older.players.find((x) => x.id === p.id);
+            const b = newer.players.find((x) => x.id === p.id);
+            if (!a || !b) continue;
+            p.x = a.x + (b.x - a.x) * t;
+            p.y = a.y + (b.y - a.y) * t;
+            p.facing = lerpAngle(a.facing, b.facing, t);
+        }
+    }
+
     private reconcile(me: NetPlayer, dt = 1 / 60): void {
         this.serverX = me.x;
         this.serverY = me.y;
@@ -284,6 +334,10 @@ export class NetClient {
                 break;
             }
             case 'state': {
+                // Kept with the moment it landed, so `interpolate` can draw
+                // between two states instead of jumping to this one.
+                this.snapshots.push({ at: performance.now(), players: msg.players });
+                if (this.snapshots.length > SNAPSHOT_BUFFER) this.snapshots.shift();
                 const seen = new Set<string>();
                 for (const p of msg.players) {
                     seen.add(p.id);
@@ -336,6 +390,18 @@ export class NetClient {
 }
 
 /** The movement rule. Must stay identical to the server's, or they will fight. */
+function clamp01(v: number): number {
+    return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/** Blend two angles the short way round, so facing never spins the long way. */
+function lerpAngle(a: number, b: number, t: number): number {
+    let d = b - a;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return a + d * t;
+}
+
 function applyInput(x: number, y: number, p: PendingInput): { x: number; y: number } {
     let dx = (p.right ? 1 : 0) - (p.left ? 1 : 0);
     let dy = (p.down ? 1 : 0) - (p.up ? 1 : 0);

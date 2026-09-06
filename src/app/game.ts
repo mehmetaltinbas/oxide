@@ -652,6 +652,10 @@ export class Game {
         }
 
         this.survival.updateSurvival(dt);
+        // Smooth the other survivors before anything reads them. Their
+        // positions arrive 30 times a second, and drawing them as they land
+        // made everybody else step while your own survivor glided.
+        if (this.mode === 'online') this.net.interpolate();
         this.updatePlayer(dt);
         this.npcs.update(dt, this.player);
         this.combat.update(dt);
