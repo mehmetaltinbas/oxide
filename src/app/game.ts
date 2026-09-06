@@ -543,6 +543,9 @@ export class Game {
         this.net.onChat = (from, text) => this.notify(`${from}: ${text}`);
         // The server owns what is built. These four put its answer on the map,
         // so a wall somebody else raised is the same object as one you raised.
+        // Prediction has to answer the same question the server does about
+        // what is solid, or replaying inputs walks through walls.
+        this.net.solid = (x, y, radius) => this.build.resolve(x, y, radius);
         this.net.onBuildSnapshot = (structures, deployables) => {
             this.remoteBuild.applySnapshot(structures, deployables);
             this.npcs.invalidateNavigation();

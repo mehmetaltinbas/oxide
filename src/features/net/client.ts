@@ -1,3 +1,4 @@
+import PLAYER_NUMBERS from 'shared/player.json';
 import { PROTOCOL_VERSION } from 'src/features/net/constants/protocol-version.constant';
 import { ClientMessage } from 'src/features/net/types/client-message.type';
 import { NetPlayer } from 'src/features/net/types/net-player.interface';
@@ -19,8 +20,13 @@ interface PendingInput {
     run: boolean;
 }
 
-const SPEED = 132;
-const SPRINT = 1.4;
+// The same numbers the server moves you with. They were typed out again here,
+// so changing the player's speed would have moved the server and left
+// prediction running at the old one, which is a rubber-band nobody would have
+// connected to the edit that caused it.
+const SPEED = PLAYER_NUMBERS.speed;
+const SPRINT = PLAYER_NUMBERS.sprint;
+const RADIUS = PLAYER_NUMBERS.radius;
 /** How hard the client is pulled back onto the server's answer, per second. */
 const RECONCILE_RATE = 9;
 /** Past this gap, snap rather than sliding, the client is simply wrong. */
@@ -52,6 +58,11 @@ export class NetClient {
     predictedY = 0;
 
     onChat: ((from: string, text: string) => void) | null = null;
+    /**
+     * Push a circle out of the room's building, the same rule the server runs.
+     * Set by the game, because the net client does not know what a wall is.
+     */
+    solid: ((x: number, y: number, radius: number) => { x: number; y: number }) | null = null;
     onJoined: ((seed: number) => void) | null = null;
     /**
      * The room's building, handed to whoever knows how to put it on the map.
@@ -210,8 +221,14 @@ export class NetClient {
         let y = me.y;
         for (const p of this.pending) {
             const moved = applyInput(x, y, p);
-            x = moved.x;
-            y = moved.y;
+            // Push out of walls and boxes on every replayed step, because the
+            // server does that on every step it takes. Replaying without it
+            // meant the two disagreed exactly where it shows: running along
+            // your own wall, the replay walked through it and the correction
+            // dragged you back out.
+            const solid = this.solid?.(moved.x, moved.y, RADIUS) ?? moved;
+            x = solid.x;
+            y = solid.y;
         }
 
         const gap = Math.hypot(x - this.predictedX, y - this.predictedY);
