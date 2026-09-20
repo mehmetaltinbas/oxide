@@ -1,5 +1,7 @@
 import { ITEMS } from 'src/features/items/constants/items.constant';
 import { ItemId } from 'src/features/items/types/item-id.type';
+import { Ink } from 'src/features/render/ink';
+import { INK } from 'src/shared/design/constants/ink.constant';
 
 /**
  * Every item is a drawn glyph, never a coloured square. See docs/systems/ui.md.
@@ -20,8 +22,17 @@ export function drawItemIcon(
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     const draw = GLYPHS[id];
-    if (draw) draw(ctx);
-    else fallback(ctx, ITEMS[id].color);
+    const paint = (): void => {
+        if (draw) draw(ctx);
+        else fallback(ctx, ITEMS[id].color);
+    };
+    // Every icon in the game comes through here, in the pack, on the belt, in
+    // the crafting list and lying on the ground, so this is where they are all
+    // inked: fills get an outline, thin lines become bold black marks, and a
+    // shape drawn as a line gets the pen underneath it. See `Ink.glyph`.
+    const pen = Ink.of(ctx);
+    if (pen) pen.glyph(INK.glyphDetail, paint);
+    else paint();
     ctx.restore();
 }
 
@@ -222,24 +233,40 @@ const GLYPHS: Partial<Record<ItemId, Glyph>> = {
         );
     },
     leather: (ctx) => {
-        poly(
-            ctx,
-            [
-                [-0.28, -0.1],
-                [-0.1, -0.28],
-                [0.22, -0.2],
-                [0.3, 0.08],
-                [0.06, 0.28],
-                [-0.24, 0.16],
-            ],
-            '#a3714a',
-            '#6d4a2c',
-        );
-        ctx.strokeStyle = '#6d4a2c';
-        ctx.lineWidth = 0.03;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#5d3d22';
+        ctx.lineWidth = 0.035;
+        // The piece itself. Nothing on it is a ruled line: a cut of leather
+        // holds no straight edge, and the square version read as a crate.
+        ctx.fillStyle = '#a3714a';
         ctx.beginPath();
-        ctx.moveTo(-0.12, -0.16);
-        ctx.lineTo(0.1, 0.14);
+        ctx.moveTo(-0.3, -0.18);
+        ctx.quadraticCurveTo(-0.02, -0.26, 0.18, -0.18);
+        ctx.lineTo(0.3, 0.06);
+        ctx.quadraticCurveTo(0.02, 0.3, -0.3, 0.18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // The far corner curling back, its underside lighter. This is what
+        // says leather at pack size, where the stitching is a few pixels.
+        ctx.fillStyle = '#c9935c';
+        ctx.beginPath();
+        ctx.moveTo(0.18, -0.18);
+        ctx.quadraticCurveTo(0.34, -0.14, 0.3, 0.06);
+        ctx.quadraticCurveTo(0.2, -0.04, 0.18, -0.18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Stitching along the near edge, and one crease across the flat.
+        ctx.lineWidth = 0.028;
+        ctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+            const t = i * 0.12;
+            ctx.moveTo(-0.22 + t, 0.16);
+            ctx.lineTo(-0.17 + t, 0.145);
+        }
+        ctx.moveTo(-0.2, -0.04);
+        ctx.quadraticCurveTo(-0.02, 0.02, 0.12, -0.06);
         ctx.stroke();
     },
     bone: (ctx) => {

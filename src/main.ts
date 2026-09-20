@@ -121,7 +121,15 @@ function frame(now: number): void {
     requestAnimationFrame(frame);
 }
 
-requestAnimationFrame(frame);
+// The lettering is loaded before the first frame is drawn. `font-display:
+// block` stops the browser painting a fallback, but canvas measures text
+// itself: without this the first frames are laid out in monospace and then jump
+// when the real face arrives.
+if (document.fonts) {
+    void document.fonts.ready.then(() => requestAnimationFrame(frame));
+} else {
+    requestAnimationFrame(frame);
+}
 
 // Exposed for debugging in the console: window.oxide.game
 const harness: Record<string, unknown> = { game, input, renderer, hud, saveGame };

@@ -1,4 +1,8 @@
+import { TYPE } from 'src/shared/design/constants/type.constant';
 import { PROGRESS_ARC } from 'src/shared/design/constants/progress-arc.constant';
+import { ComicTexture } from 'src/features/render/comic-texture';
+import { Ink } from 'src/features/render/ink';
+import { GRASS, INK } from 'src/shared/design/constants/ink.constant';
 import { wornId } from 'src/features/items/utils/worn-id.util';
 import { ItemId } from 'src/features/items/types/item-id.type';
 import { darken } from 'src/shared/utils/darken.util';
@@ -33,7 +37,14 @@ function byY(a: { y: number }, b: { y: number }): number {
 const nodeBuf: ResourceNode[] = [];
 
 export class Renderer {
-    constructor(private ctx: CanvasRenderingContext2D) {}
+    /** The pen, and the printed textures. Both belong to this canvas. */
+    private ink: Ink;
+    private texture: ComicTexture;
+
+    constructor(private ctx: CanvasRenderingContext2D) {
+        this.ink = new Ink(ctx);
+        this.texture = new ComicTexture(ctx);
+    }
 
     draw(game: GameView): void {
         const ctx = this.ctx;
@@ -48,6 +59,9 @@ export class Renderer {
         }
         this.biomes = game.world.biomes;
         const b = cam.viewBounds(140);
+        // Everything in the world is a drawn shape, so it all gets the pen.
+        // The interface is not a panel and is left alone; see `ink.ts`.
+        this.ink.start();
         this.drawTerrain(b);
         this.drawMonuments(game);
         this.drawFoundations(game, b);
@@ -60,9 +74,14 @@ export class Renderer {
         this.drawNpcs(game, b);
         this.drawRemotePlayers(game);
         this.drawPlayer(game);
-        this.drawShots(game);
-        this.drawParticles(game);
-        this.drawBuildPreview(game);
+        // Light, sparks and a ghost placement are not objects: a line round
+        // any of them turns it into a sticker.
+        this.ink.suspend(() => {
+            this.drawShots(game);
+            this.drawParticles(game);
+            this.drawBuildPreview(game);
+        });
+        this.ink.stop();
 
         ctx.restore();
 
@@ -119,20 +138,202 @@ export class Renderer {
         const y0 = Math.max(0, Math.floor(b.y0 / BIOME_TILE));
         const y1 = Math.min(BIOME_H - 1, Math.floor(b.y1 / BIOME_TILE));
         const t = performance.now() / 900;
-        for (let y = y0; y <= y1; y++) {
-            for (let x = x0; x <= x1; x++) {
-                const biome = this.biomes![y * BIOME_W + x];
-                if (biome === 'water') {
-                    if (Math.sin((x + y) * 0.7 + t) <= 0.55) continue;
-                    ctx.fillStyle = 'rgba(120, 180, 220, 0.13)';
-                } else {
-                    const n = ((x * 73856093) ^ (y * 19349663)) >>> 0;
-                    if (n % 5 !== 0) continue;
-                    ctx.fillStyle = 'rgba(0,0,0,0.07)';
+        // Mottling and shimmer are the tone of the ground, not things on it:
+        // inked, every tile came out as a cell in a black grid.
+        this.ink.suspend(() => {
+            for (let y = y0; y <= y1; y++) {
+                for (let x = x0; x <= x1; x++) {
+                    const biome = this.biomes![y * BIOME_W + x];
+                    if (biome === 'water') {
+                        if (Math.sin((x + y) * 0.7 + t) <= 0.55) continue;
+                        ctx.fillStyle = 'rgba(120, 180, 220, 0.13)';
+                    } else {
+                        const n = ((x * 73856093) ^ (y * 19349663)) >>> 0;
+                        if (n % 5 !== 0) continue;
+                        ctx.fillStyle = 'rgba(0,0,0,0.07)';
+                    }
+                    ctx.fillRect(x * BIOME_TILE, y * BIOME_TILE, BIOME_TILE + 1, BIOME_TILE + 1);
                 }
-                ctx.fillRect(x * BIOME_TILE, y * BIOME_TILE, BIOME_TILE + 1, BIOME_TILE + 1);
+            }
+        });
+
+        this.drawGrass(b);
+        this.drawGroundScreen(b);
+    }
+
+    /**
+     * Tufts of grass across open ground.
+     *
+     * On a fixed grid, jittered from the cell's own coordinates, so a tuft
+     * stays put as the camera moves. Strokes rather than fills, which keeps the
+     * pen off them: a blade of grass is already a mark.
+     */
+    private drawGrass(b: { x0: number; y0: number; x1: number; y1: number }): void {
+        const ctx = this.ctx;
+        const step = GRASS.spacing;
+        ctx.save();
+        ctx.strokeStyle = GRASS.color;
+        ctx.lineWidth = GRASS.width;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        const gx0 = Math.floor(b.x0 / step);
+        const gx1 = Math.ceil(b.x1 / step);
+        const gy0 = Math.floor(b.y0 / step);
+        const gy1 = Math.ceil(b.y1 / step);
+        for (let gy = gy0; gy <= gy1; gy++) {
+            for (let gx = gx0; gx <= gx1; gx++) {
+                const n = Math.sin(gx * 127.1 + gy * 311.7) * 43758.5453;
+                const r = n - Math.floor(n);
+                const n2 = Math.sin(gx * 269.5 + gy * 183.3) * 43758.5453;
+                const r2 = n2 - Math.floor(n2);
+                if (r > 0.62) continue;
+                const x = gx * step + r * step;
+                const y = gy * step + r2 * step;
+                // Nothing grows in the sea.
+                const bx = Math.floor(x / BIOME_TILE);
+                const by = Math.floor(y / BIOME_TILE);
+                if (this.biomes && this.biomes[by * BIOME_W + bx] === 'water') continue;
+                for (let i = 0; i < GRASS.blades; i++) {
+                    const lean = (i - 1) * 3.5 + (r - 0.5) * 3;
+                    const h = GRASS.height * (0.7 + r2 * 0.6);
+                    ctx.moveTo(x + (i - 1) * 3, y);
+                    ctx.lineTo(x + (i - 1) * 3 + lean, y - h);
+                }
             }
         }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    /**
+     * The dot screen over the ground.
+     *
+     * Light enough to read as paper rather than as dirt, and the one thing that
+     * stops a flat biome colour looking like a vector drawing.
+     */
+    private drawGroundScreen(b: { x0: number; y0: number; x1: number; y1: number }): void {
+        const pattern = this.texture.halftone();
+        if (!pattern) return;
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.fillStyle = pattern;
+        this.ink.suspend(() => ctx.fillRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0));
+        ctx.restore();
+    }
+
+    /**
+     * Thin ink inside a shape.
+     *
+     * The outline says where a thing ends; these say what it is made of. Always
+     * solid black: a comic has one ink and no grey, and a mark at half opacity
+     * reads as pencil left under the ink.
+     */
+    private lines(ctx: CanvasRenderingContext2D, build: (path: Path2D) => void): void {
+        const path = new Path2D();
+        build(path);
+        ctx.save();
+        ctx.strokeStyle = INK.line;
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = INK.markWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke(path);
+        ctx.restore();
+    }
+
+    /**
+     * Ink texture inside one tier of a conifer.
+     *
+     * Not an outline: the pen already drew that. These are the marks that say
+     * what the shape is made of, which for a pine is the fishbone of its
+     * branches and hatching down the side the light is not on.
+     */
+    private markTier(ctx: CanvasRenderingContext2D, y: number, r: number, variant: number): void {
+        const apexY = y - r;
+        const baseY = y + r * 0.5;
+        const height = baseY - apexY;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(0, apexY);
+        ctx.lineTo(-r, baseY);
+        ctx.lineTo(r, baseY);
+        ctx.closePath();
+        ctx.clip();
+
+        ctx.strokeStyle = INK.line;
+        ctx.globalAlpha = 1;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Branches, two rows, the lower one wider: a tier spreads as it drops.
+        ctx.lineWidth = INK.markWidth;
+        ctx.beginPath();
+        for (const t of [0.42, 0.7]) {
+            const py = apexY + height * t;
+            const reach = r * t * 0.62;
+            const drop = reach * 0.42;
+            const lean = ((variant % 3) - 1) * 0.6;
+            ctx.moveTo(lean, py);
+            ctx.lineTo(-reach + lean, py + drop);
+            ctx.moveTo(lean, py);
+            ctx.lineTo(reach + lean, py + drop);
+        }
+        ctx.stroke();
+
+        // Shade down the right flank: hatching is how a press says the light
+        // comes from the other side.
+        ctx.lineWidth = INK.hatchMarkWidth;
+        ctx.beginPath();
+        const step = INK.hatchSpacing * 0.75;
+        for (let hx = r * 0.18; hx < r; hx += step) {
+            ctx.moveTo(hx, baseY);
+            ctx.lineTo(hx + height * 0.45, apexY + height * 0.25);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    /**
+     * Facets and stipple on stone.
+     *
+     * A boulder is flat faces meeting at edges, and a press shades the far side
+     * with dots rather than with a darker grey.
+     */
+    private markStone(radius: number, seed: number): void {
+        const ctx = this.ctx;
+        this.ink.suspend(() => {
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(0, 0, radius * 0.95, radius * 0.74, 0, 0, TAU);
+            ctx.clip();
+
+            ctx.fillStyle = INK.line;
+            const step = INK.halftoneSpacing * 0.55;
+            for (let y = -radius; y < radius; y += step) {
+                for (let x = -radius; x < radius; x += step) {
+                    const shade = (x + y) / (radius * 2);
+                    if (shade < 0.12) continue;
+                    const off = ((Math.floor((y + radius) / step) % 2) * step) / 2;
+                    ctx.beginPath();
+                    ctx.arc(x + off, y, INK.stippleDot * (0.6 + shade * 0.9), 0, TAU);
+                    ctx.fill();
+                }
+            }
+
+            ctx.strokeStyle = INK.line;
+            ctx.lineWidth = INK.markWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            for (let i = 0; i < 3; i++) {
+                const a = (((seed + i * 29) % 100) / 100) * TAU;
+                ctx.moveTo(-radius * 0.1, -radius * 0.12);
+                ctx.lineTo(Math.cos(a) * radius * 0.9, Math.sin(a) * radius * 0.7);
+            }
+            ctx.stroke();
+            ctx.restore();
+        });
     }
 
     /** Bake the biome grid once, one pixel per tile. */
@@ -197,13 +398,13 @@ export class Renderer {
                 ctx.stroke();
                 ctx.setLineDash([]);
                 ctx.fillStyle = 'rgba(180, 230, 90, 0.75)';
-                ctx.font = 'bold 15px ui-monospace, monospace';
+                ctx.font = `bold 15px ${TYPE.display}`;
                 ctx.textAlign = 'center';
                 ctx.fillText(`☢ ${def.name}`, m.x, m.y - m.radius + 18);
                 ctx.textAlign = 'left';
             } else {
                 ctx.fillStyle = 'rgba(220,220,200,0.65)';
-                ctx.font = 'bold 14px ui-monospace, monospace';
+                ctx.font = `bold 14px ${TYPE.display}`;
                 ctx.textAlign = 'center';
                 ctx.fillText(def.name, m.x, m.y - m.radius + 18);
                 ctx.textAlign = 'left';
@@ -439,7 +640,7 @@ export class Renderer {
                 ctx.fillStyle = '#5a4c34';
                 ctx.fillRect(-20, 6, 40, 8);
                 ctx.fillStyle = WORLD.lamp;
-                ctx.font = 'bold 13px ui-monospace, monospace';
+                ctx.font = `bold 13px ${TYPE.display}`;
                 ctx.textAlign = 'center';
                 ctx.fillText(String(lvl), 0, -9);
                 ctx.textAlign = 'left';
@@ -542,7 +743,16 @@ export class Renderer {
                 { y: -n.radius * 1.35, r: n.radius * 1.3 },
                 { y: -n.radius * 0.65, r: n.radius * 1.55 },
             ];
-            for (let i = 0; i < tiers.length; i++) {
+            // Grain up the trunk, so it is timber rather than a brown bar.
+            this.lines(ctx, (d) => {
+                d.moveTo(-n.radius * 0.08, -n.radius * 0.42);
+                d.lineTo(-n.radius * 0.08, n.radius * 0.42);
+                d.moveTo(n.radius * 0.1, -n.radius * 0.3);
+                d.lineTo(n.radius * 0.1, n.radius * 0.36);
+            });
+            // Bottom tier first, crown last: a conifer's top sits in front of
+            // the skirt below it, and painting downward buried every crown.
+            for (let i = tiers.length - 1; i >= 0; i--) {
                 ctx.fillStyle = i % 2 === 0 ? def.color : '#3a7040';
                 ctx.beginPath();
                 ctx.moveTo(0, tiers[i].y - tiers[i].r);
@@ -550,6 +760,7 @@ export class Renderer {
                 ctx.lineTo(tiers[i].r, tiers[i].y + tiers[i].r * 0.5);
                 ctx.closePath();
                 ctx.fill();
+                this.markTier(ctx, tiers[i].y, tiers[i].r, n.seed + i);
             }
         } else if (n.kind === 'hemp') {
             ctx.fillStyle = def.color;
@@ -573,18 +784,23 @@ export class Renderer {
             }
             ctx.closePath();
             ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,0.16)';
-            ctx.beginPath();
-            ctx.ellipse(
-                -n.radius * 0.2,
-                -n.radius * 0.25,
-                n.radius * 0.4,
-                n.radius * 0.22,
-                -0.4,
-                0,
-                TAU,
-            );
-            ctx.fill();
+            // A highlight is light, not an object: inked it became a pale
+            // pebble stuck to the front of every boulder.
+            this.ink.suspend(() => {
+                ctx.fillStyle = 'rgba(255,255,255,0.16)';
+                ctx.beginPath();
+                ctx.ellipse(
+                    -n.radius * 0.2,
+                    -n.radius * 0.25,
+                    n.radius * 0.4,
+                    n.radius * 0.22,
+                    -0.4,
+                    0,
+                    TAU,
+                );
+                ctx.fill();
+            });
+            this.markStone(n.radius, n.seed);
             if (n.kind === 'metal_node' || n.kind === 'sulfur_node') {
                 ctx.fillStyle = n.kind === 'metal_node' ? '#e0d0b0' : '#f4ec9a';
                 for (let i = 0; i < 4; i++) {
@@ -751,7 +967,7 @@ export class Renderer {
             ctx.fill();
             ctx.restore();
 
-            ctx.font = '11px ui-monospace, monospace';
+            ctx.font = `11px ${TYPE.body}`;
             ctx.textAlign = 'center';
             ctx.fillStyle = WORLD.nameTagShadow;
             ctx.fillText(other.name, other.x + 1, other.y - 25);
@@ -976,7 +1192,7 @@ export class Renderer {
             ctx.arc(t.x, t.y - 9, 3, 0, TAU);
             ctx.fill();
             ctx.fillStyle = 'rgba(255,90,60,0.9)';
-            ctx.font = 'bold 11px ui-monospace, monospace';
+            ctx.font = `bold 11px ${TYPE.display}`;
             ctx.textAlign = 'center';
             ctx.fillText(t.fuse.toFixed(1), t.x, t.y - 24);
             ctx.textAlign = 'left';
@@ -1010,7 +1226,7 @@ export class Renderer {
 
     private drawFloatingText(game: GameView): void {
         const ctx = this.ctx;
-        ctx.font = 'bold 13px ui-monospace, monospace';
+        ctx.font = `bold 13px ${TYPE.display}`;
         ctx.textAlign = 'center';
         for (const t of game.particles.texts) {
             ctx.globalAlpha = Math.min(1, t.life * 1.6);
@@ -1068,7 +1284,7 @@ export class Renderer {
     private nameTag(text: string, x: number, y: number, color: string): void {
         const ctx = this.ctx;
         ctx.save();
-        ctx.font = '9px ui-monospace, monospace';
+        ctx.font = `9px ${TYPE.body}`;
         ctx.textAlign = 'center';
         ctx.fillStyle = WORLD.nameTagShadow;
         ctx.fillText(text, x + 1, y + 1);

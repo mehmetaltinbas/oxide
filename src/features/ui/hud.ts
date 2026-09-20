@@ -1,3 +1,4 @@
+import { TYPE } from 'src/shared/design/constants/type.constant';
 import { isFullscreen, toggleFullscreen } from 'src/shared/core/fullscreen';
 import { CONTROLS_REFERENCE } from 'src/features/ui/constants/controls-reference.constant';
 import { SettingsTab } from 'src/features/ui/types/settings-tab.type';
@@ -229,7 +230,7 @@ export class Hud {
         let cx = x;
         for (const [text, color] of bits) {
             ui.textOnDark(text, cx, baseY + 84, { size: 'caption', color });
-            this.ctx.font = '11px ui-monospace, monospace';
+            this.ctx.font = `11px ${TYPE.body}`;
             cx += this.ctx.measureText(text).width + 14;
         }
     }
@@ -428,7 +429,7 @@ export class Hud {
         }
         if (!hint) return;
 
-        this.ctx.font = '12px ui-monospace, monospace';
+        this.ctx.font = `12px ${TYPE.body}`;
         const tw = this.ctx.measureText(hint).width + 26;
         const y = h - 148;
         this.ui.glass(w / 2 - tw / 2, y, tw, 26, RADIUS.sm);
@@ -459,7 +460,7 @@ export class Hud {
         const ui = this.ui;
         const s = 46;
         if (label) {
-            ctx.font = '11px ui-monospace, monospace';
+            ctx.font = `11px ${TYPE.body}`;
             ctx.fillStyle = UI.subtle;
             ctx.fillText(label, x + 2, y - 17);
         }
@@ -681,7 +682,7 @@ export class Hud {
         const ty = y - th - 6;
         let tx = x;
         for (const t of tabs) {
-            ctx.font = '600 13px ui-monospace, monospace';
+            ctx.font = `600 13px ${TYPE.body}`;
             const tw = Math.round(ctx.measureText(t.label).width) + 30;
             const rect: Rect = { x: tx, y: ty, w: tw, h: th };
             const active = game.panel === t.panel;
@@ -886,12 +887,12 @@ export class Hud {
         ctx.stroke();
 
         this.drawPanelTabs(game, x, y);
-        ctx.font = '600 20px ui-monospace, monospace';
+        ctx.font = `600 20px ${TYPE.display}`;
         ctx.fillStyle = UI.ink;
         ctx.fillText(oc.title, x + 26, y + 24);
 
         const src = oc.source as { lit?: boolean; fuel?: number } | null;
-        ctx.font = '12px ui-monospace, monospace';
+        ctx.font = `12px ${TYPE.body}`;
         ctx.fillStyle = UI.subtle;
         if (src && 'lit' in src) {
             ctx.fillStyle = src.lit ? '#c2732f' : UI.subtle;
@@ -973,10 +974,10 @@ export class Hud {
         this.drawPanelTabs(game, x, y);
 
         // Header
-        ctx.font = '600 20px ui-monospace, monospace';
+        ctx.font = `600 20px ${TYPE.display}`;
         ctx.fillStyle = UI.ink;
         ctx.fillText('Crafting', x + 26, y + 24);
-        ctx.font = '12px ui-monospace, monospace';
+        ctx.font = `12px ${TYPE.body}`;
         ctx.fillStyle = UI.subtle;
         ctx.fillText(
             bench > 0
@@ -1000,7 +1001,7 @@ export class Hud {
         const colW = 190;
         const listY = y + 88;
         const cats = CRAFT_CATEGORIES;
-        ctx.font = '11px ui-monospace, monospace';
+        ctx.font = `11px ${TYPE.body}`;
         ctx.fillStyle = UI.subtle;
         ctx.fillText('CATEGORY', colX + 12, listY - 16);
 
@@ -1014,11 +1015,11 @@ export class Hud {
                 ctx.fillStyle = selected ? UI.selected : UI.hover;
                 ctx.fill();
             }
-            ctx.font = '600 13px ui-monospace, monospace';
+            ctx.font = `600 13px ${TYPE.body}`;
             ctx.fillStyle = selected ? UI.accentInk : UI.ink;
             ctx.fillText(cat.label, rect.x + 14, rect.y + 8);
             const count = RECIPES.filter((r) => cat.match(r.out)).length;
-            ctx.font = '11px ui-monospace, monospace';
+            ctx.font = `11px ${TYPE.body}`;
             ctx.fillStyle = UI.subtle;
             ctx.textAlign = 'right';
             ctx.fillText(String(count), rect.x + rect.w - 14, rect.y + 12);
@@ -1040,7 +1041,7 @@ export class Hud {
 
         const cat = cats.find((c) => c.id === game.craftCategory) ?? cats[0];
         const list = RECIPES.map((r, i) => ({ r, i })).filter(({ r }) => cat.match(r.out));
-        ctx.font = '11px ui-monospace, monospace';
+        ctx.font = `11px ${TYPE.body}`;
         ctx.fillStyle = UI.subtle;
         ctx.fillText(cat.label.toUpperCase(), midX + 12, listY - 16);
 
@@ -1063,7 +1064,7 @@ export class Hud {
             drawItemIcon(ctx, r.out, rect.x + 21, rect.y + rect.h / 2, 26);
             ctx.restore();
 
-            ctx.font = '600 13px ui-monospace, monospace';
+            ctx.font = `600 13px ${TYPE.body}`;
             ctx.fillStyle = locked ? UI.disabled : selected ? UI.accentInk : UI.ink;
             this.fit(
                 `${ITEMS[r.out].name}${r.amount > 1 ? ` ×${r.amount}` : ''}`,
@@ -1071,7 +1072,7 @@ export class Hud {
                 rect.y + 5,
                 midW - 60,
             );
-            ctx.font = '11px ui-monospace, monospace';
+            ctx.font = `11px ${TYPE.body}`;
             ctx.fillStyle = locked ? UI.disabled : affordable ? UI.ok : UI.warn;
             ctx.fillText(
                 locked ? `Workbench ${r.bench}` : affordable ? 'Ready' : 'Missing materials',
@@ -1096,25 +1097,25 @@ export class Hud {
 
         const sel = game.craftSelection !== null ? RECIPES[game.craftSelection] : null;
         if (!sel) {
-            ctx.font = '12px ui-monospace, monospace';
+            ctx.font = `12px ${TYPE.body}`;
             ctx.fillStyle = UI.subtle;
             ctx.fillText('Select an item', detX, listY);
             return;
         }
 
         drawItemIcon(ctx, sel.out, detX + 22, listY + 18, 44);
-        ctx.font = '600 17px ui-monospace, monospace';
+        ctx.font = `600 17px ${TYPE.display}`;
         ctx.fillStyle = UI.ink;
         this.fit(ITEMS[sel.out].name, detX + 56, listY + 2, detW - 56);
-        ctx.font = '11px ui-monospace, monospace';
+        ctx.font = `11px ${TYPE.body}`;
         ctx.fillStyle = UI.subtle;
         ctx.fillText(`${sel.seconds}s to craft`, detX + 56, listY + 22);
 
-        ctx.font = '12px ui-monospace, monospace';
+        ctx.font = `12px ${TYPE.body}`;
         ctx.fillStyle = UI.subtle;
         this.wrap(ITEMS[sel.out].desc, detX, listY + 60, detW, 17);
 
-        ctx.font = '11px ui-monospace, monospace';
+        ctx.font = `11px ${TYPE.body}`;
         ctx.fillStyle = UI.subtle;
         ctx.fillText('MATERIALS', detX, listY + 118);
         const costs = Object.entries(sel.cost) as [ItemId, number][];
@@ -1123,7 +1124,7 @@ export class Hud {
             const have = countAcross(game.containers, id);
             const ry = listY + 140 + i * 26;
             drawItemIcon(ctx, id, detX + 8, ry + 8, 18);
-            ctx.font = '12px ui-monospace, monospace';
+            ctx.font = `12px ${TYPE.body}`;
             ctx.fillStyle = UI.ink;
             ctx.fillText(ITEMS[id].name, detX + 26, ry + 2);
             ctx.textAlign = 'right';
@@ -1276,12 +1277,12 @@ export class Hud {
         ctx.lineTo(x - 12, y + h);
         ctx.stroke();
 
-        ctx.font = '11px ui-monospace, monospace';
+        ctx.font = `11px ${TYPE.body}`;
         ctx.fillStyle = UI.subtle;
         ctx.fillText(`QUEUE  ${game.craftSystem.craftQueue.length}/${CRAFT_QUEUE_MAX}`, x, y - 16);
 
         if (game.craftSystem.craftQueue.length === 0) {
-            ctx.font = '12px ui-monospace, monospace';
+            ctx.font = `12px ${TYPE.body}`;
             ctx.fillStyle = UI.disabled;
             ctx.fillText('nothing queued', x, y + 6);
             return;
@@ -1305,10 +1306,10 @@ export class Hud {
             }
 
             drawItemIcon(ctx, recipe.out, x + 22, ry + rowH / 2, 24);
-            ctx.font = '600 12px ui-monospace, monospace';
+            ctx.font = `600 12px ${TYPE.body}`;
             ctx.fillStyle = active ? UI.accentInk : UI.ink;
             this.fit(ITEMS[recipe.out].name, x + 40, ry + 8, w - 110);
-            ctx.font = '11px ui-monospace, monospace';
+            ctx.font = `11px ${TYPE.body}`;
             ctx.fillStyle = UI.subtle;
             ctx.fillText(
                 active ? `${job.left} left · ${job.remaining.toFixed(1)}s` : `${job.left} queued`,
@@ -1328,7 +1329,7 @@ export class Hud {
                 this.roundRect(r.x, r.y, r.w, r.h, 5);
                 ctx.fillStyle = hv ? UI.hover : 'rgba(0,0,0,0.06)';
                 ctx.fill();
-                ctx.font = '11px ui-monospace, monospace';
+                ctx.font = `11px ${TYPE.body}`;
                 ctx.fillStyle = enabled ? UI.ink : UI.disabled;
                 ctx.textAlign = 'center';
                 ctx.fillText(label, r.x + r.w / 2, r.y + 4);
@@ -1597,7 +1598,7 @@ export class Hud {
                 'Food and water',
                 'Both drain slowly. Hunt with a spear, cook on a campfire, drink at any shore with e.',
             ],
-            ['Cold', 'Nights and snow will kill you. Build a fire or wear hide.'],
+            ['Cold', 'Nights and snow will kill you. Build a fire or wear leather.'],
             [
                 'Radiation',
                 'Cabins and lighthouses are safe. Airfields and power plants need a hazmat suit.',
@@ -1854,7 +1855,7 @@ export class Hud {
     private tooltip(id: ItemId, mx: number, my: number): void {
         const ui = this.ui;
         const def = ITEMS[id];
-        this.ctx.font = '11px ui-monospace, monospace';
+        this.ctx.font = `11px ${TYPE.body}`;
         const w =
             Math.max(
                 this.ctx.measureText(def.desc).width,

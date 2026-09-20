@@ -1,6 +1,8 @@
+import { TYPE } from 'src/shared/design/constants/type.constant';
 import { TextSize } from 'src/features/ui/types/text-size.type';
 import { RADIUS } from 'src/shared/design/constants/radius.constant';
 import { SPACE } from 'src/shared/design/constants/space.constant';
+import { INK } from 'src/shared/design/constants/ink.constant';
 import { UI } from 'src/shared/design/constants/ui.constant';
 
 const SIZES: Record<TextSize, number> = {
@@ -14,6 +16,22 @@ const SIZES: Record<TextSize, number> = {
 
 export class Ui {
     constructor(private ctx: CanvasRenderingContext2D) {}
+
+    /**
+     * The pen on the interface.
+     *
+     * Heavier than the world's: the HUD sits on top of everything, and a line
+     * that reads as confident on a tree reads as a hairline on a box. Strokes
+     * whatever path was built last, half a pen inside the shape so the ink
+     * lands on the edge rather than outside it.
+     */
+    private pen(width: number = INK.uiWidth): void {
+        const ctx = this.ctx;
+        ctx.strokeStyle = INK.line;
+        ctx.lineWidth = width;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+    }
 
     roundRect(x: number, y: number, w: number, h: number, r: number): void {
         const ctx = this.ctx;
@@ -42,9 +60,7 @@ export class Ui {
         ctx.fill();
         ctx.restore();
         this.roundRect(x, y, w, h, radius);
-        ctx.strokeStyle = UI.hairline;
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        this.pen();
     }
 
     /** A compact card for HUD furniture that sits over the world. */
@@ -60,9 +76,7 @@ export class Ui {
         ctx.fill();
         ctx.restore();
         this.roundRect(x, y, w, h, RADIUS.md);
-        ctx.strokeStyle = UI.hairline;
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        this.pen();
     }
 
     /**
@@ -108,6 +122,8 @@ export class Ui {
             ctx.fillRect(x, y, w * v, h);
             ctx.restore();
         }
+        this.roundRect(x, y, w, h, h / 2);
+        this.pen(INK.width);
     }
 
     /** Slot for the overlay context: translucent, hairline only. */
@@ -159,7 +175,7 @@ export class Ui {
     ): void {
         const ctx = this.ctx;
         const size = SIZES[o.size ?? 'body'];
-        ctx.font = `${o.weight === 600 ? '600 ' : ''}${size}px ui-monospace, monospace`;
+        ctx.font = `${o.weight === 600 ? '600 ' : ''}${size}px ${TYPE.body}`;
         ctx.fillStyle = o.color ?? UI.ink;
         ctx.textAlign = o.align ?? 'left';
         ctx.fillText(str, x, y);
@@ -170,7 +186,7 @@ export class Ui {
     fit(str: string, x: number, y: number, maxW: number, o: Parameters<Ui['text']>[3] = {}): void {
         const ctx = this.ctx;
         const size = SIZES[o.size ?? 'body'];
-        ctx.font = `${o.weight === 600 ? '600 ' : ''}${size}px ui-monospace, monospace`;
+        ctx.font = `${o.weight === 600 ? '600 ' : ''}${size}px ${TYPE.body}`;
         let out = str;
         if (ctx.measureText(out).width > maxW) {
             while (out.length > 1 && ctx.measureText(`${out}…`).width > maxW)
@@ -190,7 +206,7 @@ export class Ui {
     ): number {
         const ctx = this.ctx;
         const size = SIZES[o.size ?? 'body'];
-        ctx.font = `${o.weight === 600 ? '600 ' : ''}${size}px ui-monospace, monospace`;
+        ctx.font = `${o.weight === 600 ? '600 ' : ''}${size}px ${TYPE.body}`;
         const words = str.split(' ');
         let line = '';
         let ly = y;
@@ -223,6 +239,8 @@ export class Ui {
             ctx.fillRect(x, y, w * v, h);
             ctx.restore();
         }
+        this.roundRect(x, y, w, h, h / 2);
+        this.pen(INK.width);
     }
 
     button(
@@ -238,6 +256,8 @@ export class Ui {
         this.roundRect(x, y, w, h, RADIUS.md);
         ctx.fillStyle = !enabled ? UI.buttonOff : o.hovered ? UI.accentHover : UI.accent;
         ctx.fill();
+        this.roundRect(x, y, w, h, RADIUS.md);
+        this.pen();
         this.text(label, x + w / 2, y + h / 2 - 7, {
             size: 'body',
             weight: 600,
@@ -258,9 +278,10 @@ export class Ui {
         this.roundRect(x, y, w, h, RADIUS.md - 1);
         ctx.fillStyle = o.selected ? UI.selected : o.hovered ? UI.hover : UI.surfaceAlt;
         ctx.fill();
-        ctx.strokeStyle = o.hovered || o.selected ? UI.slotEdgeHover : UI.slotEdge;
-        ctx.lineWidth = o.selected ? 2 : 1;
-        ctx.stroke();
+        // A selected slot is drawn with a heavier pen rather than a brighter
+        // edge: on a printed page weight is how something is emphasised.
+        this.roundRect(x, y, w, h, RADIUS.md - 1);
+        this.pen(o.selected ? INK.uiWidth * 1.6 : INK.uiWidth);
     }
 
     scrim(w: number, h: number): void {

@@ -9,10 +9,16 @@
  * single source for them. See docs/design-system/design-tokens.md.
  */
 export const WORLD = {
-    /** Contact shadow under actors, trees and rocks. */
-    shadow: 'rgba(0,0,0,0.3)',
+    /**
+     * Contact shadow under actors, trees and rocks.
+     *
+     * Off, in the comic pass: a printed panel puts a line round a thing, not a
+     * pool under it, and every cast shadow here came out as an inked ellipse.
+     * One value each to bring them back.
+     */
+    shadow: 'rgba(0,0,0,0)',
     /** Deeper shadow for large objects. */
-    shadowDeep: 'rgba(0,0,0,0.35)',
+    shadowDeep: 'rgba(0,0,0,0)',
     /** Backing plate behind a health bar or a progress sliver. */
     barTrack: 'rgba(0,0,0,0.65)',
     /** Anything hostile: enemy health, damage flashes, danger markers. */
