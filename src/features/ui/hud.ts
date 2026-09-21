@@ -214,7 +214,29 @@ export class Hud {
             });
             ui.meterOnDark(barX, my + 14, x + mw - barX, 5, value / max, color);
         };
-        meter('health', p.health, PLAYER.maxHealth, p.health > 35 ? WORLD.hostile : '#ff6a5a', 0);
+        // While you bleed the health bar throbs between its own red and a dark
+        // one, so the gauge itself says it is draining.
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 140);
+        const bleeding = p.bleeding > 0;
+        const healthColor = bleeding
+            ? pulse > 0.5
+                ? WORLD.blood
+                : WORLD.hostile
+            : p.health > 35
+              ? WORLD.hostile
+              : '#ff6a5a';
+        meter('health', p.health, PLAYER.maxHealth, healthColor, 0);
+        if (bleeding) {
+            // A blood drop beside the gauge, beating, with the seconds left.
+            const bx = x + mw + 18;
+            const by = baseY + 15;
+            drawVitalIcon(this.ctx, 'water', bx, by, 16 + pulse * 3, WORLD.blood);
+            ui.textOnDark(`${Math.ceil(p.bleeding)}s`, bx + 14, baseY + 9, {
+                size: 'caption',
+                weight: 600,
+                color: UI.warn,
+            });
+        }
         meter('food', p.calories, PLAYER.maxCalories, '#d8923a', 1);
         meter('water', p.hydration, PLAYER.maxHydration, '#4a9ee8', 2);
 
@@ -231,7 +253,6 @@ export class Hud {
                 `rad ${p.radiation.toFixed(0)}`,
                 p.radiation > 45 ? WORLD.hazard : UI.onDarkSubtle,
             ]);
-        if (p.bleeding > 0) bits.push(['bleeding', UI.warn]);
         if (game.sprinting) bits.push(['running, hands busy', UI.onDarkFaint]);
         let cx = x;
         for (const [text, color] of bits) {

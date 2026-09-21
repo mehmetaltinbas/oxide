@@ -19,6 +19,16 @@ export function drawVitalIcon(
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(size, size);
+    const pen = INK.uiWidth / size;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    if (vital === 'food') {
+        drawDrumstick(ctx, color, pen);
+        ctx.restore();
+        return;
+    }
+
     ctx.beginPath();
     if (vital === 'health') {
         // Two lobes and a point.
@@ -27,9 +37,6 @@ export function drawVitalIcon(
         ctx.bezierCurveTo(-0.08, -0.4, 0, -0.3, 0, -0.2);
         ctx.bezierCurveTo(0, -0.3, 0.08, -0.4, 0.2, -0.4);
         ctx.bezierCurveTo(0.46, -0.42, 0.5, 0.02, 0, 0.38);
-    } else if (vital === 'food') {
-        // A drumstick: the meat, then the bone sticking out of it.
-        ctx.ellipse(-0.1, -0.08, 0.3, 0.24, -0.7, 0, Math.PI * 2);
     } else {
         // A falling drop.
         ctx.moveTo(0, -0.44);
@@ -40,31 +47,70 @@ export function drawVitalIcon(
     ctx.closePath();
     ctx.fillStyle = color;
     ctx.fill();
-    const pen = INK.uiWidth / size;
     ctx.strokeStyle = INK.line;
     ctx.lineWidth = pen;
-    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.restore();
+}
+
+/**
+ * A cooked leg: a round meaty end tapering into the bone, and the bone ending
+ * in the double knob that makes it read as a drumstick rather than a blob.
+ * The bone goes down first so the meat sits over the joint.
+ */
+function drawDrumstick(ctx: CanvasRenderingContext2D, color: string, pen: number): void {
+    const bone = '#f2ead8';
+
+    // The shaft, as a thick line with the pen under it.
+    ctx.beginPath();
+    ctx.moveTo(0.02, 0.04);
+    ctx.lineTo(0.27, 0.29);
+    ctx.strokeStyle = INK.line;
+    ctx.lineWidth = 0.13 + pen * 2;
+    ctx.stroke();
+    ctx.strokeStyle = bone;
+    ctx.lineWidth = 0.13;
     ctx.stroke();
 
-    if (vital === 'food') {
-        // The bone, drawn after the meat so it pokes out of it.
+    // The knuckle: two knobs side by side across the end of the shaft.
+    for (const [kx, ky] of [
+        [0.24, 0.38],
+        [0.37, 0.25],
+    ] as const) {
         ctx.beginPath();
-        ctx.moveTo(0.1, 0.12);
-        ctx.lineTo(0.3, 0.32);
-        ctx.lineCap = 'round';
-        ctx.lineWidth = 0.12 + pen * 2;
-        ctx.strokeStyle = INK.line;
-        ctx.stroke();
-        ctx.lineWidth = 0.12;
-        ctx.strokeStyle = '#f2ead8';
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(0.34, 0.36, 0.08, 0, Math.PI * 2);
-        ctx.fillStyle = '#f2ead8';
+        ctx.arc(kx, ky, 0.085, 0, Math.PI * 2);
+        ctx.fillStyle = bone;
         ctx.fill();
-        ctx.lineWidth = pen;
         ctx.strokeStyle = INK.line;
+        ctx.lineWidth = pen;
         ctx.stroke();
     }
-    ctx.restore();
+    // Paint the shaft back over the inner edges of the knobs so they join it.
+    ctx.beginPath();
+    ctx.moveTo(0.2, 0.22);
+    ctx.lineTo(0.29, 0.31);
+    ctx.strokeStyle = bone;
+    ctx.lineWidth = 0.13;
+    ctx.stroke();
+
+    // The meat: a round end at the top left, tapering down onto the bone.
+    ctx.beginPath();
+    ctx.moveTo(0.12, 0.1);
+    ctx.bezierCurveTo(0.08, -0.34, -0.4, -0.5, -0.42, -0.14);
+    ctx.bezierCurveTo(-0.44, 0.16, -0.12, 0.28, 0.08, 0.16);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = INK.line;
+    ctx.lineWidth = pen;
+    ctx.stroke();
+
+    // Two short marks across the meat: the grain of it, in the comic way.
+    ctx.beginPath();
+    ctx.moveTo(-0.26, -0.22);
+    ctx.quadraticCurveTo(-0.18, -0.28, -0.1, -0.24);
+    ctx.moveTo(-0.3, -0.04);
+    ctx.quadraticCurveTo(-0.2, -0.1, -0.1, -0.06);
+    ctx.lineWidth = pen * 0.8;
+    ctx.stroke();
 }
