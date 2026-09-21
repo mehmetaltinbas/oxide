@@ -1,10 +1,13 @@
 import { TYPE } from 'src/shared/design/constants/type.constant';
 import { PROGRESS_ARC } from 'src/shared/design/constants/progress-arc.constant';
+import { drawHuman } from 'src/features/render/utils/draw-human.util';
+import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
+import { PLAYER } from 'src/features/survival/constants/player.constant';
+import { HUMAN_PALETTE } from 'src/shared/design/constants/human-palette.constant';
 import { ComicTexture } from 'src/features/render/comic-texture';
 import { Ink } from 'src/features/render/ink';
 import { GRASS, INK } from 'src/shared/design/constants/ink.constant';
 import { wornId } from 'src/features/items/utils/worn-id.util';
-import { ItemId } from 'src/features/items/types/item-id.type';
 import { darken } from 'src/shared/utils/darken.util';
 import { GameView } from 'src/app/types/game-view.type';
 import { CELL } from 'src/features/building/constants/cell.constant';
@@ -74,6 +77,7 @@ export class Renderer {
         this.drawNpcs(game, b);
         this.drawRemotePlayers(game);
         this.drawPlayer(game);
+        this.drawCovering();
         // Light, sparks and a ghost placement are not objects: a line round
         // any of them turns it into a sticker.
         this.ink.suspend(() => {
@@ -708,10 +712,105 @@ export class Renderer {
 
     // ----------------------------------------------------------------- nodes
 
+    /** Trees with somebody standing behind them, drawn after the people. */
+    private covering: ResourceNode[] = [];
+    private bodies: { x: number; y: number }[] = [];
+
     private drawNodes(game: GameView, b: { x0: number; y0: number; x1: number; y1: number }): void {
         const nodes = game.world.nodesInRect(b.x0, b.y0, b.x1, b.y1, nodeBuf);
         nodes.sort(byY);
-        for (const n of nodes) this.drawNode(n);
+        this.gatherBodies(game, b);
+        this.covering.length = 0;
+        for (const n of nodes) {
+            if (n.kind === 'tree' && n.hp > 0 && this.hidesSomebody(n)) {
+                this.covering.push(n);
+                continue;
+            }
+            this.drawNode(n);
+        }
+    }
+
+    /** Everyone alive on screen, as points: the player, the room, the npcs. */
+    private gatherBodies(
+        game: GameView,
+        b: { x0: number; y0: number; x1: number; y1: number },
+    ): void {
+        const out = this.bodies;
+        out.length = 0;
+        if (game.player.alive) out.push(game.player);
+        if (game.mode === 'online') {
+            for (const o of game.net.others.values()) if (o.alive) out.push(o);
+        }
+        for (const n of game.npcs.list) {
+            if (n.x < b.x0 || n.x > b.x1 || n.y < b.y0 || n.y > b.y1) continue;
+            out.push(n);
+        }
+    }
+
+    /**
+     * Whether a tree's crown covers somebody standing behind it.
+     *
+     * A tree is drawn from its trunk up the screen, so "behind" is north of
+     * the trunk and inside the canopy's outline: the same box the tiers are
+     * painted in. Measured off the tiers in `drawNode`: the crown's apex is
+     * 3.0 radii above the trunk and the widest tier reaches 1.55 radii out.
+     */
+    private hidesSomebody(n: ResourceNode): boolean {
+        for (const e of this.bodies) {
+            const dy = n.y - e.y;
+            if (dy <= 0 || dy > n.radius * TREE_COVER.height) continue;
+            if (Math.abs(e.x - n.x) > n.radius * TREE_COVER.halfWidth) continue;
+            return true;
+        }
+        return false;
+    }
+
+    /** Scratch canvas the covering trees are painted into before fading. */
+    private coverCanvas: HTMLCanvasElement | null = null;
+    private coverInk: Ink | null = null;
+
+    /**
+     * The trees somebody is behind, drawn over them and faded so you can see
+     * who is there: you are behind the tree, not standing on top of it.
+     *
+     * Painted whole into a scratch canvas and faded as one piece. Fading each
+     * shape as it went down let the lower tiers show through the upper ones,
+     * and the outline stayed solid, so it looked like a wireframe of a tree.
+     */
+    private drawCovering(): void {
+        if (this.covering.length === 0) return;
+        const main = this.ctx;
+        const canvas = main.canvas;
+        if (!this.coverCanvas) {
+            this.coverCanvas = document.createElement('canvas');
+            const c = this.coverCanvas.getContext('2d');
+            if (!c) return;
+            this.coverInk = new Ink(c);
+        }
+        const layer = this.coverCanvas;
+        if (layer.width !== canvas.width || layer.height !== canvas.height) {
+            layer.width = canvas.width;
+            layer.height = canvas.height;
+        }
+        const lctx = layer.getContext('2d')!;
+        lctx.setTransform(1, 0, 0, 1, 0, 0);
+        lctx.clearRect(0, 0, layer.width, layer.height);
+        lctx.setTransform(main.getTransform());
+
+        const ink = this.ink;
+        this.ctx = lctx;
+        this.ink = this.coverInk!;
+        this.ink.start();
+        for (const n of this.covering) this.drawNode(n);
+        this.ink.stop();
+        this.ctx = main;
+        this.ink = ink;
+
+        main.save();
+        main.setTransform(1, 0, 0, 1, 0, 0);
+        main.globalAlpha = TREE_COVER.alpha;
+        main.drawImage(layer, 0, 0);
+        main.restore();
     }
 
     private drawNode(n: ResourceNode): void {
@@ -862,25 +961,25 @@ export class Renderer {
         ctx.rotate(n.facing + (humanoid ? Math.PI / 2 : 0));
 
         if (humanoid) {
-            ctx.fillStyle = dark;
-            ctx.fillRect(-n.radius * 0.5, n.radius * 0.3, n.radius * 0.4, 6);
-            ctx.fillRect(n.radius * 0.1, n.radius * 0.3, n.radius * 0.4, 6);
-            ctx.fillStyle = body;
-            ctx.beginPath();
-            ctx.ellipse(0, 0, n.radius * 0.8, n.radius * 0.95, 0, 0, TAU);
-            ctx.fill();
-            ctx.fillStyle = WORLD.skin;
-            ctx.beginPath();
-            ctx.arc(0, -n.radius * 0.5, n.radius * 0.5, 0, TAU);
-            ctx.fill();
-            ctx.fillStyle = dark;
-            ctx.beginPath();
-            ctx.arc(0, -n.radius * 0.62, n.radius * 0.54, Math.PI, TAU);
-            ctx.fill();
+            // A gun, if they carry one, is held out in the right hand.
             if (def.gun) {
                 ctx.fillStyle = WORLD.woodShade;
-                ctx.fillRect(n.radius * 0.35, -n.radius * 1.35, 3.5, n.radius * 1.5);
+                ctx.fillRect(n.radius * 0.5, -n.radius * 1.9, 3.5, n.radius * 1.3);
             }
+            drawHuman(ctx, {
+                radius: n.radius,
+                skin: HUMAN_PALETTE.skin[n.id % HUMAN_PALETTE.skin.length],
+                hair: HUMAN_PALETTE.hair[(n.id * 7) % HUMAN_PALETTE.hair.length],
+                shirt: def.color,
+                legs: def.dark,
+                phase: n.animPhase,
+                stride: Math.min(1, Math.hypot(n.vx, n.vy) / 90),
+                swimming: false,
+                holding: !!def.gun,
+                // A scientist is sealed in a suit.
+                hood: n.kind === 'scientist' ? def.color : null,
+                hurt: n.flash > 0 ? '#ffdede' : null,
+            });
         } else {
             ctx.fillStyle = dark;
             for (const side of [-1, 1]) {
@@ -953,18 +1052,21 @@ export class Renderer {
             ctx.ellipse(0, 8, 13, 6, 0, 0, TAU);
             ctx.fill();
             ctx.rotate(other.facing + Math.PI / 2);
-            ctx.fillStyle = '#6a7f9a';
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 10, 12, 0, 0, TAU);
-            ctx.fill();
-            ctx.fillStyle = WORLD.skin;
-            ctx.beginPath();
-            ctx.arc(0, -5, 7, 0, TAU);
-            ctx.fill();
-            ctx.fillStyle = WORLD.woodDark;
-            ctx.beginPath();
-            ctx.arc(0, -7, 7, Math.PI, TAU);
-            ctx.fill();
+            drawHuman(ctx, {
+                radius: PLAYER.radius,
+                skin: WORLD.skin,
+                hair: WORLD.woodDark,
+                shirt: '#6a7f9a',
+                legs: '#3a3f4a',
+                // No walk cycle comes over the wire, so the stride is read off
+                // where they are standing: their feet move as they do.
+                phase: (other.x + other.y) * 0.08,
+                stride: 0.7,
+                swimming: false,
+                holding: other.held !== null,
+                hood: null,
+                hurt: null,
+            });
             ctx.restore();
 
             ctx.font = `11px ${TYPE.body}`;
@@ -982,57 +1084,6 @@ export class Renderer {
                 ctx.fillRect(other.x - 16, other.y - 20, 32 * (other.health / 100), 3.5);
             }
         }
-    }
-
-    /**
-     * A worn garment, drawn over the body rather than recolouring it.
-     *
-     * The torso panel is the garment itself and the shoulder caps are its
-     * sleeves, so you can tell at a glance whether somebody is dressed and in
-     * what. A hazmat suit gets a hood as well, because whether the person
-     * walking toward you can follow you into the radiation is worth knowing
-     * from a distance.
-     */
-    private drawGarment(id: ItemId, bob: number, swimming: boolean, hurt: boolean): void {
-        const ctx = this.ctx;
-        const cloth = hurt ? '#ff9a9a' : ITEMS[id].color;
-        const shade = darken(cloth);
-
-        ctx.fillStyle = cloth;
-        ctx.beginPath();
-        ctx.ellipse(0, bob * 0.2 + 1, swimming ? 7 : 9, swimming ? 5.5 : 10, 0, 0, TAU);
-        ctx.fill();
-
-        if (!swimming) {
-            // Sleeves.
-            ctx.fillStyle = shade;
-            ctx.beginPath();
-            ctx.ellipse(-8.5, bob * 0.2 - 1, 3, 5, 0.25, 0, TAU);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.ellipse(8.5, bob * 0.2 - 1, 3, 5, -0.25, 0, TAU);
-            ctx.fill();
-        }
-    }
-
-    /**
-     * A hood, drawn after the head so it covers it rather than the other way
-     * round. Only the hazmat suit has one, and whether the person walking
-     * toward you can follow you into the radiation is worth seeing at a
-     * distance.
-     */
-    private drawHood(id: ItemId, bob: number, hurt: boolean): void {
-        if (id !== 'hazmat') return;
-        const ctx = this.ctx;
-        ctx.fillStyle = hurt ? '#ff9a9a' : ITEMS[id].color;
-        ctx.beginPath();
-        ctx.arc(0, -5 + bob * 0.3, 8, 0, TAU);
-        ctx.fill();
-        // The visor.
-        ctx.fillStyle = '#2c3a3f';
-        ctx.beginPath();
-        ctx.ellipse(0, -6 + bob * 0.3, 5.5, 3.5, 0, 0, TAU);
-        ctx.fill();
     }
 
     /**
@@ -1069,7 +1120,6 @@ export class Renderer {
         if (!p.alive) return;
         const ctx = this.ctx;
         const swimming = game.swimming;
-        const bob = Math.sin(p.walkPhase) * (swimming ? 1.4 : 2);
 
         if (swimming) {
             // Expanding rings behind the swimmer, timed to the stroke.
@@ -1106,55 +1156,38 @@ export class Renderer {
             ctx.restore();
         }
 
-        // You wash up with nothing on. Bare skin is the torso in its own tone,
-        // so somebody wearing nothing reads as wearing nothing rather than as
-        // wearing a green shirt, which is what it used to look like. Clothing
-        // is drawn over the top rather than tinting the body, so a garment
-        // reads as a garment.
-        ctx.fillStyle = p.hurtFlash > 0 ? '#ff9a9a' : WORLD.skin;
-        ctx.beginPath();
-        // Only the shoulders and head clear the surface when swimming.
-        ctx.ellipse(0, bob * 0.2, swimming ? 8 : 10, swimming ? 7 : 12, 0, 0, TAU);
-        ctx.fill();
-
+        // You wash up with nothing on: no shirt is bare skin, not a green
+        // shirt. What you wear is the shirt, so a garment reads as a garment,
+        // and the hazmat suit brings its hood.
         const worn = wornId(p);
-        if (worn) {
-            this.drawGarment(worn, bob, swimming, p.hurtFlash > 0);
-        }
-        if (swimming) {
-            // Arms reaching forward, alternating with the stroke.
-            const reach = Math.sin(p.walkPhase) * 5;
-            ctx.fillStyle = WORLD.skin;
-            ctx.beginPath();
-            ctx.ellipse(-6, -9 - reach, 3, 6, 0.3, 0, TAU);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.ellipse(6, -9 + reach, 3, 6, -0.3, 0, TAU);
-            ctx.fill();
-        }
-        ctx.fillStyle = WORLD.skin;
-        ctx.beginPath();
-        ctx.arc(0, -5 + bob * 0.3, 7, 0, TAU);
-        ctx.fill();
-        ctx.fillStyle = WORLD.woodDark;
-        ctx.beginPath();
-        ctx.arc(0, -7 + bob * 0.3, 7, Math.PI, TAU);
-        ctx.fill();
-        if (worn) this.drawHood(worn, bob, p.hurtFlash > 0);
+        drawHuman(ctx, {
+            radius: PLAYER.radius,
+            skin: WORLD.skin,
+            hair: WORLD.woodDark,
+            shirt: worn ? ITEMS[worn].color : null,
+            legs: worn ? darken(ITEMS[worn].color) : '#4a3a2c',
+            phase: p.walkPhase,
+            stride: Math.min(1, Math.hypot(p.vx, p.vy) / 90),
+            swimming,
+            holding: !!held && !swimming,
+            hood: worn === 'hazmat' ? ITEMS[worn].color : null,
+            hurt: p.hurtFlash > 0 ? '#ff9a9a' : null,
+        });
 
         if (held && !swimming) {
             const def = ITEMS[held.id];
+            // In the right hand, which `drawHuman` holds out in front.
             if (def.gun) {
                 ctx.fillStyle = WORLD.woodShade;
-                ctx.fillRect(5, held.id === 'rifle' ? -30 : -22, 4, held.id === 'rifle' ? 32 : 22);
+                ctx.fillRect(6, held.id === 'rifle' ? -40 : -30, 4, held.id === 'rifle' ? 30 : 20);
             } else if (def.melee) {
                 ctx.fillStyle = '#6b4a2a';
-                ctx.fillRect(6, -18, 3.5, 20);
+                ctx.fillRect(6.5, -28, 3.5, 20);
                 ctx.fillStyle = def.color;
                 ctx.beginPath();
-                ctx.moveTo(6, -18);
-                ctx.lineTo(14, -14);
-                ctx.lineTo(6, -10);
+                ctx.moveTo(6.5, -28);
+                ctx.lineTo(14.5, -24);
+                ctx.lineTo(6.5, -20);
                 ctx.closePath();
                 ctx.fill();
             }
