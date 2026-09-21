@@ -384,7 +384,6 @@ export class Game {
     private resetPlayer(): void {
         const hotbar = makeContainer(HOTBAR_SIZE);
         hotbar.slots[0] = { id: 'rock', count: 1 };
-        hotbar.slots[1] = { id: 'building_plan', count: 1 };
         this.player = {
             x: this.world.spawn.x,
             y: this.world.spawn.y,
@@ -961,7 +960,6 @@ export class Game {
         p.alive = true;
         p.hotbar = makeContainer(HOTBAR_SIZE);
         p.hotbar.slots[0] = { id: 'rock', count: 1 };
-        p.hotbar.slots[1] = { id: 'building_plan', count: 1 };
         p.inventory = makeContainer(INVENTORY_SIZE);
         p.activeSlot = 0;
         this.phase = 'play';

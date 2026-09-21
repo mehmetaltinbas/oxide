@@ -8,7 +8,7 @@ export const NODES: Record<NodeDef['kind'], NodeDef> = {
         radius: 17,
         yield: { wood: 12 },
         prefers: 'chop',
-        color: '#2a7630',
+        color: '#2e8b3d',
     },
     stone_node: {
         kind: 'stone_node',
@@ -17,7 +17,7 @@ export const NODES: Record<NodeDef['kind'], NodeDef> = {
         radius: 18,
         yield: { stone: 12 },
         prefers: 'mine',
-        color: '#9da6b0',
+        color: '#9aa6b2',
     },
     metal_node: {
         kind: 'metal_node',
@@ -44,6 +44,6 @@ export const NODES: Record<NodeDef['kind'], NodeDef> = {
         radius: 11,
         yield: { cloth: 10 },
         prefers: 'pick',
-        color: '#80b543',
+        color: '#8cc94a',
     },
 };

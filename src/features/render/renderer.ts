@@ -736,7 +736,7 @@ export class Renderer {
         ctx.fill();
 
         if (n.kind === 'tree') {
-            ctx.fillStyle = '#5a3f2b';
+            ctx.fillStyle = '#7b4a26';
             ctx.fillRect(-n.radius * 0.22, -n.radius * 0.5, n.radius * 0.44, n.radius);
             const tiers = [
                 { y: -n.radius * 2.0, r: n.radius * 1.0 },
@@ -753,7 +753,7 @@ export class Renderer {
             // Bottom tier first, crown last: a conifer's top sits in front of
             // the skirt below it, and painting downward buried every crown.
             for (let i = tiers.length - 1; i >= 0; i--) {
-                ctx.fillStyle = i % 2 === 0 ? def.color : '#3a7040';
+                ctx.fillStyle = i % 2 === 0 ? def.color : '#45a94f';
                 ctx.beginPath();
                 ctx.moveTo(0, tiers[i].y - tiers[i].r);
                 ctx.lineTo(-tiers[i].r, tiers[i].y + tiers[i].r * 0.5);
@@ -1228,11 +1228,16 @@ export class Renderer {
         const ctx = this.ctx;
         ctx.font = `bold 13px ${TYPE.display}`;
         ctx.textAlign = 'center';
+        // White lettering inside a black line, whatever the text says. A
+        // coloured number is lost against grass, sand or water in turn, and on
+        // a printed page a word is ink round paper rather than a tinted glow.
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = INK.uiWidth;
+        ctx.strokeStyle = INK.line;
         for (const t of game.particles.texts) {
             ctx.globalAlpha = Math.min(1, t.life * 1.6);
-            ctx.fillStyle = 'rgba(0,0,0,0.75)';
-            ctx.fillText(t.text, t.x + 1, t.y + 1);
-            ctx.fillStyle = t.color;
+            ctx.strokeText(t.text, t.x, t.y);
+            ctx.fillStyle = '#ffffff';
             ctx.fillText(t.text, t.x, t.y);
         }
         ctx.globalAlpha = 1;

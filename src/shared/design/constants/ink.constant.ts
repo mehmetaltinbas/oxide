@@ -6,21 +6,22 @@
  * dots and hatching rather than gradients, because that is what a press could
  * actually do with one or two passes of ink.
  *
- * These are world-space values. The camera does not zoom, so a line width here
- * is the width it is drawn at, and 2.4 reads as a confident pen at this scale
- * without swallowing the small stuff like a hare or a coin.
+ * These are screen-space values: the pen cancels out the camera's transform, so
+ * a width here is the width it lands at on the page however far the view is
+ * zoomed. Heavier than lumber-wave's, because this camera sits further back and
+ * a tree here is half the size one is there: the same pen came out spidery.
  */
 export const INK = {
     /** The pen. Not pure black: a very dark green-black sits better on foliage. */
     line: '#14110d',
     /** Ordinary outline weight, for bodies, trunks, rock and built pieces. */
-    width: 1.9,
+    width: 2.6,
     /** Heavier, for the things a reader's eye should land on first. */
-    heavyWidth: 2.8,
+    heavyWidth: 3.6,
     /** Lighter, for ground shapes that would otherwise fence the whole map. */
-    groundWidth: 1.6,
+    groundWidth: 2.2,
     /** For line work inside a shape, which should never compete with its edge. */
-    fineWidth: 1.1,
+    fineWidth: 1.5,
     /**
      * Interior marks: cracks, branches, grain, hatching.
      *
@@ -29,11 +30,11 @@ export const INK = {
      * pale they are. Marks drawn at half opacity read as pencil under the ink,
      * which is the opposite of the look.
      */
-    markWidth: 1.6,
+    markWidth: 2.2,
     /** A lighter interior mark, still solid black, for dense hatching. */
-    hatchMarkWidth: 1.2,
+    hatchMarkWidth: 1.7,
     /** One stipple dot, for texture on stone and open ground. */
-    stippleDot: 1.1,
+    stippleDot: 1.4,
     /**
      * Inside an item icon, the stroke width that separates a detail line from
      * a shape drawn as a line, in the icon's own unit square.
@@ -50,14 +51,14 @@ export const INK = {
      * Heavier than the world's, because UI sits on top of everything and a
      * 1.9 line that reads as confident on a tree reads as a hairline on a box.
      */
-    uiWidth: 2.6,
+    uiWidth: 3.0,
     /** Dot grid for shaded areas, in world units. */
     halftoneSpacing: 9,
     halftoneDot: 0.55,
     halftoneColor: '#14110d',
     /** Diagonal hatching, for the darker shading a single dot grid cannot carry. */
     hatchSpacing: 9,
-    hatchWidth: 1.4,
+    hatchWidth: 1.8,
     hatchColor: '#14110d',
 } as const;
 

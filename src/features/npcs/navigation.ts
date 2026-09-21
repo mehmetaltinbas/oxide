@@ -88,7 +88,11 @@ export class Navigator {
         const cx = gx * CELL + CELL / 2;
         const cy = gy * CELL + CELL / 2;
         let blocked = false;
-        if (this.build.deployableAt(gx, gy)) blocked = true;
+        // The sea. Everything here can swim and nothing chooses to: a route
+        // through open water is not a route these people or animals would take,
+        // and letting one exist is what had bears crossing bays in a line.
+        if (this.world.biomeAt(cx, cy) === 'water') blocked = true;
+        else if (this.build.deployableAt(gx, gy)) blocked = true;
         else {
             for (const n of this.world.nodesNear(cx, cy, CELL)) {
                 if (n.hp <= 0 || n.kind === 'hemp') continue;

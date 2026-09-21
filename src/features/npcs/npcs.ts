@@ -544,8 +544,26 @@ export class NpcSystem {
         nx = world.x;
         ny = world.y;
         const solid = this.build.resolve(nx, ny, n.radius);
-        n.x = solid.x;
-        n.y = solid.y;
+        const ashore = this.keepAshore(n, solid.x, solid.y);
+        n.x = ashore.x;
+        n.y = ashore.y;
+    }
+
+    /**
+     * Nothing walks into the sea.
+     *
+     * Steering here is a straight line at whatever the agent wants, so a goal
+     * across a bay walks it in. Stepping along one axis at a time lets it run
+     * the shoreline instead, which is what someone who can swim but would
+     * rather not actually does. A body already in the water is left free to
+     * move, or it would be stuck there for good.
+     */
+    private keepAshore(n: Npc, x: number, y: number): { x: number; y: number } {
+        if (this.world.biomeAt(x, y) !== 'water') return { x, y };
+        if (this.world.biomeAt(n.x, n.y) === 'water') return { x, y };
+        if (this.world.biomeAt(x, n.y) !== 'water') return { x, y: n.y };
+        if (this.world.biomeAt(n.x, y) !== 'water') return { x: n.x, y };
+        return { x: n.x, y: n.y };
     }
 
     private separate(dt: number): void {
@@ -584,14 +602,7 @@ export class NpcSystem {
         }
     }
 
-    damage(
-        n: Npc,
-        amount: number,
-        fromX: number,
-        fromY: number,
-        knockback = 180,
-        byClan = 0,
-    ): void {
+    damage(n: Npc, amount: number, fromX: number, fromY: number, knockback = 0, byClan = 0): void {
         n.hp -= amount;
         if (byClan > 0) n.lastHitByClan = byClan;
         n.flash = 0.12;

@@ -1,3 +1,4 @@
+import { MELEE_KNOCKBACK } from 'src/features/combat/constants/melee-knockback.constant';
 import { regrowthSeconds } from 'src/features/world/utils/regrowth-seconds.util';
 import { BuildSystem } from 'src/features/building/building';
 import { CELL } from 'src/features/building/constants/cell.constant';
@@ -280,7 +281,14 @@ export class ClanSystem {
                 if (attacker.attackTimer > 0) return;
                 attacker.attackTimer = def.attackCooldown;
                 // Tagging the clan means the kill credits the hunter wherever it lands.
-                this.npcs.damage(target, def.damage, attacker.x, attacker.y, 180, attacker.clan);
+                this.npcs.damage(
+                    target,
+                    def.damage,
+                    attacker.x,
+                    attacker.y,
+                    MELEE_KNOCKBACK,
+                    attacker.clan,
+                );
             },
             isNight: () => this.hooks.isNight(),
             step: (npc, x, y, dt, scale) => this.npcs.stepToward(npc, x, y, dt, scale ?? 1),

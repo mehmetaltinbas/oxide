@@ -4,6 +4,12 @@ import { Particle } from 'src/shared/types/particle.interface';
 import { randRange } from 'src/shared/utils/rand-range.util';
 
 const MAX_PARTICLES = 900;
+/** Height of one floating line, so stacked payouts sit one above the next. */
+const TEXT_LINE = 17;
+/** How far apart two texts can start and still count as one payout. */
+const TEXT_NEIGHBOUR = 60;
+/** Life left above which a text is still part of the payout that spawned it. */
+const TEXT_FRESH = 0.75;
 
 export class Particles {
     items: Particle[] = [];
@@ -71,7 +77,17 @@ export class Particles {
 
     text(x: number, y: number, text: string, color = '#f0e6d0'): void {
         if (this.texts.length > 60) this.texts.shift();
-        this.texts.push({ x, y, text, color, life: 1.0, vy: -34 });
+        // One hit can pay out several things at once (stone and ore off the
+        // same node), and they all used to spawn on the same spot and print
+        // over each other. Any text still fresh from the same place pushes the
+        // new one a line up, so a payout reads as a short list.
+        let top = y;
+        for (const t of this.texts) {
+            if (t.life < TEXT_FRESH) continue;
+            if (Math.abs(t.x - x) > TEXT_NEIGHBOUR || t.y > top + TEXT_LINE) continue;
+            top = Math.min(top, t.y - TEXT_LINE);
+        }
+        this.texts.push({ x, y: top, text, color, life: 1.0, vy: -34 });
     }
 
     update(dt: number): void {

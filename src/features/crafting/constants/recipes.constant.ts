@@ -4,6 +4,7 @@ export const RECIPES: Recipe[] = [
     { out: 'hatchet', amount: 1, cost: { wood: 60, stone: 40 }, bench: 0, seconds: 4 },
     { out: 'pickaxe', amount: 1, cost: { wood: 60, stone: 60 }, bench: 0, seconds: 4 },
     { out: 'hammer', amount: 1, cost: { wood: 40, stone: 20 }, bench: 0, seconds: 3 },
+    { out: 'building_plan', amount: 1, cost: { wood: 20 }, bench: 0, seconds: 2 },
     { out: 'spear', amount: 1, cost: { wood: 60, cloth: 10 }, bench: 0, seconds: 4 },
     { out: 'bandage', amount: 2, cost: { cloth: 8 }, bench: 0, seconds: 2 },
     { out: 'lowgrade', amount: 4, cost: { animal_fat: 3, cloth: 1 }, bench: 0, seconds: 2 },
