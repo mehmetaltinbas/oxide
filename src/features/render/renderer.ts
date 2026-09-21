@@ -696,6 +696,7 @@ export class Renderer {
     }
 
     private drawBuildPreview(game: GameView): void {
+        this.drawDeployGhost(game);
         const prev = game.held.buildPreview();
         if (!prev) return;
         const ctx = this.ctx;
@@ -709,6 +710,30 @@ export class Renderer {
             if (prev.side === 'n') ctx.fillRect(x0, y0 - 5, CELL, 10);
             else ctx.fillRect(x0 - 5, y0, 10, CELL);
         }
+        ctx.restore();
+    }
+
+    /**
+     * The ghost of a deployable in your hand, on the cell a click would put it:
+     * the cell washed light blue (red if it cannot go there) and the thing
+     * itself drawn faint on top, so you can see what goes where before you
+     * spend it.
+     */
+    private drawDeployGhost(game: GameView): void {
+        const prev = game.held.deployPreview();
+        if (!prev) return;
+        const ctx = this.ctx;
+        const x = prev.gx * CELL;
+        const y = prev.gy * CELL;
+        ctx.save();
+        ctx.globalAlpha = WORLD.ghostAlpha;
+        ctx.fillStyle = prev.valid ? WORLD.ghostValid : WORLD.ghostInvalid;
+        ctx.fillRect(x, y, CELL, CELL);
+        ctx.strokeStyle = prev.valid ? WORLD.ghostValid : WORLD.ghostInvalid;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = Math.min(1, WORLD.ghostAlpha * 2);
+        ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+        drawItemIcon(ctx, prev.id, x + CELL / 2, y + CELL / 2, CELL * 0.8);
         ctx.restore();
     }
 

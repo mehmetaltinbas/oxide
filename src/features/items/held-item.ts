@@ -5,6 +5,7 @@ import { CELL } from 'src/features/building/constants/cell.constant';
 import { TIER_DEFS } from 'src/features/building/constants/tier-defs.constant';
 import { BuildKind } from 'src/features/building/types/build-kind.type';
 import { BuildTier } from 'src/features/building/types/build-tier.type';
+import { DEPLOY_REACH } from 'src/features/items/constants/deploy-reach.constant';
 import { DeployableKind } from 'src/features/building/types/deployable-kind.type';
 import { EdgeSide } from 'src/features/building/types/edge-side.type';
 import { Structure } from 'src/features/building/types/structure.interface';
@@ -120,8 +121,7 @@ export class HeldItemSystem {
             return;
         }
         if (def.category === 'deployable') {
-            if (this.hooks.edgeStep() && this.hooks.input().mouseClicked)
-                this.deployHeld(held.id, mx, my);
+            if (this.hooks.edgeStep() && this.hooks.input().mouseClicked) this.deployHeld(held.id);
             return;
         }
         if (def.category === 'explosive') {
@@ -485,27 +485,39 @@ export class HeldItemSystem {
         this.hooks.notify(`Upgraded to ${def.name}.`);
     }
 
-    deployHeld(id: ItemId, mx: number, my: number): void {
-        const gx = Math.floor(mx / CELL);
-        const gy = Math.floor(my / CELL);
-        const blocked = this.build.canDeploy(gx, gy, 0, id as DeployableKind);
-        if (blocked) {
+    /**
+     * Where the deployable in your hand would go if you clicked now, and
+     * whether it can. The one answer both the click and the ghost read, so
+     * what the ghost shows is exactly what a click does.
+     */
+    deployPreview(): {
+        id: ItemId;
+        gx: number;
+        gy: number;
+        valid: boolean;
+        reason: string;
+    } | null {
+        const held = this.hooks.heldItem();
+        if (!held || ITEMS[held.id].category !== 'deployable') return null;
+        const m = this.camera.screenToWorld(this.hooks.input().mouseX, this.hooks.input().mouseY);
+        const gx = Math.floor(m.x / CELL);
+        const gy = Math.floor(m.y / CELL);
+        let reason = this.build.canDeploy(gx, gy, 0, held.id as DeployableKind) ?? '';
+        const p = this.hooks.player();
+        if (!reason && dist(p.x, p.y, gx * CELL + CELL / 2, gy * CELL + CELL / 2) > DEPLOY_REACH)
+            reason = 'Too far';
+        return { id: held.id, gx, gy, valid: !reason, reason };
+    }
+
+    deployHeld(id: ItemId): void {
+        const prev = this.deployPreview();
+        if (!prev || prev.id !== id) return;
+        if (!prev.valid) {
             this.audio.deny();
-            this.hooks.notify(blocked);
+            this.hooks.notify(prev.reason);
             return;
         }
-        if (
-            dist(
-                this.hooks.player().x,
-                this.hooks.player().y,
-                gx * CELL + CELL / 2,
-                gy * CELL + CELL / 2,
-            ) > 200
-        ) {
-            this.audio.deny();
-            this.hooks.notify('Too far');
-            return;
-        }
+        const { gx, gy } = prev;
         removeAcross(this.hooks.containers(), id, 1);
         const hp = id === 'tool_cupboard' ? 400 : id === 'wooden_box' ? 200 : 250;
         this.build.deploy(id as DeployableKind, gx, gy, 0, hp);

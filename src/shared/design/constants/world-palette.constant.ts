@@ -10,6 +10,13 @@
  */
 export const WORLD = {
     /**
+     * The ghost of something about to be placed: light blue where it can go,
+     * red where it cannot. Drawn at `ghostAlpha` so the ground shows through.
+     */
+    ghostValid: '#7cc8ff',
+    ghostInvalid: '#e0503c',
+    ghostAlpha: 0.45,
+    /**
      * Contact shadow under actors, trees and rocks.
      *
      * Off, in the comic pass: a printed panel puts a line round a thing, not a

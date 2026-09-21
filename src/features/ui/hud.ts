@@ -414,6 +414,8 @@ export class Hud {
 
         const prev = game.held.buildPreview();
         if (prev && !prev.valid && prev.reason) hint = prev.reason;
+        const dep = game.held.deployPreview();
+        if (!hint && dep) hint = dep.valid ? `click  place ${ITEMS[dep.id].name}` : dep.reason;
         if (!hint) {
             // Whatever E would do, from the same place E asks. Never scan for
             // interactables here: see `InteractionSystem.target`.
