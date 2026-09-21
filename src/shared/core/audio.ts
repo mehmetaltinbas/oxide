@@ -156,11 +156,6 @@ export class Audio {
         this.tone(620, 0.06, 'triangle', 0.1, 900);
     }
 
-    /** Swinging at nothing. */
-    whoosh(): void {
-        this.noise(0.13, 0.16, 700, 'bandpass');
-    }
-
     chop(): void {
         this.chopWood();
     }

@@ -183,10 +183,36 @@ export const ITEMS: Record<ItemId, ItemDef> = {
         },
     },
 
+    /**
+     * The AK. Scaled off the semi-auto by Rust's own ratios between the two
+     * (Facepunch wiki, rifle.ak against rifle.semiauto): 50 damage to 40, 450
+     * rounds a minute to about 343, 30 in the magazine to 16, a 4.4s reload to
+     * 4.0. Rust's AK kicks hard, which a top-down game has no camera to show,
+     * so the recoil is spent as spread instead: it wins close and loses long.
+     */
+    ak47: {
+        id: 'ak47',
+        name: 'Assault Rifle',
+        category: 'weapon',
+        stack: 1,
+        color: '#c98a52',
+        desc: 'The AK. Fast, loud and hard to hold on target past close range.',
+        gun: {
+            damage: 78,
+            cooldown: 0.145,
+            speed: 1250,
+            range: 950,
+            spread: 0.06,
+            ammo: 'rifle_ammo',
+            magazine: 30,
+            reloadSeconds: 4.4,
+        },
+    },
+
     // ---- ammo
     arrow: A('arrow', 'Arrows', '#d3e8bc', 'For the bow.', 64),
     pistol_ammo: A('pistol_ammo', 'Pistol Ammo', '#fbf0c4', 'For the revolver.', 128),
-    rifle_ammo: A('rifle_ammo', 'Rifle Ammo', '#d7edfe', 'For the rifle.', 128),
+    rifle_ammo: A('rifle_ammo', 'Rifle Ammo', '#d7edfe', 'For the rifles.', 128),
 
     // ---- consumables
     bandage: {

@@ -188,7 +188,7 @@ export class HeldItemSystem {
             this.gather(node.id, damage, gather, tool);
             return;
         }
-        this.audio.whoosh();
+        // A swing at nothing is silent: the sound is for landing a blow.
         this.particles.burst(tipX, tipY, 3, '#6b7a5c', { speed: 70, life: 0.2, size: 1.8 });
     }
 

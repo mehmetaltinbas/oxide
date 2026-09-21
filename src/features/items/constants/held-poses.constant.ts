@@ -28,4 +28,5 @@ export const HELD_POSES: Partial<Record<ItemId, HeldPose>> = {
     // Guns point along +x in their icons.
     revolver: { size: 26, gripX: -0.17, gripY: 0.16, angle: -Math.PI / 2 },
     rifle: { size: 40, gripX: -0.12, gripY: 0.12, angle: -Math.PI / 2 },
+    ak47: { size: 42, gripX: -0.1, gripY: 0.08, angle: -Math.PI / 2 },
 };

@@ -606,6 +606,49 @@ const GLYPHS: Partial<Record<ItemId, Glyph>> = {
         rect(ctx, -0.06, 0.03, 0.06, 0.16, '#4a4a52');
         rect(ctx, -0.14, 0.14, 0.1, 0.16, '#3a3a42');
     },
+    // An AK in profile, barrel to the right: wooden stock, dark receiver, the
+    // curved magazine that makes it an AK, wooden handguard, a gas tube over
+    // the barrel and the front sight post.
+    ak47: (ctx) => {
+        poly(
+            ctx,
+            [
+                [-0.44, -0.07],
+                [-0.2, -0.05],
+                [-0.2, 0.03],
+                [-0.42, 0.12],
+            ],
+            '#9a5a2e',
+            WOOD_DARK,
+        );
+        rect(ctx, -0.2, -0.08, 0.26, 0.11, '#3c3c44');
+        poly(
+            ctx,
+            [
+                [-0.02, 0.03],
+                [0.06, 0.03],
+                [0.1, 0.3],
+                [0.02, 0.32],
+            ],
+            '#35353c',
+            '#1f1f24',
+        );
+        poly(
+            ctx,
+            [
+                [-0.16, 0.03],
+                [-0.08, 0.03],
+                [-0.12, 0.18],
+                [-0.19, 0.17],
+            ],
+            '#6e4122',
+            WOOD_DARK,
+        );
+        rect(ctx, 0.06, -0.07, 0.18, 0.09, '#b0703a');
+        rect(ctx, 0.06, -0.11, 0.26, 0.035, '#4a4a52');
+        rect(ctx, 0.24, -0.05, 0.22, 0.035, '#4a4a52');
+        rect(ctx, 0.4, -0.11, 0.025, 0.07, '#4a4a52');
+    },
     pistol_ammo: (ctx) => {
         for (const x of [-0.18, 0, 0.18]) {
             rect(ctx, x - 0.055, -0.05, 0.11, 0.3, '#c9a94a');

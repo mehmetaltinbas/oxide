@@ -25,6 +25,7 @@ export type ItemId =
     | 'bow'
     | 'revolver'
     | 'rifle'
+    | 'ak47'
     | 'arrow'
     | 'pistol_ammo'
     | 'rifle_ammo'

@@ -60,27 +60,55 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
         [-10, -1],
         [10, -1],
     ];
+    // Where each elbow is, when the arm is bent. Null is a straight arm.
+    const elbows: ([number, number] | null)[] = [null, null];
     let jab = 0;
+    let twist = 0;
+    const throwing = look.punch ? (look.punch.side === -1 ? 0 : 1) : -1;
     if (look.punch && !look.swimming) {
-        // Out fast and back slower, the way a jab is thrown: the fist is at
-        // full reach a third of the way through, then recovers.
+        // Out fast and back slower, the way a punch is thrown: the fist lands
+        // a third of the way through, then recovers.
         const t = look.punch.t;
         jab = t < 0.35 ? t / 0.35 : 1 - (t - 0.35) / 0.65;
         jab = jab * jab * (3 - 2 * jab);
-        const throwing = look.punch.side === -1 ? 0 : 1;
-        const guard = 1 - throwing;
         const sx = look.punch.side;
-        // The throwing shoulder rolls forward and the fist drives in toward
-        // the centre line, out ahead of the face.
-        shoulders[throwing] = [sx * 9.5, -1 - 3.5 * jab];
-        hands[throwing] = [sx * (12.5 - 9 * jab), -2 - 22 * jab];
-        // The other fist comes up by the chin.
-        hands[guard] = [-sx * (12.5 - 5.5 * jab), -2 - 8 * jab];
+        const guard = 1 - throwing;
+        // A punch comes from the hips: the whole upper body turns, carrying the
+        // throwing shoulder forward. Without the turn a straight limb out the
+        // front read as a leg kicking.
+        twist = -sx * 0.42 * jab;
+        // The fist lands in front of the face, on the centre line, knuckles
+        // first. Worked out in the turned frame the arm is drawn in.
+        const target: [number, number] = [sx * 1.5, -16.5];
+        const c = Math.cos(-twist);
+        const sn = Math.sin(-twist);
+        const tx = target[0] * c - target[1] * sn;
+        const ty = target[0] * sn + target[1] * c;
+        const rest = hands[throwing];
+        hands[throwing] = [rest[0] + (tx - rest[0]) * jab, rest[1] + (ty - rest[1]) * jab];
+        // The elbow stays out to the side until the arm is fully through.
+        const [shx, shy] = shoulders[throwing];
+        const [fx, fy] = hands[throwing];
+        const bend = 1 - jab * 0.85;
+        elbows[throwing] = [(shx + fx) / 2 + sx * 5 * bend, (shy + fy) / 2 + 2 * bend];
+        // The other hand guards the chin, elbow tucked in.
+        hands[guard] = [-sx * 4.5, -9 - 1.5 * jab];
+        elbows[guard] = [-sx * 9.5, -4.5];
     }
+
+    ctx.save();
+    ctx.rotate(twist);
     for (let i = 0; i < 2; i++) {
         const [hx, hy] = hands[i];
         const [sx, sy] = shoulders[i];
-        limb(ctx, sx, sy, hx, hy, 5.2, sleeve);
+        const elbow = elbows[i];
+        if (elbow) {
+            // Upper arm, then a slightly slimmer forearm.
+            limb(ctx, sx, sy, elbow[0], elbow[1], 5.2, sleeve);
+            limb(ctx, elbow[0], elbow[1], hx, hy, 4.4, sleeve);
+        } else {
+            limb(ctx, sx, sy, hx, hy, 5.2, sleeve);
+        }
         // The item goes under the fist, so the hand closes over its grip.
         if (i === 1 && look.held) {
             ctx.save();
@@ -90,20 +118,31 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
         }
         ctx.fillStyle = skin;
         ctx.beginPath();
-        // A fist that is punching is balled up, a touch bigger than an open hand.
-        const throwing = look.punch && (look.punch.side === -1 ? 0 : 1) === i;
-        ctx.arc(hx, hy, throwing ? 2.9 + 0.7 * jab : 2.9, 0, TAU);
-        ctx.fill();
+        if (look.punch && !look.swimming) {
+            // A balled fist: bigger than an open hand, with the knuckles drawn.
+            const r = i === throwing ? 3.4 + 0.6 * jab : 3.1;
+            ctx.arc(hx, hy, r, 0, TAU);
+            ctx.fill();
+            marks(ctx, () => {
+                for (const k of [-0.55, 0, 0.55]) {
+                    ctx.moveTo(hx + k * r - 0.5, hy - r * 0.55);
+                    ctx.lineTo(hx + k * r + 0.5, hy - r * 0.55);
+                }
+            });
+        } else {
+            ctx.arc(hx, hy, 2.9, 0, TAU);
+            ctx.fill();
+        }
     }
-    // At full reach, a few strokes behind the fist: the comic way of saying it
-    // moved fast. Straight lines trailing back along the arm.
-    if (look.punch && jab > 0.75) {
-        const i = look.punch.side === -1 ? 0 : 1;
-        const [hx, hy] = hands[i];
+    // At the moment of impact, a burst of short strokes round the knuckles:
+    // the comic way of saying that landed.
+    if (look.punch && jab > 0.8) {
+        const [hx, hy] = hands[throwing];
         marks(ctx, () => {
-            for (const off of [-2.6, 0, 2.6]) {
-                ctx.moveTo(hx + off, hy + 5);
-                ctx.lineTo(hx + off * 1.3, hy + 11);
+            for (let k = -2; k <= 2; k++) {
+                const a = -Math.PI / 2 + k * 0.42;
+                ctx.moveTo(hx + Math.cos(a) * 5.5, hy + Math.sin(a) * 5.5);
+                ctx.lineTo(hx + Math.cos(a) * 8.5, hy + Math.sin(a) * 8.5);
             }
         });
     }
@@ -171,6 +210,7 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
             ctx.quadraticCurveTo(-4.8, hy + 1.8, -3.6, hy + 4);
         });
     }
+    ctx.restore();
     ctx.restore();
 }
 

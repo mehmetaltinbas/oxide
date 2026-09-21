@@ -4,6 +4,8 @@ export const RECIPES: Recipe[] = [
     { out: 'hatchet', amount: 1, cost: { wood: 60, stone: 40 }, bench: 0, seconds: 4 },
     { out: 'pickaxe', amount: 1, cost: { wood: 60, stone: 60 }, bench: 0, seconds: 4 },
     { out: 'hammer', amount: 1, cost: { wood: 40, stone: 20 }, bench: 0, seconds: 3 },
+    // A hunting bow is the first weapon you make, as in Rust: no bench.
+    { out: 'bow', amount: 1, cost: { wood: 200, cloth: 50 }, bench: 0, seconds: 6 },
     { out: 'building_plan', amount: 1, cost: { wood: 20 }, bench: 0, seconds: 2 },
     { out: 'spear', amount: 1, cost: { wood: 60, cloth: 10 }, bench: 0, seconds: 4 },
     { out: 'bandage', amount: 2, cost: { cloth: 8 }, bench: 0, seconds: 2 },
@@ -22,7 +24,6 @@ export const RECIPES: Recipe[] = [
     { out: 'clothing', amount: 1, cost: { leather: 30, cloth: 20 }, bench: 0, seconds: 5 },
     { out: 'workbench1', amount: 1, cost: { wood: 500, scrap: 50 }, bench: 0, seconds: 8 },
 
-    { out: 'bow', amount: 1, cost: { wood: 200, cloth: 50 }, bench: 1, seconds: 6 },
     { out: 'arrow', amount: 8, cost: { wood: 40, stone: 15 }, bench: 1, seconds: 3 },
     { out: 'lock', amount: 1, cost: { metal: 100 }, bench: 1, seconds: 4 },
     { out: 'gunpowder', amount: 10, cost: { sulfur: 20, charcoal: 30 }, bench: 1, seconds: 3 },
@@ -42,6 +43,7 @@ export const RECIPES: Recipe[] = [
     { out: 'workbench3', amount: 1, cost: { metal: 1000, scrap: 500 }, bench: 2, seconds: 14 },
 
     { out: 'rifle', amount: 1, cost: { metal: 450, scrap: 300 }, bench: 3, seconds: 12 },
+    { out: 'ak47', amount: 1, cost: { metal: 600, scrap: 450, wood: 200 }, bench: 3, seconds: 15 },
     { out: 'rifle_ammo', amount: 12, cost: { gunpowder: 20, metal: 15 }, bench: 3, seconds: 3 },
     {
         out: 'c4',
