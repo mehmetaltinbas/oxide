@@ -58,10 +58,17 @@ const unlock = (): void => game.audio.unlock();
 window.addEventListener('pointerdown', unlock, { once: true });
 window.addEventListener('keydown', unlock, { once: true });
 
-// Respawn is handled here so the death screen can own the Enter key.
+// Respawn is handled here so the death screen owns its keys: a number wakes
+// you in that bag, B on a beach, and Enter in your first bag if you have one.
 window.addEventListener('keydown', (e) => {
-    if (e.code !== 'Enter') return;
-    if (game.phase === 'dead' && game.player.respawnTimer <= 0) game.respawn();
+    if (game.phase !== 'dead' || game.player.respawnTimer > 0) return;
+    const bags = game.myBags();
+    if (e.code === 'Enter') game.respawn(bags[0]?.id ?? null);
+    else if (e.code === 'KeyB') game.respawn(null);
+    else if (/^Digit[1-9]$/.test(e.code)) {
+        const bag = bags[Number(e.code.slice(5)) - 1];
+        if (bag) game.respawn(bag.id);
+    }
 });
 
 const STEP = 1 / 60;

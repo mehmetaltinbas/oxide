@@ -10,6 +10,7 @@ import { TIER_DEFS } from 'src/features/building/constants/tier-defs.constant';
 import { TIERS } from 'src/features/building/constants/tiers.constant';
 import { BuildKind } from 'src/features/building/types/build-kind.type';
 import { BuildTier } from 'src/features/building/types/build-tier.type';
+import { SLEEPING_BAG_SPACING } from 'src/features/building/constants/sleeping-bag-spacing.constant';
 import { DeployableKind } from 'src/features/building/types/deployable-kind.type';
 import { Deployable } from 'src/features/building/types/deployable.interface';
 import { EdgeSide } from 'src/features/building/types/edge-side.type';
@@ -255,10 +256,18 @@ export class BuildSystem {
 
     // ------------------------------------------------------------ deployables
 
-    canDeploy(gx: number, gy: number, owner: number): string | null {
+    canDeploy(gx: number, gy: number, owner: number, kind?: DeployableKind): string | null {
         if (this.deployCells.has(cellKey(gx, gy))) return 'Something is already here';
         const cx = gx * CELL + CELL / 2;
         const cy = gy * CELL + CELL / 2;
+        if (kind === 'sleeping_bag') {
+            // Anyone's bag, not only yours: a spot has room for one.
+            for (const d of this.deployables) {
+                if (d.kind !== 'sleeping_bag') continue;
+                if (Math.hypot(d.x - cx, d.y - cy) < SLEEPING_BAG_SPACING)
+                    return 'Too close to another sleeping bag';
+            }
+        }
         if (!this.canBuildAt(cx, cy, owner)) return 'Blocked by a tool cupboard';
         const natural = this.naturalBlocked?.(cx, cy, CELL * 0.4);
         if (natural) return natural;

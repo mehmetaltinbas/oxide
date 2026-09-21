@@ -1,3 +1,4 @@
+import { CELL } from 'src/features/building/constants/cell.constant';
 import { Vital } from 'src/features/ui/types/vital.type';
 import { drawVitalIcon } from 'src/features/ui/utils/draw-vital-icon.util';
 import { TYPE } from 'src/shared/design/constants/type.constant';
@@ -1797,12 +1798,22 @@ export class Hud {
         );
     }
 
+    /**
+     * The death screen, and where to wake up.
+     *
+     * Every bag you own is a choice, as in Rust: a row each with how far and
+     * which way it is from where you fell, then a beach at the bottom for a
+     * fresh start. Click one, or press its number; B is the beach.
+     */
     private drawDeath(game: Game, w: number, h: number): void {
         const ui = this.ui;
         this.ctx.fillStyle = 'rgba(20, 4, 4, 0.55)';
         this.ctx.fillRect(0, 0, w, h);
-        const cardW = 420;
-        const cardH = 210;
+        const bags = game.myBags().slice(0, 9);
+        const rowH = 40;
+        const cardW = 440;
+        const listTop = 150;
+        const cardH = listTop + (bags.length + 1) * rowH + 20;
         const x = Math.round(w / 2 - cardW / 2);
         const y = Math.round(h / 2 - cardH / 2);
         ui.panel(x, y, cardW, cardH);
@@ -1813,10 +1824,9 @@ export class Hud {
             align: 'center',
             color: UI.warn,
         });
-        const bag = game.build.deployables.find((d) => d.kind === 'sleeping_bag' && d.owner === 0);
         ui.wrap(
-            bag
-                ? 'Your things are on the ground where you fell. Your bag is still there.'
+            bags.length > 0
+                ? 'Your things are on the ground where you fell. Choose where to wake up.'
                 : 'Your things are on the ground where you fell. You have no bag to wake up in.',
             x + SPACE.lg,
             y + 72,
@@ -1824,21 +1834,40 @@ export class Hud {
             18,
             { size: 'label', color: UI.subtle },
         );
-        ui.text(`Survived to day ${game.day}.`, x + cardW / 2, y + 122, {
+        ui.text(`Survived to day ${game.day}.`, x + cardW / 2, y + 116, {
             size: 'label',
             color: UI.ink,
             align: 'center',
         });
 
         const ready = game.player.respawnTimer <= 0;
-        ui.button(
-            x + cardW / 2 - 110,
-            y + cardH - 56,
-            220,
-            36,
-            ready ? 'Respawn  ·  enter' : `Respawn in ${Math.ceil(game.player.respawnTimer)}`,
-            { enabled: ready },
-        );
+        const p = game.player;
+        const options: { label: string; bagId: number | null }[] = bags.map((b, i) => {
+            const d = Math.round(Math.hypot(b.x - p.x, b.y - p.y) / CELL);
+            return {
+                label: `${i + 1}  ·  Sleeping bag, ${d} cells ${compass(b.x - p.x, b.y - p.y)}`,
+                bagId: b.id,
+            };
+        });
+        options.push({ label: 'B  ·  A beach, with nothing', bagId: null });
+        options.forEach((o, i) => {
+            const r: Rect = {
+                x: x + SPACE.lg,
+                y: y + listTop + i * rowH,
+                w: cardW - SPACE.lg * 2,
+                h: 32,
+            };
+            const hovered = ready && hit(r, game.input.mouseX, game.input.mouseY);
+            ui.button(
+                r.x,
+                r.y,
+                r.w,
+                r.h,
+                ready ? o.label : `Respawn in ${Math.ceil(p.respawnTimer)}`,
+                { enabled: ready, hovered },
+            );
+            if (hovered && game.input.mouseClicked) game.respawn(o.bagId);
+        });
     }
 
     // ------------------------------------------------------------------ util
@@ -1881,4 +1910,12 @@ export class Hud {
         while (out.length > 1 && ctx.measureText(`${out}…`).width > maxW) out = out.slice(0, -1);
         ctx.fillText(`${out}…`, x, y);
     }
+}
+
+/** Which way something lies, as a point of the compass. Screen up is north. */
+function compass(dx: number, dy: number): string {
+    if (Math.hypot(dx, dy) < CELL) return 'here';
+    const names = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+    const a = Math.atan2(dy, dx);
+    return names[(Math.round(a / (Math.PI / 4)) + 8) % 8];
 }

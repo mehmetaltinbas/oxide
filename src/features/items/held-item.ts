@@ -488,7 +488,7 @@ export class HeldItemSystem {
     deployHeld(id: ItemId, mx: number, my: number): void {
         const gx = Math.floor(mx / CELL);
         const gy = Math.floor(my / CELL);
-        const blocked = this.build.canDeploy(gx, gy, 0);
+        const blocked = this.build.canDeploy(gx, gy, 0, id as DeployableKind);
         if (blocked) {
             this.audio.deny();
             this.hooks.notify(blocked);

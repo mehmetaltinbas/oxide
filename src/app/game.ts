@@ -946,9 +946,20 @@ export class Game {
         return null;
     }
 
-    respawn(): void {
+    /** Your sleeping bags, in the order the respawn screen lists them. */
+    myBags(): Deployable[] {
+        return this.build.deployables
+            .filter((d) => d.kind === 'sleeping_bag' && d.owner === 0)
+            .sort((a, b) => a.id - b.id);
+    }
+
+    /**
+     * Wake up again: in the bag you chose, or on a beach if you chose none.
+     * A bag that has been destroyed since the screen was drawn is a beach.
+     */
+    respawn(bagId: number | null = null): void {
         const p = this.player;
-        const bag = this.build.deployables.find((d) => d.kind === 'sleeping_bag' && d.owner === 0);
+        const bag = bagId === null ? undefined : this.myBags().find((d) => d.id === bagId);
         const at = bag ? { x: bag.x, y: bag.y } : this.beachSpawn();
         p.x = at.x;
         p.y = at.y;
