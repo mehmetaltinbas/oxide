@@ -106,6 +106,24 @@ Palette rules live with the tokens they govern: see
 - Nothing blinks except a genuine alarm state.
 - The overlay never draws a border thicker than 1px, and never a solid fill.
 
+## Every interactable has a prompt
+
+**Rule:** anything the player can act on with E shows its prompt at the bottom
+of the screen whenever it is in range. No exceptions: an item, a plant, a door,
+a box, a bench, a crate, a lake.
+
+**How it is kept true:** there is one answer to "what is in reach", and it is
+`InteractionSystem.target()`. The E key acts on it; the HUD prints
+`InteractionSystem.prompt()` for it. The HUD never scans the world for
+interactables itself.
+
+**Adding a new interactable** means three things, all in the interaction
+feature: a case in `InteractTarget`, a branch in `target()`, and its line in
+`prompt()`. The compiler then refuses to build until `interact()` handles it
+too. Do not wire a new E action anywhere else, or it will work without a
+prompt, which is the bug this rule exists for: drinking from a lake did
+exactly that.
+
 ## One screen, several tabs
 
 The inventory, the crafting list, an open crate and the sandbox shelf are pages of one screen, not

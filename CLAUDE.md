@@ -59,6 +59,9 @@ When something behaves impossibly, check the test harness before blaming the gam
   save/load, and the reasons are in `docs/architecture/code-conventions.md`.
 - **Behaviour lives in feature systems**, not in the orchestrator. `src/app/game.ts` constructs
   systems, owns shared state and phase, and runs them in order. Nothing else.
+- **Every interactable shows its prompt in range.** One source for what is in reach:
+  `InteractionSystem.target()`, which both E and the HUD prompt read. A new interactable is a new
+  case there, never a separate check. See `docs/systems/ui.md`, "Every interactable has a prompt".
 - **Four-space indentation**, enforced by Prettier. `npm run build` fails on a formatting drift, so
   run `npm run format` before you finish.
 

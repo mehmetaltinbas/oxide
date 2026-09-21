@@ -82,6 +82,14 @@ class Hash<T extends { x: number; y: number }> {
 export class World {
     seed: number;
     biomes: Biome[] = [];
+    /**
+     * Which water tiles are fresh: 1 for a lake, 0 for the sea or dry land.
+     *
+     * The biome grid has one kind of water, but you can drink a lake and not
+     * the sea. Sea is whatever water joins up with the rim; anything the flood
+     * from the rim cannot reach is landlocked, and landlocked water is fresh.
+     */
+    fresh: Uint8Array = new Uint8Array(0);
     nodes: ResourceNode[] = [];
     monuments: Monument[] = [];
     crates: LootCrate[] = [];
@@ -115,6 +123,7 @@ export class World {
     private generate(): void {
         const rng = makeRng(this.seed);
         this.generateBiomes(rng);
+        this.markFreshWater();
         this.placeMonuments(rng);
         this.scatterNodes(rng);
         this.pickSpawn(rng);
@@ -224,6 +233,37 @@ export class World {
                 }
             }
         }
+    }
+
+    /** Mark every water tile that does not join the open sea as a lake. */
+    private markFreshWater(): void {
+        const sea = new Uint8Array(BIOME_W * BIOME_H);
+        const stack: number[] = [];
+        for (let x = 0; x < BIOME_W; x++) stack.push(x, (BIOME_H - 1) * BIOME_W + x);
+        for (let y = 0; y < BIOME_H; y++) stack.push(y * BIOME_W, y * BIOME_W + BIOME_W - 1);
+        while (stack.length) {
+            const i = stack.pop()!;
+            if (sea[i] || this.biomes[i] !== 'water') continue;
+            sea[i] = 1;
+            const x = i % BIOME_W;
+            const y = (i - x) / BIOME_W;
+            if (x > 0) stack.push(i - 1);
+            if (x < BIOME_W - 1) stack.push(i + 1);
+            if (y > 0) stack.push(i - BIOME_W);
+            if (y < BIOME_H - 1) stack.push(i + BIOME_W);
+        }
+        this.fresh = new Uint8Array(BIOME_W * BIOME_H);
+        for (let i = 0; i < this.fresh.length; i++) {
+            if (this.biomes[i] === 'water' && !sea[i]) this.fresh[i] = 1;
+        }
+    }
+
+    /** Whether this point is in a lake, as opposed to the sea or on land. */
+    freshAt(x: number, y: number): boolean {
+        const bx = Math.floor(x / BIOME_TILE);
+        const by = Math.floor(y / BIOME_TILE);
+        if (bx < 0 || by < 0 || bx >= BIOME_W || by >= BIOME_H) return false;
+        return this.fresh[by * BIOME_W + bx] === 1;
     }
 
     biomeAt(x: number, y: number): Biome {

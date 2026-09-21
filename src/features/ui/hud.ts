@@ -413,46 +413,10 @@ export class Hud {
         const prev = game.held.buildPreview();
         if (prev && !prev.valid && prev.reason) hint = prev.reason;
         if (!hint) {
-            const loose = game.interaction.groundItemNear();
-            if (loose) {
-                const n = loose.item.count > 1 ? ` x${loose.item.count}` : '';
-                hint = `e  pick up ${ITEMS[loose.item.id].name}${n}`;
-            }
-        }
-        if (!hint) {
-            for (const n of game.world.nodesNear(p.x, p.y, PLAYER.interact + 30)) {
-                if (n.hp <= 0 || n.kind !== 'hemp') continue;
-                if (Math.hypot(n.x - p.x, n.y - p.y) > PLAYER.interact) continue;
-                hint = 'e  pick hemp';
-                break;
-            }
-        }
-        if (!hint) {
-            for (const d of game.build.deployables) {
-                if (Math.hypot(d.x - p.x, d.y - p.y) > PLAYER.interact) continue;
-                if (!game.canReach(d.x, d.y)) continue;
-                hint = `e  ${ITEMS[d.kind].name}${d.owner !== 0 ? ' (not yours)' : ''}`;
-                break;
-            }
-        }
-        if (!hint) {
-            for (const c of game.world.crates) {
-                if (c.looted || Math.hypot(c.x - p.x, c.y - p.y) > PLAYER.interact) continue;
-                if (!game.canReach(c.x, c.y)) continue;
-                hint = 'e  loot crate';
-                break;
-            }
-        }
-        if (!hint) {
-            for (const st of game.build.structures) {
-                if (st.kind !== 'door') continue;
-                const cx = st.side === 'n' ? st.gx * 64 + 32 : st.gx * 64;
-                const cy = st.side === 'n' ? st.gy * 64 : st.gy * 64 + 32;
-                if (Math.hypot(cx - p.x, cy - p.y) > PLAYER.interact) continue;
-                if (!game.canReach(cx, cy)) continue;
-                hint = st.open ? 'e  close door' : 'e  open door';
-                break;
-            }
+            // Whatever E would do, from the same place E asks. Never scan for
+            // interactables here: see `InteractionSystem.target`.
+            const t = game.interaction.target();
+            if (t) hint = game.interaction.prompt(t);
         }
         if (!hint) return;
 

@@ -4,6 +4,9 @@ import { Deployable } from 'src/features/building/types/deployable.interface';
 import { Structure } from 'src/features/building/types/structure.interface';
 import { centerOf } from 'src/features/building/utils/center-of.util';
 import { ITEMS } from 'src/features/items/constants/items.constant';
+import { DEPLOYABLE_REACH_BONUS } from 'src/features/items/constants/deployable-reach-bonus.constant';
+import { InteractTarget } from 'src/features/items/types/interact-target.type';
+import { NODES } from 'src/features/world/constants/nodes.constant';
 import { HeldItemSystem } from 'src/features/items/held-item';
 import { Container } from 'src/features/items/types/container.interface';
 import { GroundItem } from 'src/features/items/types/ground-item.interface';
@@ -38,7 +41,7 @@ export interface InteractionHooks {
     canReach(x: number, y: number): boolean;
     /** A plant within arm's reach that can be picked rather than hit. */
     harvestableNear(): ResourceNode | null;
-    /** Whether this point is at a shoreline, so drinking is possible. */
+    /** Whether this point is on the shore of a lake, so drinking is possible. */
     nearWater(x: number, y: number): boolean;
     /** Show this container's contents. */
     openContainer(oc: {
@@ -134,22 +137,27 @@ export class InteractionSystem {
         }
     }
 
-    interact(): void {
+    /**
+     * The one thing E would act on right now, or nothing.
+     *
+     * This is the single source of truth for "what is in reach": `interact`
+     * acts on it and the HUD prints its prompt, so the two cannot disagree.
+     * They used to be two separate scans with their own ranges, and anything
+     * one knew about and the other did not (water, a box at the edge of reach,
+     * a door measured from a different point) worked without a prompt, or
+     * prompted and then did nothing. Adding a new kind of interactable means
+     * adding it here, and its prompt comes with it.
+     */
+    target(): InteractTarget | null {
         const p = this.hooks.player();
 
         // Loose items first, then plants: both are "press E to pick that up".
         const loose = this.groundItemNear();
-        if (loose) {
-            this.pickUp(loose);
-            return;
-        }
+        if (loose) return { kind: 'item', item: loose };
         const plant = this.hooks.harvestableNear();
-        if (plant) {
-            this.hooks.held().collectPlant(plant);
-            return;
-        }
+        if (plant) return { kind: 'plant', node: plant };
 
-        // Doors first: opening one is the most common thing you do.
+        // Doors next: opening one is the most common thing you do.
         let bestDoor: Structure | null = null;
         let bestD: number = PLAYER.interact;
         for (const s of this.build.structures) {
@@ -161,21 +169,11 @@ export class InteractionSystem {
                 bestDoor = s;
             }
         }
-        if (bestDoor) {
-            if (bestDoor.owner !== 0 && bestDoor.locked) {
-                this.audio.deny();
-                this.hooks.notify('Locked. You will have to break it.');
-                return;
-            }
-            this.build.setDoorOpen(bestDoor, !bestDoor.open);
-            this.hooks.reportDoor(bestDoor.id, !!bestDoor.open);
-            this.audio.build();
-            return;
-        }
+        if (bestDoor) return { kind: 'door', door: bestDoor };
 
         // Then containers and workstations.
         let bestDep: Deployable | null = null;
-        bestD = PLAYER.interact + 20;
+        bestD = PLAYER.interact + DEPLOYABLE_REACH_BONUS;
         for (const d of this.build.deployables) {
             const dd = dist(p.x, p.y, d.x, d.y);
             if (dd < bestD && this.hooks.canReach(d.x, d.y)) {
@@ -183,29 +181,88 @@ export class InteractionSystem {
                 bestDep = d;
             }
         }
-        if (bestDep) {
-            this.openDeployable(bestDep);
-            return;
-        }
+        if (bestDep) return { kind: 'deployable', deployable: bestDep };
 
         // Then loot crates.
         for (const c of this.world.crates) {
             if (c.looted) continue;
             if (dist(p.x, p.y, c.x, c.y) > PLAYER.interact) continue;
             if (!this.hooks.canReach(c.x, c.y)) continue;
-            this.hooks.openContainer({ container: c.container, title: 'Crate', source: c });
-            this.audio.build();
-            return;
+            return { kind: 'crate', crate: c };
         }
 
-        // Then water.
-        if (this.world.biomeAt(p.x, p.y) === 'water' || this.hooks.nearWater(p.x, p.y)) {
-            p.hydration = Math.min(PLAYER.maxHydration, p.hydration + 34);
-            this.audio.pickup();
-            this.particles.text(p.x, p.y - 26, 'drank', '#5aa8d8');
+        // Then fresh water. The sea is salt and nobody drinks it.
+        if (this.world.freshAt(p.x, p.y) || this.hooks.nearWater(p.x, p.y)) {
+            return { kind: 'water' };
+        }
+        return null;
+    }
+
+    /** What the prompt at the bottom of the screen says for a target. */
+    prompt(t: InteractTarget): string {
+        switch (t.kind) {
+            case 'item': {
+                const n = t.item.item.count > 1 ? ` x${t.item.item.count}` : '';
+                return `e  pick up ${ITEMS[t.item.item.id].name}${n}`;
+            }
+            case 'plant':
+                return `e  pick ${NODES[t.node.kind].name.toLowerCase()}`;
+            case 'door':
+                return t.door.open ? 'e  close door' : 'e  open door';
+            case 'deployable': {
+                const d = t.deployable;
+                return `e  ${ITEMS[d.kind].name}${d.owner !== 0 ? ' (not yours)' : ''}`;
+            }
+            case 'crate':
+                return 'e  loot crate';
+            case 'water':
+                return 'e  drink';
+        }
+    }
+
+    interact(): void {
+        const p = this.hooks.player();
+        const t = this.target();
+        if (!t) {
+            this.audio.deny();
             return;
         }
-        this.audio.deny();
+        switch (t.kind) {
+            case 'item':
+                this.pickUp(t.item);
+                return;
+            case 'plant':
+                this.hooks.held().collectPlant(t.node);
+                return;
+            case 'door': {
+                const door = t.door;
+                if (door.owner !== 0 && door.locked) {
+                    this.audio.deny();
+                    this.hooks.notify('Locked. You will have to break it.');
+                    return;
+                }
+                this.build.setDoorOpen(door, !door.open);
+                this.hooks.reportDoor(door.id, !!door.open);
+                this.audio.build();
+                return;
+            }
+            case 'deployable':
+                this.openDeployable(t.deployable);
+                return;
+            case 'crate':
+                this.hooks.openContainer({
+                    container: t.crate.container,
+                    title: 'Crate',
+                    source: t.crate,
+                });
+                this.audio.build();
+                return;
+            case 'water':
+                p.hydration = Math.min(PLAYER.maxHydration, p.hydration + 34);
+                this.audio.pickup();
+                this.particles.text(p.x, p.y - 26, 'drank', '#5aa8d8');
+                return;
+        }
     }
 
     openDeployable(d: Deployable): void {

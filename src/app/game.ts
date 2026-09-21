@@ -1095,11 +1095,17 @@ export class Game {
         return best;
     }
 
+    /**
+     * Whether a lake is within arm's reach of this point.
+     *
+     * Only fresh water: the sea is salt. Probed at the interact range, like
+     * everything else E reaches for, rather than the 70 it used to use.
+     */
     private nearWater(x: number, y: number): boolean {
         for (let a = 0; a < 8; a++) {
             const ang = (a / 8) * TAU;
-            if (this.world.biomeAt(x + Math.cos(ang) * 70, y + Math.sin(ang) * 70) === 'water')
-                return true;
+            const r = PLAYER.interact + PLAYER.radius;
+            if (this.world.freshAt(x + Math.cos(ang) * r, y + Math.sin(ang) * r)) return true;
         }
         return false;
     }
