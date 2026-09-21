@@ -237,7 +237,7 @@ export class Hud {
                 color: UI.warn,
             });
         }
-        meter('food', p.calories, PLAYER.maxCalories, '#d8923a', 1);
+        meter('food', p.calories, PLAYER.maxCalories, '#ff8a1c', 1);
         meter('water', p.hydration, PLAYER.maxHydration, '#4a9ee8', 2);
 
         // Conditions read as a single quiet line, and only when they apply.
