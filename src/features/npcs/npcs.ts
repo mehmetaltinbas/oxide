@@ -2,6 +2,7 @@ import { BuildSystem } from 'src/features/building/building';
 import { CELL } from 'src/features/building/constants/cell.constant';
 import { Structure } from 'src/features/building/types/structure.interface';
 import { CLAN_PURSUIT_LEASH } from 'src/features/clans/constants/clan-pursuit-leash.constant';
+import { SHORE_GIVE_UP } from 'src/features/npcs/constants/shore-give-up.constant';
 import { CLAN_PURSUIT_SECONDS } from 'src/features/clans/constants/clan-pursuit-seconds.constant';
 import { CLAN_RETREAT_HEALTH } from 'src/features/clans/constants/clan-retreat-health.constant';
 import { ItemId } from 'src/features/items/types/item-id.type';
@@ -186,6 +187,7 @@ export class NpcSystem {
             flash: 0,
             knockX: 0,
             knockY: 0,
+            shoreWait: 0,
             animPhase: Math.random() * TAU,
             homeX: opts.home?.x ?? x,
             homeY: opts.home?.y ?? y,
@@ -379,7 +381,28 @@ export class NpcSystem {
         const wantsFight = def.hostile || provoked;
         const aggroRange = def.gun ? def.gun.range * 0.85 : 300;
 
-        if (wantsFight && player.alive && toPlayer < aggroRange && fromHome < n.leash * 2.4) {
+        // Out in the water you are out of reach, and after a moment an animal
+        // stops pretending otherwise: it drops the chase and goes home. It
+        // will take you up again only once you are back on land.
+        const swimming = player.alive && this.world.biomeAt(player.x, player.y) === 'water';
+        if (!def.gun && swimming && provoked) {
+            n.shoreWait += dt;
+            if (n.shoreWait >= SHORE_GIVE_UP) {
+                n.state = 'return';
+                n.shoreWait = 0;
+            }
+        } else if (!swimming) {
+            n.shoreWait = 0;
+        }
+        const givenUp = !def.gun && swimming && !(n.state === 'chase' || n.state === 'attack');
+
+        if (
+            wantsFight &&
+            !givenUp &&
+            player.alive &&
+            toPlayer < aggroRange &&
+            fromHome < n.leash * 2.4
+        ) {
             if (def.gun) {
                 this.shootAt(n, def, player, dt, toPlayer);
                 return;

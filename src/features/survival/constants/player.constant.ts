@@ -21,5 +21,12 @@ export const PLAYER = {
     radDamage: 3.0,
     maxRadiation: 100,
     comfortTemp: 10,
-    interact: 78,
+    /**
+     * How close you must be to pick up, harvest, open or use something.
+     *
+     * Halved from 78: at that range the prompt came up from well across a
+     * clearing, and with two things nearby it was a guess which one E would
+     * take. At 39 you have to be standing at it.
+     */
+    interact: 39,
 } as const;

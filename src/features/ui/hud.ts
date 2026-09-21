@@ -1,3 +1,5 @@
+import { Vital } from 'src/features/ui/types/vital.type';
+import { drawVitalIcon } from 'src/features/ui/utils/draw-vital-icon.util';
 import { TYPE } from 'src/shared/design/constants/type.constant';
 import { isFullscreen, toggleFullscreen } from 'src/shared/core/fullscreen';
 import { CONTROLS_REFERENCE } from 'src/features/ui/constants/controls-reference.constant';
@@ -192,25 +194,29 @@ export class Hud {
         const mw = 190;
         const baseY = h - 118;
 
+        // An icon heads each gauge where its name used to be: the bar starts
+        // after it, and the number still sits at the far end.
+        const icon = 18;
+        const barX = x + icon + 8;
         const meter = (
-            label: string,
+            vital: Vital,
             value: number,
             max: number,
             color: string,
             row: number,
         ): void => {
             const my = baseY + row * 26;
-            ui.textOnDark(label, x, my, { size: 'caption', color: UI.onDarkSubtle });
+            drawVitalIcon(this.ctx, vital, x + icon / 2, my + 15, icon, color);
             ui.textOnDark(String(Math.round(value)), x + mw, my, {
                 size: 'caption',
                 weight: 600,
                 align: 'right',
             });
-            ui.meterOnDark(x, my + 14, mw, 5, value / max, color);
+            ui.meterOnDark(barX, my + 14, x + mw - barX, 5, value / max, color);
         };
-        meter('HEALTH', p.health, PLAYER.maxHealth, p.health > 35 ? WORLD.hostile : '#ff6a5a', 0);
-        meter('FOOD', p.calories, PLAYER.maxCalories, '#d8923a', 1);
-        meter('WATER', p.hydration, PLAYER.maxHydration, '#4a9ee8', 2);
+        meter('health', p.health, PLAYER.maxHealth, p.health > 35 ? WORLD.hostile : '#ff6a5a', 0);
+        meter('food', p.calories, PLAYER.maxCalories, '#d8923a', 1);
+        meter('water', p.hydration, PLAYER.maxHydration, '#4a9ee8', 2);
 
         // Conditions read as a single quiet line, and only when they apply.
         const bits: [string, string][] = [

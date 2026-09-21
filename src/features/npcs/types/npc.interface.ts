@@ -20,6 +20,8 @@ export interface Npc {
     flash: number;
     knockX: number;
     knockY: number;
+    /** How long it has been waiting at the shore for you to come out. */
+    shoreWait: number;
     animPhase: number;
     /** Where this npc belongs: a monument, a clan base, or nothing. */
     homeX: number;
