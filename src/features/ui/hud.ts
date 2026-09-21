@@ -118,6 +118,7 @@ export class Hud {
         if (game.panel === 'craft') this.drawCraft(game, w, h);
         if (game.panel === 'sandbox') this.drawSandbox(game, w, h);
         if (game.panel === 'help') this.drawHelp(w, h);
+        if (game.panel === 'map') this.drawIslandMap(game, w, h);
         if (game.paused && game.panel !== 'help') this.drawSettings(game, w, h);
         if (game.phase === 'dead') this.drawDeath(game, w, h);
         this.drawDragged(game);
@@ -357,7 +358,7 @@ export class Hud {
               : UI.glass;
         this.ctx.fill();
         ui.textOnDark(
-            game.revealClans ? 'Recon on  ·  m' : 'Reveal clans  ·  m',
+            game.revealClans ? 'Recon on' : 'Reveal clans',
             btn.x + btn.w / 2,
             btn.y + 7,
             {
@@ -706,6 +707,32 @@ export class Hud {
         }
     }
 
+    /**
+     * The whole island, opened with M.
+     *
+     * The corner map is for a glance; this is for planning where to go. The
+     * recon toggle lives here too, now that M is the map's key.
+     */
+    private drawIslandMap(game: Game, w: number, h: number): void {
+        const ui = this.ui;
+        const size = Math.max(200, Math.min(w, h) - 190);
+        const panelW = size + SPACE.lg * 2;
+        const panelH = size + 130;
+        const x = Math.round(w / 2 - panelW / 2);
+        const y = Math.round(h / 2 - panelH / 2);
+        ui.scrim(w, h);
+        ui.panel(x, y, panelW, panelH);
+        const top = ui.header(x, y, panelW, 'Map', 'the whole island', 'm to close');
+        this.renderer.drawMinimap(game, x + SPACE.lg, top + 12, size, 2);
+
+        const btn: Rect = { x: x + SPACE.lg, y: top + 12 + size + 12, w: 200, h: 30 };
+        const hovered = hit(btn, game.input.mouseX, game.input.mouseY);
+        ui.button(btn.x, btn.y, btn.w, btn.h, game.revealClans ? 'Recon on' : 'Reveal clans', {
+            hovered,
+        });
+        if (hovered && game.input.mouseClicked) game.toggleReveal();
+    }
+
     private drawInventory(game: Game, w: number, h: number): void {
         const ui = this.ui;
         const panelW = Math.min(760, w - 80);
@@ -735,11 +762,17 @@ export class Hud {
             heldOnly: true,
             across: away ?? game.player.inventory,
         });
-        this.slotGrid(game, game.player.inventory, x + SPACE.lg, top + 128, 6, 'MAIN', {
+        const mainTop = top + 128;
+        this.slotGrid(game, game.player.inventory, x + SPACE.lg, mainTop, 6, 'MAIN', {
             across: away ?? undefined,
         });
-        // What you have on. One slot, and it only takes something wearable.
-        this.slotGrid(game, game.player.worn, x + SPACE.lg, top + 266, 1, 'WORN', {
+        // What you have on, in a box of its own under the pack. It used to be
+        // laid at a fixed height that landed on the pack's fourth row, so the
+        // worn slot read as one more pack slot.
+        const rows = Math.ceil(game.player.inventory.slots.length / 6);
+        const wornTop = mainTop + rows * 46 + 34;
+        this.ui.card(x + SPACE.lg - 10, wornTop - 28, 46 + 20, 46 + 32, 1);
+        this.slotGrid(game, game.player.worn, x + SPACE.lg, wornTop, 1, 'WORN', {
             wearableOnly: true,
         });
 
@@ -1403,7 +1436,7 @@ export class Hud {
             ['Craft', 'c'],
             ['Interact', 'e  ·  g to drop'],
             ['Reload', 'r'],
-            ['Map recon', 'm'],
+            ['Map', 'm'],
             ['Build', 'hold the plan, q to change piece'],
         ];
         rows.forEach(([k, v], i) => {

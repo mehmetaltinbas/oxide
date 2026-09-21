@@ -1,6 +1,8 @@
 import { TYPE } from 'src/shared/design/constants/type.constant';
 import { PROGRESS_ARC } from 'src/shared/design/constants/progress-arc.constant';
 import { drawHuman } from 'src/features/render/utils/draw-human.util';
+import { drawHeldItem } from 'src/features/render/utils/draw-held-item.util';
+import { ItemId } from 'src/features/items/types/item-id.type';
 import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
 import { PLAYER } from 'src/features/survival/constants/player.constant';
 import { HUMAN_PALETTE } from 'src/shared/design/constants/human-palette.constant';
@@ -961,11 +963,6 @@ export class Renderer {
         ctx.rotate(n.facing + (humanoid ? Math.PI / 2 : 0));
 
         if (humanoid) {
-            // A gun, if they carry one, is held out in the right hand.
-            if (def.gun) {
-                ctx.fillStyle = WORLD.woodShade;
-                ctx.fillRect(n.radius * 0.5, -n.radius * 1.9, 3.5, n.radius * 1.3);
-            }
             drawHuman(ctx, {
                 radius: n.radius,
                 skin: HUMAN_PALETTE.skin[n.id % HUMAN_PALETTE.skin.length],
@@ -976,6 +973,8 @@ export class Renderer {
                 stride: Math.min(1, Math.hypot(n.vx, n.vy) / 90),
                 swimming: false,
                 holding: !!def.gun,
+                // Anyone armed carries a rifle, in the right hand like anyone else.
+                held: def.gun ? (c) => drawHeldItem(c, 'rifle') : undefined,
                 // A scientist is sealed in a suit.
                 hood: n.kind === 'scientist' ? def.color : null,
                 hurt: n.flash > 0 ? '#ffdede' : null,
@@ -1064,6 +1063,10 @@ export class Renderer {
                 stride: 0.7,
                 swimming: false,
                 holding: other.held !== null,
+                held:
+                    other.held && other.held in ITEMS
+                        ? (c) => drawHeldItem(c, other.held as ItemId)
+                        : undefined,
                 hood: null,
                 hurt: null,
             });
@@ -1084,6 +1087,16 @@ export class Renderer {
                 ctx.fillRect(other.x - 16, other.y - 20, 32 * (other.health / 100), 3.5);
             }
         }
+    }
+
+    /**
+     * How far a melee swing has turned the item in the hand: back, then
+     * through, over the swing's 0.2 seconds. Nothing for a gun.
+     */
+    private swingTurn(swingAnim: number, id: ItemId): number {
+        if (swingAnim <= 0 || !ITEMS[id].melee) return 0;
+        const t = 1 - swingAnim / 0.2;
+        return (-1.1 + t * 2.2) * 0.8;
     }
 
     /**
@@ -1170,28 +1183,14 @@ export class Renderer {
             stride: Math.min(1, Math.hypot(p.vx, p.vy) / 90),
             swimming,
             holding: !!held && !swimming,
+            held:
+                held && !swimming
+                    ? (c) => drawHeldItem(c, held.id, this.swingTurn(p.swingAnim, held.id))
+                    : undefined,
             hood: worn === 'hazmat' ? ITEMS[worn].color : null,
             hurt: p.hurtFlash > 0 ? '#ff9a9a' : null,
         });
 
-        if (held && !swimming) {
-            const def = ITEMS[held.id];
-            // In the right hand, which `drawHuman` holds out in front.
-            if (def.gun) {
-                ctx.fillStyle = WORLD.woodShade;
-                ctx.fillRect(6, held.id === 'rifle' ? -40 : -30, 4, held.id === 'rifle' ? 30 : 20);
-            } else if (def.melee) {
-                ctx.fillStyle = '#6b4a2a';
-                ctx.fillRect(6.5, -28, 3.5, 20);
-                ctx.fillStyle = def.color;
-                ctx.beginPath();
-                ctx.moveTo(6.5, -28);
-                ctx.lineTo(14.5, -24);
-                ctx.lineTo(6.5, -20);
-                ctx.closePath();
-                ctx.fill();
-            }
-        }
         ctx.restore();
 
         // One indicator for every timed action, always the same size. Drawn
@@ -1332,15 +1331,18 @@ export class Renderer {
         ctx.restore();
     }
 
-    drawMinimap(game: GameView, x: number, y: number, size: number): void {
+    /**
+     * The island, small or large. `step` is how many biome tiles one painted
+     * block covers: coarse is plenty for the corner, the open map wants more.
+     */
+    drawMinimap(game: GameView, x: number, y: number, size: number, step = 4): void {
         const ctx = this.ctx;
         const scale = size / Math.max(WORLD_W, WORLD_H);
         ctx.save();
         ctx.fillStyle = '#0e120e';
         ctx.fillRect(x, y, size, size);
 
-        // Biome thumbnail, drawn coarsely.
-        const step = 4;
+        // Biome thumbnail.
         for (let by = 0; by < BIOME_H; by += step) {
             for (let bx = 0; bx < BIOME_W; bx += step) {
                 ctx.fillStyle = BIOME_COLOR[game.world.biomes[by * BIOME_W + bx]];

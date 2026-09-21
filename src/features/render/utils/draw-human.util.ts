@@ -59,6 +59,13 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
         const side = i === 0 ? -1 : 1;
         const [hx, hy] = hands[i];
         limb(ctx, side * 10, -1, hx, hy, 5.2, sleeve);
+        // The item goes under the fist, so the hand closes over its grip.
+        if (i === 1 && look.held) {
+            ctx.save();
+            ctx.translate(hx, hy);
+            look.held(ctx);
+            ctx.restore();
+        }
         ctx.fillStyle = skin;
         ctx.beginPath();
         ctx.arc(hx, hy, 2.9, 0, TAU);

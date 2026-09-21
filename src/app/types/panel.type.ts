@@ -1,1 +1,1 @@
-export type Panel = 'none' | 'inventory' | 'craft' | 'container' | 'help' | 'sandbox';
+export type Panel = 'none' | 'inventory' | 'craft' | 'container' | 'help' | 'sandbox' | 'map';

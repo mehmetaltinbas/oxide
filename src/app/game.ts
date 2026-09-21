@@ -790,7 +790,8 @@ export class Game {
         if (i.justPressed('KeyE')) this.interaction.interact();
         if (i.justPressed('KeyR')) this.survival.reloadHeld();
         if (i.justPressed('KeyG')) this.interaction.dropHeld();
-        if (i.justPressed('KeyM')) this.toggleReveal();
+        // M opens the whole island. Recon is a button on the map, not a key.
+        if (i.justPressed('KeyM')) this.panel = this.panel === 'map' ? 'none' : 'map';
         if (this.sandbox) {
             if (i.justPressed('KeyF')) this.panel = this.panel === 'sandbox' ? 'none' : 'sandbox';
             if (i.justPressed('BracketRight')) this.skipTime(1);
