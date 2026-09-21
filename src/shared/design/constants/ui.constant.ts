@@ -7,6 +7,8 @@
  */
 
 export const UI = {
+    /** Lines between the squares of the map grid: visible, never louder than the map. */
+    mapGrid: 'rgba(255, 255, 255, 0.28)',
     /**
      * Panels are dark translucent, the same material as the belt slots, so the
      * whole interface reads as one thing and you can still see the world through

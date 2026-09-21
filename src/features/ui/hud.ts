@@ -1,3 +1,7 @@
+import { INK } from 'src/shared/design/constants/ink.constant';
+import { MAP_GRID_CELLS } from 'src/features/world/constants/map-grid.constant';
+import { gridColumn } from 'src/features/world/utils/grid-column.util';
+import { gridLabel } from 'src/features/world/utils/grid-label.util';
 import { CELL } from 'src/features/building/constants/cell.constant';
 import { Vital } from 'src/features/ui/types/vital.type';
 import { drawVitalIcon } from 'src/features/ui/utils/draw-vital-icon.util';
@@ -724,8 +728,18 @@ export class Hud {
         const y = Math.round(h / 2 - panelH / 2);
         ui.scrim(w, h);
         ui.panel(x, y, panelW, panelH);
-        const top = ui.header(x, y, panelW, 'Map', 'the whole island', 'm to close');
-        this.renderer.drawMinimap(game, x + SPACE.lg, top + 12, size, 2);
+        const top = ui.header(
+            x,
+            y,
+            panelW,
+            'Map',
+            `you are in ${gridLabel(game.player.x, game.player.y)}`,
+            'm to close',
+        );
+        const mx = x + SPACE.lg;
+        const my = top + 12;
+        this.renderer.drawMinimap(game, mx, my, size, 2);
+        this.drawMapGrid(mx, my, size);
 
         const btn: Rect = { x: x + SPACE.lg, y: top + 12 + size + 12, w: 200, h: 30 };
         const hovered = hit(btn, game.input.mouseX, game.input.mouseY);
@@ -733,6 +747,44 @@ export class Hud {
             hovered,
         });
         if (hovered && game.input.mouseClicked) game.toggleReveal();
+    }
+
+    /**
+     * Rust's grid over the map: a line between squares and each square's name
+     * in its top-left corner, so a place can be called out as "F7".
+     */
+    private drawMapGrid(x: number, y: number, size: number): void {
+        const ctx = this.ctx;
+        const cell = size / MAP_GRID_CELLS;
+        ctx.save();
+        ctx.strokeStyle = UI.mapGrid;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 1; i < MAP_GRID_CELLS; i++) {
+            ctx.moveTo(Math.round(x + i * cell) + 0.5, y);
+            ctx.lineTo(Math.round(x + i * cell) + 0.5, y + size);
+            ctx.moveTo(x, Math.round(y + i * cell) + 0.5);
+            ctx.lineTo(x + size, Math.round(y + i * cell) + 0.5);
+        }
+        ctx.stroke();
+        // Small enough to leave the map readable, big enough to read at a glance.
+        const fontSize = Math.max(8, Math.min(11, Math.floor(cell * 0.26)));
+        ctx.font = `600 ${fontSize}px ${TYPE.body}`;
+        ctx.textBaseline = 'top';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = INK.line;
+        ctx.fillStyle = UI.onDark;
+        for (let row = 0; row < MAP_GRID_CELLS; row++) {
+            for (let col = 0; col < MAP_GRID_CELLS; col++) {
+                const label = `${gridColumn(col)}${row}`;
+                const lx = x + col * cell + 2;
+                const ly = y + row * cell + 2;
+                ctx.strokeText(label, lx, ly);
+                ctx.fillText(label, lx, ly);
+            }
+        }
+        ctx.restore();
     }
 
     private drawInventory(game: Game, w: number, h: number): void {

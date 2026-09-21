@@ -55,10 +55,32 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
               [7, -14 + reach],
           ]
         : [[-12.5, -2 + step * 0.9], look.holding ? [7.5, -12] : [12.5, -2 - step * 0.9]];
+    // Shoulders: where each arm leaves the body.
+    const shoulders: [number, number][] = [
+        [-10, -1],
+        [10, -1],
+    ];
+    let jab = 0;
+    if (look.punch && !look.swimming) {
+        // Out fast and back slower, the way a jab is thrown: the fist is at
+        // full reach a third of the way through, then recovers.
+        const t = look.punch.t;
+        jab = t < 0.35 ? t / 0.35 : 1 - (t - 0.35) / 0.65;
+        jab = jab * jab * (3 - 2 * jab);
+        const throwing = look.punch.side === -1 ? 0 : 1;
+        const guard = 1 - throwing;
+        const sx = look.punch.side;
+        // The throwing shoulder rolls forward and the fist drives in toward
+        // the centre line, out ahead of the face.
+        shoulders[throwing] = [sx * 9.5, -1 - 3.5 * jab];
+        hands[throwing] = [sx * (12.5 - 9 * jab), -2 - 22 * jab];
+        // The other fist comes up by the chin.
+        hands[guard] = [-sx * (12.5 - 5.5 * jab), -2 - 8 * jab];
+    }
     for (let i = 0; i < 2; i++) {
-        const side = i === 0 ? -1 : 1;
         const [hx, hy] = hands[i];
-        limb(ctx, side * 10, -1, hx, hy, 5.2, sleeve);
+        const [sx, sy] = shoulders[i];
+        limb(ctx, sx, sy, hx, hy, 5.2, sleeve);
         // The item goes under the fist, so the hand closes over its grip.
         if (i === 1 && look.held) {
             ctx.save();
@@ -68,8 +90,22 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
         }
         ctx.fillStyle = skin;
         ctx.beginPath();
-        ctx.arc(hx, hy, 2.9, 0, TAU);
+        // A fist that is punching is balled up, a touch bigger than an open hand.
+        const throwing = look.punch && (look.punch.side === -1 ? 0 : 1) === i;
+        ctx.arc(hx, hy, throwing ? 2.9 + 0.7 * jab : 2.9, 0, TAU);
         ctx.fill();
+    }
+    // At full reach, a few strokes behind the fist: the comic way of saying it
+    // moved fast. Straight lines trailing back along the arm.
+    if (look.punch && jab > 0.75) {
+        const i = look.punch.side === -1 ? 0 : 1;
+        const [hx, hy] = hands[i];
+        marks(ctx, () => {
+            for (const off of [-2.6, 0, 2.6]) {
+                ctx.moveTo(hx + off, hy + 5);
+                ctx.lineTo(hx + off * 1.3, hy + 11);
+            }
+        });
     }
 
     // The shoulders and chest: wider than deep, rounded at the ends.

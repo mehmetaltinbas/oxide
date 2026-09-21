@@ -1114,6 +1114,20 @@ export class Renderer {
         }
     }
 
+    private lastSwing = 0;
+    private fist: -1 | 1 = 1;
+
+    /**
+     * Which fist throws this punch. They alternate: a new punch has started
+     * whenever the swing timer jumps back up, and that flips the hand. This is
+     * the renderer's own memory of what it drew, not game state.
+     */
+    private punchSide(swingAnim: number): -1 | 1 {
+        if (swingAnim > this.lastSwing + 0.01) this.fist = this.fist === 1 ? -1 : 1;
+        this.lastSwing = swingAnim;
+        return this.fist;
+    }
+
     /**
      * How far a melee swing has turned the item in the hand: back, then
      * through, over the swing's 0.2 seconds. Nothing for a gun.
@@ -1208,6 +1222,10 @@ export class Renderer {
             stride: Math.min(1, Math.hypot(p.vx, p.vy) / 90),
             swimming,
             holding: !!held && !swimming,
+            punch:
+                !held && p.swingAnim > 0
+                    ? { t: 1 - p.swingAnim / 0.2, side: this.punchSide(p.swingAnim) }
+                    : undefined,
             held:
                 held && !swimming
                     ? (c) => drawHeldItem(c, held.id, this.swingTurn(p.swingAnim, held.id))

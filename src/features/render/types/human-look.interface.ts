@@ -18,6 +18,11 @@ export interface HumanLook {
     swimming: boolean;
     /** The right hand is out in front, holding something. */
     holding: boolean;
+    /**
+     * A bare-handed jab in progress: `t` runs 0 to 1 over the punch, `side`
+     * is which fist throws it. Absent when not punching.
+     */
+    punch?: { t: number; side: -1 | 1 };
     /** Paints what is in that hand, with the hand at the origin. */
     held?: (ctx: CanvasRenderingContext2D) => void;
     /** A full hood over the head, as the hazmat suit has. */
