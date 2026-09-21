@@ -4,6 +4,7 @@ import { drawHuman } from 'src/features/render/utils/draw-human.util';
 import { drawHeldItem } from 'src/features/render/utils/draw-held-item.util';
 import { ItemId } from 'src/features/items/types/item-id.type';
 import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
+import { TRACER } from 'src/features/combat/constants/tracer.constant';
 import { PLAYER } from 'src/features/survival/constants/player.constant';
 import { HUMAN_PALETTE } from 'src/shared/design/constants/human-palette.constant';
 import { ComicTexture } from 'src/features/render/comic-texture';
@@ -1279,11 +1280,19 @@ export class Renderer {
         ctx.lineCap = 'round';
         for (const s of game.combat.shots) {
             const a = Math.atan2(s.vy, s.vx);
-            ctx.strokeStyle = s.color;
-            ctx.lineWidth = 2.4;
+            const width = TRACER.baseWidth + s.damage * TRACER.widthPerDamage;
+            const length = s.length * (0.7 + s.damage * TRACER.lengthPerDamage);
+            const tx = s.x - Math.cos(a) * length;
+            const ty = s.y - Math.sin(a) * length;
+            // Ink under the core, so a round shows on sand, snow and water alike.
+            ctx.strokeStyle = INK.line;
+            ctx.lineWidth = width + TRACER.inkWidth * 2;
             ctx.beginPath();
             ctx.moveTo(s.x, s.y);
-            ctx.lineTo(s.x - Math.cos(a) * s.length, s.y - Math.sin(a) * s.length);
+            ctx.lineTo(tx, ty);
+            ctx.stroke();
+            ctx.strokeStyle = s.color;
+            ctx.lineWidth = width;
             ctx.stroke();
         }
         ctx.lineCap = 'butt';

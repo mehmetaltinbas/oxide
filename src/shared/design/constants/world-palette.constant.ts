@@ -13,6 +13,12 @@ export const WORLD = {
      * The ghost of something about to be placed: light blue where it can go,
      * red where it cannot. Drawn at `ghostAlpha` so the ground shows through.
      */
+    /**
+     * A bullet in flight. One bright colour inside a black line, whatever the
+     * gun: the tracer used to take the gun's own colour, so an AK's brown
+     * round was lost on dirt and a pale one on the desert.
+     */
+    tracer: '#fff1a8',
     ghostValid: '#7cc8ff',
     ghostInvalid: '#e0503c',
     ghostAlpha: 0.45,

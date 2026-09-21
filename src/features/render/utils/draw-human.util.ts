@@ -116,20 +116,22 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
             look.held(ctx);
             ctx.restore();
         }
-        ctx.fillStyle = skin;
-        ctx.beginPath();
         if (look.punch && !look.swimming) {
-            // A balled fist: bigger than an open hand, with the knuckles drawn.
-            const r = i === throwing ? 3.4 + 0.6 * jab : 3.1;
-            ctx.arc(hx, hy, r, 0, TAU);
-            ctx.fill();
-            marks(ctx, () => {
-                for (const k of [-0.55, 0, 0.55]) {
-                    ctx.moveTo(hx + k * r - 0.5, hy - r * 0.55);
-                    ctx.lineTo(hx + k * r + 0.5, hy - r * 0.55);
-                }
-            });
+            // Balled fists, lined up with the forearm they are on the end of.
+            const from = elbows[i] ?? shoulders[i];
+            const along = Math.atan2(hy - from[1], hx - from[0]);
+            fist(
+                ctx,
+                hx,
+                hy,
+                along,
+                i === throwing ? 1.15 + 0.15 * jab : 1,
+                i === 0 ? -1 : 1,
+                skin,
+            );
         } else {
+            ctx.fillStyle = skin;
+            ctx.beginPath();
             ctx.arc(hx, hy, 2.9, 0, TAU);
             ctx.fill();
         }
@@ -211,6 +213,44 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
         });
     }
     ctx.restore();
+    ctx.restore();
+}
+
+/**
+ * A clenched fist, seen from above, at the end of an arm pointing along
+ * `along`. Squarer than an open hand: a flat front where the knuckles are,
+ * the folds of the fingers drawn across it, and the thumb wrapped round the
+ * inside. `side` is which hand, so the thumb sits toward the body's middle.
+ */
+function fist(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    along: number,
+    scale: number,
+    side: -1 | 1,
+    skin: string,
+): void {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(along);
+    ctx.scale(scale, scale);
+    // The fist itself: longer across the knuckles than it is deep.
+    ctx.fillStyle = skin;
+    ctx.beginPath();
+    ctx.roundRect(-2.6, -3.4, 5.6, 6.8, 1.8);
+    ctx.fill();
+    // The thumb, folded over the fingers on the inside.
+    ctx.beginPath();
+    ctx.ellipse(0.2, -side * 3.2, 2.1, 1.3, 0, 0, TAU);
+    ctx.fill();
+    marks(ctx, () => {
+        // Finger folds: three short lines across the front of the fist.
+        for (const k of [-1.7, 0, 1.7]) {
+            ctx.moveTo(1.2, k);
+            ctx.lineTo(2.8, k);
+        }
+    });
     ctx.restore();
 }
 

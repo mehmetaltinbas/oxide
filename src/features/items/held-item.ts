@@ -286,7 +286,8 @@ export class HeldItemSystem {
             def.speed,
             def.range,
             'player',
-            ITEMS[id].color,
+            // An arrow is a shaft in its own colour; everything else is a round.
+            id === 'bow' ? ITEMS[def.ammo].color : WORLD.tracer,
         );
         this.particles.burst(p.x + Math.cos(a) * 22, p.y + Math.sin(a) * 22, 5, '#ffd28a', {
             speed: 180,
