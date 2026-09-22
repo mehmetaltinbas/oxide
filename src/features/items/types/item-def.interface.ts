@@ -24,6 +24,11 @@ export interface ItemDef {
          */
         magazine?: number;
         reloadSeconds?: number;
+        /**
+         * Fires a rocket instead of a round: it flies straight at `speed` and
+         * explodes on whatever it meets, or at the end of its range.
+         */
+        rocket?: { damage: number; radius: number };
     };
     /** Food and drink restore these. */
     food?: { calories?: number; hydration?: number; health?: number };

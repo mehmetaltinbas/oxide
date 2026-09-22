@@ -209,7 +209,40 @@ export const ITEMS: Record<ItemId, ItemDef> = {
         },
     },
 
+    /**
+     * Raiding from range, Rust's way. Rust puts four rockets through a stone
+     * wall where two timed explosives do it, so a rocket here does half a
+     * c4's 550 to the piece it hits, over a slightly smaller blast. One in
+     * the tube and a long reload, as Rust's launcher has.
+     */
+    rocket_launcher: {
+        id: 'rocket_launcher',
+        name: 'Rocket Launcher',
+        category: 'weapon',
+        stack: 1,
+        color: '#5f6b4a',
+        desc: 'For raiding. One rocket at a time, and a long reload.',
+        gun: {
+            damage: 0,
+            cooldown: 1,
+            speed: 560,
+            range: 900,
+            spread: 0.02,
+            ammo: 'rocket',
+            magazine: 1,
+            reloadSeconds: 6,
+            rocket: { damage: 275, radius: 100 },
+        },
+    },
+
     // ---- ammo
+    rocket: A(
+        'rocket',
+        'Rocket',
+        '#c8433a',
+        'For the rocket launcher. Half a timed explosive, from range.',
+        3,
+    ),
     arrow: A('arrow', 'Arrows', '#d3e8bc', 'For the bow.', 64),
     pistol_ammo: A('pistol_ammo', 'Pistol Ammo', '#fbf0c4', 'For the revolver.', 128),
     rifle_ammo: A('rifle_ammo', 'Rifle Ammo', '#d7edfe', 'For the rifles.', 128),

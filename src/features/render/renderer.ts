@@ -5,6 +5,8 @@ import { drawHeldItem } from 'src/features/render/utils/draw-held-item.util';
 import { ItemId } from 'src/features/items/types/item-id.type';
 import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
 import { TRACER } from 'src/features/combat/constants/tracer.constant';
+import { HEALTH_BAR } from 'src/shared/design/constants/health-bar.constant';
+import { ThrownExplosive } from 'src/features/combat/types/thrown-explosive.interface';
 import { PLAYER } from 'src/features/survival/constants/player.constant';
 import { HUMAN_PALETTE } from 'src/shared/design/constants/human-palette.constant';
 import { ComicTexture } from 'src/features/render/comic-texture';
@@ -945,12 +947,7 @@ export class Renderer {
             }
         }
 
-        if (n.hp < n.maxHp) {
-            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillRect(-16, n.radius * 0.9, 32, 4);
-            ctx.fillStyle = '#c8a35a';
-            ctx.fillRect(-16, n.radius * 0.9, 32 * (n.hp / n.maxHp), 4);
-        }
+        if (n.hp < n.maxHp) this.hpBar(-16, n.radius * 0.9, 32, n.hp / n.maxHp);
         ctx.restore();
     }
 
@@ -1055,10 +1052,7 @@ export class Renderer {
         );
         if (hurt) {
             const w = n.radius * 2.4;
-            ctx.fillStyle = WORLD.barTrack;
-            ctx.fillRect(n.x - w / 2, n.y - n.radius - 14, w, 4);
-            ctx.fillStyle = clan?.color ?? WORLD.hostile;
-            ctx.fillRect(n.x - w / 2, n.y - n.radius - 14, w * (n.hp / n.maxHp), 4);
+            this.hpBar(n.x - w / 2, n.y - n.radius - 14, w, n.hp / n.maxHp);
         }
     }
 
@@ -1106,12 +1100,7 @@ export class Renderer {
             ctx.fillText(other.name, other.x, other.y - 26);
             ctx.textAlign = 'left';
 
-            if (other.health < 100) {
-                ctx.fillStyle = WORLD.barTrack;
-                ctx.fillRect(other.x - 16, other.y - 20, 32, 3.5);
-                ctx.fillStyle = WORLD.hostile;
-                ctx.fillRect(other.x - 16, other.y - 20, 32 * (other.health / 100), 3.5);
-            }
+            if (other.health < 100) this.hpBar(other.x - 16, other.y - 20, 32, other.health / 100);
         }
     }
 
@@ -1261,6 +1250,10 @@ export class Renderer {
     private drawExplosives(game: GameView): void {
         const ctx = this.ctx;
         for (const t of game.combat.thrown) {
+            if (t.rocket) {
+                this.drawRocket(t);
+                continue;
+            }
             const blink = Math.floor(t.fuse * 8) % 2 === 0;
             drawItemIcon(ctx, t.item, t.x, t.y, 20);
             ctx.fillStyle = blink ? '#ff3a3a' : '#5a1a1a';
@@ -1273,6 +1266,37 @@ export class Renderer {
             ctx.fillText(t.fuse.toFixed(1), t.x, t.y - 24);
             ctx.textAlign = 'left';
         }
+    }
+
+    /**
+     * A rocket in flight: the rocket itself, nose along its heading, and the
+     * motor's flame out of the tail. The flame is light, so it has no line.
+     */
+    private drawRocket(t: ThrownExplosive): void {
+        const ctx = this.ctx;
+        const a = Math.atan2(t.vy, t.vx);
+        ctx.save();
+        ctx.translate(t.x, t.y);
+        ctx.rotate(a);
+        this.ink.suspend(() => {
+            const flicker = 0.8 + Math.random() * 0.4;
+            ctx.fillStyle = WORLD.fire;
+            ctx.beginPath();
+            ctx.moveTo(-8, -3.5);
+            ctx.lineTo(-8 - 16 * flicker, 0);
+            ctx.lineTo(-8, 3.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = WORLD.emberHot;
+            ctx.beginPath();
+            ctx.moveTo(-8, -2);
+            ctx.lineTo(-8 - 8 * flicker, 0);
+            ctx.lineTo(-8, 2);
+            ctx.closePath();
+            ctx.fill();
+        });
+        drawItemIcon(ctx, t.item, 0, 0, 26);
+        ctx.restore();
     }
 
     private drawShots(game: GameView): void {
@@ -1359,12 +1383,21 @@ export class Renderer {
         ctx.restore();
     }
 
-    private hpBar(x: number, y: number, w: number, frac: number): void {
+    /**
+     * Every health bar in the world: a white bar inside a black box, whoever
+     * or whatever it belongs to. Colour was a second language nobody asked
+     * for (yellow for trees, red for animals, green for walls), and white on
+     * black reads on every ground there is.
+     */
+    private hpBar(x: number, y: number, w: number, frac: number, h = 4): void {
         const ctx = this.ctx;
-        ctx.fillStyle = WORLD.barTrack;
-        ctx.fillRect(x, y, w, 4);
-        ctx.fillStyle = frac > 0.4 ? '#8ac96a' : '#c96a4a';
-        ctx.fillRect(x, y, w * frac, 4);
+        const b = HEALTH_BAR.border;
+        this.ink.suspend(() => {
+            ctx.fillStyle = INK.line;
+            ctx.fillRect(x - b, y - b, w + b * 2, h + b * 2);
+            ctx.fillStyle = HEALTH_BAR.fill;
+            ctx.fillRect(x, y, w * Math.max(0, Math.min(1, frac)), h);
+        });
     }
 
     // --------------------------------------------------------------- minimap

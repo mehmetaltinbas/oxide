@@ -81,6 +81,36 @@ export class Combat {
         return t;
     }
 
+    /** Fire a rocket. It is an explosive on a fuse as long as its flight. */
+    launchRocket(
+        item: ItemId,
+        x: number,
+        y: number,
+        angle: number,
+        speed: number,
+        range: number,
+        damage: number,
+        radius: number,
+        owner: Faction,
+    ): ThrownExplosive {
+        const t: ThrownExplosive = {
+            id: this.nextId++,
+            item,
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            fuse: range / speed,
+            damage,
+            radius,
+            stuckTo: null,
+            owner,
+            rocket: true,
+        };
+        this.thrown.push(t);
+        return t;
+    }
+
     /** Stick a charge straight onto a piece, the way a raider places one. */
     attachExplosive(
         item: ItemId,
@@ -173,10 +203,54 @@ export class Combat {
         }
     }
 
+    /**
+     * One step of a rocket's flight. Goes off against a wall or door (on that
+     * piece, so it takes the full damage), a standing tree or rock, anyone in
+     * its path, the edge of the map, or at the end of its range. True once it
+     * has gone off.
+     */
+    private flyRocket(t: ThrownExplosive, dt: number): boolean {
+        const px = t.x;
+        const py = t.y;
+        t.x += t.vx * dt;
+        t.y += t.vy * dt;
+        let hit = t.fuse <= 0 || t.x < 0 || t.y < 0 || t.x > WORLD_W || t.y > WORLD_H;
+        if (!hit && this.build.blocksLine(px, py, t.x, t.y)) {
+            hit = true;
+            const near = this.build.inBlast(t.x, t.y, 40);
+            const wall = near.find((s) => 'side' in s && (s as Structure).side !== undefined);
+            if (wall) t.stuckTo = wall.id;
+        }
+        if (!hit) {
+            for (const n of this.world.nodesNear(t.x, t.y, 30)) {
+                if (n.hp <= 0 || n.kind === 'hemp') continue;
+                if (dist(t.x, t.y, n.x, n.y) < n.radius * 0.6) {
+                    hit = true;
+                    break;
+                }
+            }
+        }
+        if (!hit) {
+            for (const n of this.hooks.npcs()) {
+                if (segmentHitsCircle(px, py, t.x, t.y, n.x, n.y, n.radius)) {
+                    hit = true;
+                    break;
+                }
+            }
+        }
+        if (!hit) return false;
+        this.hooks.explosion(t.x, t.y, t.radius, t.damage, t.owner, t.stuckTo);
+        return true;
+    }
+
     private updateThrown(dt: number): void {
         for (let i = this.thrown.length - 1; i >= 0; i--) {
             const t = this.thrown[i];
             t.fuse -= dt;
+            if (t.rocket) {
+                if (this.flyRocket(t, dt)) this.thrown.splice(i, 1);
+                continue;
+            }
             if (t.stuckTo === null) {
                 t.x += t.vx * dt;
                 t.y += t.vy * dt;

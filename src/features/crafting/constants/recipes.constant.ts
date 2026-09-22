@@ -52,4 +52,14 @@ export const RECIPES: Recipe[] = [
         bench: 3,
         seconds: 14,
     },
+    // Both at workbench 3. A rocket costs half a c4, as Rust prices its
+    // explosives: half the damage for half the materials.
+    { out: 'rocket_launcher', amount: 1, cost: { metal: 300, scrap: 150 }, bench: 3, seconds: 12 },
+    {
+        out: 'rocket',
+        amount: 1,
+        cost: { gunpowder: 100, metal: 50, cloth: 15, lowgrade: 30 },
+        bench: 3,
+        seconds: 8,
+    },
 ];

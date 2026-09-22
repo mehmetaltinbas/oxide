@@ -649,6 +649,64 @@ const GLYPHS: Partial<Record<ItemId, Glyph>> = {
         rect(ctx, 0.24, -0.05, 0.22, 0.035, '#4a4a52');
         rect(ctx, 0.4, -0.11, 0.025, 0.07, '#4a4a52');
     },
+    // A launcher in profile, muzzle to the right: the tube, a flared rear
+    // end, a grip and a trigger guard under it, and a sight on top.
+    rocket_launcher: (ctx) => {
+        rect(ctx, -0.42, -0.1, 0.84, 0.16, '#5f6b4a');
+        poly(
+            ctx,
+            [
+                [-0.42, -0.13],
+                [-0.3, -0.1],
+                [-0.3, 0.06],
+                [-0.42, 0.09],
+            ],
+            '#4a5439',
+            '#2f3624',
+        );
+        rect(ctx, 0.36, -0.12, 0.07, 0.2, '#3c3c44');
+        rect(ctx, -0.04, 0.06, 0.08, 0.2, '#3c3c44');
+        rect(ctx, 0.12, 0.06, 0.07, 0.14, '#3c3c44');
+        rect(ctx, -0.1, -0.2, 0.14, 0.1, '#3c3c44');
+    },
+    // A rocket, nose to the right: red warhead, grey body, tail fins.
+    rocket: (ctx) => {
+        rect(ctx, -0.24, -0.07, 0.42, 0.14, '#9aa2aa');
+        poly(
+            ctx,
+            [
+                [0.18, -0.07],
+                [0.36, 0],
+                [0.18, 0.07],
+            ],
+            '#c8433a',
+            '#7a1c1c',
+        );
+        poly(
+            ctx,
+            [
+                [-0.24, -0.07],
+                [-0.36, -0.18],
+                [-0.3, -0.07],
+            ],
+            '#6f767d',
+        );
+        poly(
+            ctx,
+            [
+                [-0.24, 0.07],
+                [-0.36, 0.18],
+                [-0.3, 0.07],
+            ],
+            '#6f767d',
+        );
+        ctx.strokeStyle = '#6f767d';
+        ctx.lineWidth = 0.03;
+        ctx.beginPath();
+        ctx.moveTo(0.02, -0.07);
+        ctx.lineTo(0.02, 0.07);
+        ctx.stroke();
+    },
     pistol_ammo: (ctx) => {
         for (const x of [-0.18, 0, 0.18]) {
             rect(ctx, x - 0.055, -0.05, 0.11, 0.3, '#c9a94a');

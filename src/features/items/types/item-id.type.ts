@@ -43,4 +43,6 @@ export type ItemId =
     | 'workbench3'
     | 'lock'
     | 'satchel'
-    | 'c4';
+    | 'c4'
+    | 'rocket_launcher'
+    | 'rocket';

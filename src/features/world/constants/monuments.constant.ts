@@ -69,6 +69,7 @@ export const MONUMENTS: MonumentDef[] = [
             // Now and then an AK, as in Rust's elite crates. Roughly one crate
             // in four, since a [0, 1] roll is half the time a zero.
             ak47: [0, 1],
+            rocket_launcher: [0, 1],
             gunpowder: [30, 90],
         },
         color: '#5f6663',

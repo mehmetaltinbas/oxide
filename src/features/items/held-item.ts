@@ -278,6 +278,22 @@ export class HeldItemSystem {
         p.attackTimer = def.cooldown;
         p.swingAnim = 0.1;
         const a = p.facing + randRange(Math.random, -def.spread, def.spread);
+        if (def.rocket) {
+            this.combat.launchRocket(
+                def.ammo,
+                p.x + Math.cos(a) * 30,
+                p.y + Math.sin(a) * 30,
+                a,
+                def.speed,
+                def.range,
+                def.rocket.damage,
+                def.rocket.radius,
+                'player',
+            );
+            this.camera.shake(6, 0.2);
+            this.audio.roar();
+            return;
+        }
         this.combat.fire(
             p.x + Math.cos(a) * 20,
             p.y + Math.sin(a) * 20,

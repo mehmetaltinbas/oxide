@@ -14,4 +14,6 @@ export interface ThrownExplosive {
     /** Stuck to a structure, the way a satchel sticks to a wall. */
     stuckTo: number | null;
     owner: Faction;
+    /** A rocket: flies straight, no drag, and goes off on impact. */
+    rocket?: boolean;
 }
