@@ -172,8 +172,8 @@ export class Game {
                 // still client-side, so this is a report, not a request.
                 if (this.net.online) this.net.reportDamage(id, dmg);
             },
-            explosion: (x, y, r, dmg, owner, stuckTo) =>
-                this.structures.explode(x, y, r, dmg, owner, stuckTo),
+            explosion: (x, y, r, dmg, owner, stuckTo, splash) =>
+                this.structures.explode(x, y, r, dmg, owner, stuckTo, splash),
         });
 
         this.npcs = new NpcSystem(this.world, this.build, {

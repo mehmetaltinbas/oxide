@@ -260,11 +260,60 @@ export class World {
             }
         }
 
+        // Drain any lake the road runs through. A road is laid along a fixed
+        // ring, and a pond that happens to sit on it left either a gap in the
+        // road or, worse, a causeway straight down the middle of the water.
+        // The whole pond goes, not the part under the road: half a lake with a
+        // road through it is stranger than no lake at all. The sea, which the
+        // road never crosses, is left alone.
+        {
+            const onRoad = this.roadMask();
+            const sea = this.seaMask();
+            const seen = new Uint8Array(BIOME_W * BIOME_H);
+            const stack: number[] = [];
+            const lake: number[] = [];
+            for (let start = 0; start < seen.length; start++) {
+                if (seen[start] || this.biomes[start] !== 'water' || sea[start]) continue;
+                lake.length = 0;
+                let crossed = false;
+                stack.push(start);
+                seen[start] = 1;
+                while (stack.length) {
+                    const i2 = stack.pop()!;
+                    lake.push(i2);
+                    if (onRoad[i2]) crossed = true;
+                    const x = i2 % BIOME_W;
+                    const y = (i2 - x) / BIOME_W;
+                    for (const [dx, dy] of [
+                        [1, 0],
+                        [-1, 0],
+                        [0, 1],
+                        [0, -1],
+                    ] as const) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx < 0 || ny < 0 || nx >= BIOME_W || ny >= BIOME_H) continue;
+                        const j = ny * BIOME_W + nx;
+                        if (seen[j] || this.biomes[j] !== 'water' || sea[j]) continue;
+                        seen[j] = 1;
+                        stack.push(j);
+                    }
+                }
+                if (!crossed) continue;
+                // Filled with whatever the land round it is, so the drained bed
+                // does not read as a patch of the wrong biome.
+                for (const k of lake) this.biomes[k] = this.landAround(k);
+            }
+        }
+
         // Sand where the land meets the sea. Desert is already sand, so it grows
         // no beach. The temperate coasts get one, which is where people wash
         // up; a snow coast gets one too, but under snow, and nobody wakes up
         // there.
         const base = this.biomes.slice();
+        // Only the sea makes a beach: a lake has a green bank, and people wash
+        // up out of the sea, not out of a pond.
+        const seaWater = this.seaMask();
         for (let y = 0; y < BIOME_H; y++) {
             for (let x = 0; x < BIOME_W; x++) {
                 const here = base[y * BIOME_W + x];
@@ -275,7 +324,8 @@ export class World {
                         const tx = x + ox;
                         const ty = y + oy;
                         if (tx < 0 || ty < 0 || tx >= BIOME_W || ty >= BIOME_H) continue;
-                        if (base[ty * BIOME_W + tx] === 'water') {
+                        const j = ty * BIOME_W + tx;
+                        if (base[j] === 'water' && seaWater[j]) {
                             coastal = true;
                             break;
                         }
@@ -296,12 +346,21 @@ export class World {
             }
         }
 
-        // A rough ring road, which is where scrap and traffic naturally go.
-        // Where it meets a lake it is carried across on fill: a road that stops
-        // at a pond and starts again on the far side is not a road, and the
-        // barrels along it come in stretches with holes in them. The open sea
-        // is another matter, and the road never runs into it.
-        const seaHere = this.seaMask();
+        // A rough ring road, which is where scrap and traffic naturally go. It
+        // is laid on whatever is dry: the lakes in its way were drained above,
+        // and it stops at the sea rather than running into it.
+        const onRoad = this.roadMask();
+        for (let i = 0; i < onRoad.length; i++) {
+            if (onRoad[i] && this.biomes[i] !== 'water') this.biomes[i] = 'road';
+        }
+    }
+
+    /**
+     * Where the ring road runs: the same line every time for a given map size,
+     * so the lakes can be drained out of its way before it is laid.
+     */
+    private roadMask(): Uint8Array {
+        const mask = new Uint8Array(BIOME_W * BIOME_H);
         const cx = BIOME_W / 2;
         const cy = BIOME_H / 2;
         const rr = Math.min(BIOME_W, BIOME_H) * 0.34;
@@ -315,11 +374,40 @@ export class World {
                     const tx = x + ox;
                     const ty = y + oy;
                     if (tx < 0 || ty < 0 || tx >= BIOME_W || ty >= BIOME_H) continue;
-                    const i = ty * BIOME_W + tx;
-                    if (this.biomes[i] !== 'water' || !seaHere[i]) this.biomes[i] = 'road';
+                    mask[ty * BIOME_W + tx] = 1;
                 }
             }
         }
+        return mask;
+    }
+
+    /** The land biome a drained tile should take: whatever most surrounds it. */
+    private landAround(index: number): Biome {
+        const x0 = index % BIOME_W;
+        const y0 = (index - x0) / BIOME_W;
+        const votes = new Map<Biome, number>();
+        for (let r = 1; r <= 6; r++) {
+            for (let oy = -r; oy <= r; oy++) {
+                for (let ox = -r; ox <= r; ox++) {
+                    const tx = x0 + ox;
+                    const ty = y0 + oy;
+                    if (tx < 0 || ty < 0 || tx >= BIOME_W || ty >= BIOME_H) continue;
+                    const b = this.biomes[ty * BIOME_W + tx];
+                    if (b === 'water') continue;
+                    votes.set(b, (votes.get(b) ?? 0) + 1);
+                }
+            }
+            if (votes.size > 0) break;
+        }
+        let best: Biome = 'grass';
+        let bestCount = 0;
+        for (const [b, n] of votes) {
+            if (n > bestCount) {
+                bestCount = n;
+                best = b;
+            }
+        }
+        return best;
     }
 
     /** Which water tiles join up with the open sea, by a flood in from the rim. */

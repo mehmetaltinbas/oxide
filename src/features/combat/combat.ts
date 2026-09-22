@@ -165,15 +165,20 @@ export class Combat {
                 continue;
             }
             let blocked = false;
-            for (const n of this.world.nodesNear(p.x, p.y, 30)) {
+            // Along the whole step, not at the point it ended on: a rifle round
+            // covers 20 units in a step and used to skip straight past a barrel
+            // whose middle it never landed inside.
+            for (const n of this.world.nodesNear(p.x, p.y, 60)) {
                 if (n.hp <= 0 || n.kind === 'nettle') continue;
-                if (dist(p.x, p.y, n.x, n.y) < n.radius * 0.5) {
-                    // Your rounds smash a barrel as a blow would.
-                    if (p.faction === 'player' && NODES[n.kind].loot)
-                        this.hooks.hitBreakable(n, p.damage);
-                    blocked = true;
-                    break;
-                }
+                const breakable = !!NODES[n.kind].loot;
+                // A barrel is hit anywhere on it; a trunk or a boulder stops a
+                // round only through its solid middle, so cover stays honest.
+                const r = breakable ? n.radius : n.radius * 0.5;
+                if (!segmentHitsCircle(px, py, p.x, p.y, n.x, n.y, r)) continue;
+                // Your rounds smash a barrel as a blow would.
+                if (p.faction === 'player' && breakable) this.hooks.hitBreakable(n, p.damage);
+                blocked = true;
+                break;
             }
             if (blocked) {
                 this.shots.splice(i, 1);
