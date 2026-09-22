@@ -297,6 +297,11 @@ export class World {
         }
 
         // A rough ring road, which is where scrap and traffic naturally go.
+        // Where it meets a lake it is carried across on fill: a road that stops
+        // at a pond and starts again on the far side is not a road, and the
+        // barrels along it come in stretches with holes in them. The open sea
+        // is another matter, and the road never runs into it.
+        const seaHere = this.seaMask();
         const cx = BIOME_W / 2;
         const cy = BIOME_H / 2;
         const rr = Math.min(BIOME_W, BIOME_H) * 0.34;
@@ -310,15 +315,15 @@ export class World {
                     const tx = x + ox;
                     const ty = y + oy;
                     if (tx < 0 || ty < 0 || tx >= BIOME_W || ty >= BIOME_H) continue;
-                    if (this.biomes[ty * BIOME_W + tx] !== 'water')
-                        this.biomes[ty * BIOME_W + tx] = 'road';
+                    const i = ty * BIOME_W + tx;
+                    if (this.biomes[i] !== 'water' || !seaHere[i]) this.biomes[i] = 'road';
                 }
             }
         }
     }
 
-    /** Mark every water tile that does not join the open sea as a lake. */
-    private markFreshWater(): void {
+    /** Which water tiles join up with the open sea, by a flood in from the rim. */
+    private seaMask(): Uint8Array {
         const sea = new Uint8Array(BIOME_W * BIOME_H);
         const stack: number[] = [];
         for (let x = 0; x < BIOME_W; x++) stack.push(x, (BIOME_H - 1) * BIOME_W + x);
@@ -334,6 +339,12 @@ export class World {
             if (y > 0) stack.push(i - BIOME_W);
             if (y < BIOME_H - 1) stack.push(i + BIOME_W);
         }
+        return sea;
+    }
+
+    /** Mark every water tile that does not join the open sea as a lake. */
+    private markFreshWater(): void {
+        const sea = this.seaMask();
         this.fresh = new Uint8Array(BIOME_W * BIOME_H);
         for (let i = 0; i < this.fresh.length; i++) {
             if (this.biomes[i] === 'water' && !sea[i]) this.fresh[i] = 1;
