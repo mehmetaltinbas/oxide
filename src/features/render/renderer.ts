@@ -1404,7 +1404,8 @@ export class Renderer {
      * for (yellow for trees, red for animals, green for walls), and white on
      * black reads on every ground there is.
      */
-    private hpBar(x: number, y: number, w: number, frac: number, h = 4): void {
+    private hpBar(x: number, y: number, w: number, frac: number): void {
+        const h = HEALTH_BAR.height;
         const ctx = this.ctx;
         const b = HEALTH_BAR.border;
         this.ink.suspend(() => {
