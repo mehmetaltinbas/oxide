@@ -606,12 +606,24 @@ export class World {
                 // One, two or three, side by side along the verge, as barrels
                 // get left: never a neat row, each nudged off the line a little.
                 const count = 1 + Math.floor(rng() * BARRELS.maxCluster);
+                // Along the verge, and a third one tucked in behind the other
+                // two rather than in a line: three barrels left together lean
+                // into a triangle, they do not queue up.
                 const ax = dy !== 0 ? 1 : 0;
                 const ay = dx !== 0 ? 1 : 0;
-                for (let k = 0; k < count; k++) {
-                    const off = (k - (count - 1) / 2) * BARRELS.gap;
-                    const bx = x + ax * off + (rng() - 0.5) * 4;
-                    const by = y + ay * off + (rng() - 0.5) * 4;
+                const spots: [number, number][] = [];
+                for (let k = 0; k < Math.min(count, 2); k++) {
+                    const off = (k - (Math.min(count, 2) - 1) / 2) * BARRELS.gap;
+                    spots.push([x + ax * off, y + ay * off]);
+                }
+                if (count >= 3) {
+                    // Behind the pair, toward the middle of the road.
+                    const back = BARRELS.gap * 0.87;
+                    spots.push([x - dx * back, y - dy * back]);
+                }
+                for (const [sx, sy] of spots) {
+                    const bx = sx + (rng() - 0.5) * 4;
+                    const by = sy + (rng() - 0.5) * 4;
                     if (this.biomeAt(bx, by) !== 'road') continue;
                     push('barrel', bx, by);
                 }

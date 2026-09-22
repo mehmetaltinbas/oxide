@@ -1,6 +1,6 @@
 /**
  * How one person is drawn: the player, somebody else in the room, or a
- * survivor, a raider or a scientist. See `drawHuman`.
+ * or a scientist. See `drawHuman`.
  */
 export interface HumanLook {
     /** Body radius the figure is scaled to. 13 is the player. */

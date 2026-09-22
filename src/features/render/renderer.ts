@@ -844,7 +844,7 @@ export class Renderer {
             ctx.lineWidth = 2;
             ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
             if (s.owner !== 0) {
-                ctx.fillStyle = game.clanSystem.clanByOwner(s.owner)?.color ?? WORLD.unclaimed;
+                ctx.fillStyle = WORLD.unclaimed;
                 ctx.globalAlpha = 0.18;
                 ctx.fillRect(x, y, CELL, CELL);
                 ctx.globalAlpha = 1;
@@ -914,7 +914,7 @@ export class Renderer {
             ctx.fill();
 
             if (s.owner !== 0) {
-                ctx.fillStyle = game.clanSystem.clanByOwner(s.owner)?.color ?? WORLD.unclaimed;
+                ctx.fillStyle = WORLD.unclaimed;
                 ctx.globalAlpha = 0.5;
                 ctx.beginPath();
                 ctx.arc(c.x, c.y, 3, 0, TAU);
@@ -1380,13 +1380,13 @@ export class Renderer {
             list.push(n);
         }
         list.sort(byY);
-        for (const n of list) this.drawNpc(n, game);
+        for (const n of list) this.drawNpc(n);
     }
 
-    private drawNpc(n: Npc, game: GameView): void {
+    private drawNpc(n: Npc): void {
         const ctx = this.ctx;
         const def = NPCS[n.kind];
-        const humanoid = n.kind === 'scientist' || n.kind === 'raider' || n.kind === 'gatherer';
+        const humanoid = n.kind === 'scientist';
         const gait = Math.sin(n.animPhase) * 2.5;
         const body = n.flash > 0 ? '#ffdede' : def.color;
         const dark = n.flash > 0 ? '#ffb0b0' : def.dark;
@@ -1457,13 +1457,7 @@ export class Renderer {
         // shapes, and you want to know which one you are walking toward well
         // before it has taken a scratch. The bar underneath is the damage cue.
         const hurt = n.hp < n.maxHp;
-        const clan = n.clan > 0 ? game.clanSystem.clanByOwner(n.clan) : undefined;
-        this.nameTag(
-            clan ? `${def.name} · ${clan.name}` : def.name,
-            n.x,
-            n.y - n.radius - (hurt ? 24 : 16),
-            clan ? clan.color : WORLD.nameTag,
-        );
+        this.nameTag(def.name, n.x, n.y - n.radius - (hurt ? 24 : 16), WORLD.nameTag);
         if (hurt) {
             const w = n.radius * 2.4;
             this.hpBar(n.x - w / 2, n.y - n.radius - 14, w, n.hp / n.maxHp);
@@ -1938,66 +1932,10 @@ export class Renderer {
             ctx.arc(x + m.x * scale, y + m.y * scale, 4, 0, TAU);
             ctx.fill();
         }
-        // Clan holdings are hidden unless recon is on, finding them is the game.
-        if (game.revealClans) {
-            // Their pieces first, so compound markers sit on top.
-            for (const st of game.build.structures) {
-                if (st.owner === 0) continue;
-                const clan = game.clanSystem.clanByOwner(st.owner);
-                ctx.fillStyle = clan?.color ?? WORLD.unclaimedWarm;
-                ctx.globalAlpha = 0.85;
-                ctx.fillRect(x + st.gx * CELL * scale - 1, y + st.gy * CELL * scale - 1, 2.5, 2.5);
-            }
-            for (const d of game.build.deployables) {
-                if (d.owner === 0) continue;
-                const clan = game.clanSystem.clanByOwner(d.owner);
-                ctx.fillStyle = clan?.color ?? WORLD.unclaimedWarm;
-                ctx.fillRect(x + d.x * scale - 1.5, y + d.y * scale - 1.5, 3, 3);
-            }
-            ctx.globalAlpha = 1;
-            for (const n of game.npcs.list) {
-                if (n.clan <= 0) continue;
-                const clan = game.clanSystem.clanByOwner(n.clan);
-                ctx.fillStyle = clan?.color ?? WORLD.unclaimedWarm;
-                ctx.beginPath();
-                ctx.arc(x + n.x * scale, y + n.y * scale, 1.6, 0, TAU);
-                ctx.fill();
-            }
-            for (const c of game.clanSystem.clans) {
-                if (c.wiped) continue;
-                const px = x + c.x * scale;
-                const py = y + c.y * scale;
-                ctx.strokeStyle = c.color;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(px, py, 7, 0, TAU);
-                ctx.stroke();
-                ctx.fillStyle = c.color;
-                ctx.beginPath();
-                ctx.moveTo(px, py - 4);
-                ctx.lineTo(px + 3.5, py + 3);
-                ctx.lineTo(px - 3.5, py + 3);
-                ctx.closePath();
-                ctx.fill();
-            }
-        }
         for (const d of game.build.deployables) {
             if (d.owner !== 0) continue;
             ctx.fillStyle = WORLD.lamp;
             ctx.fillRect(x + d.x * scale - 2, y + d.y * scale - 2, 4, 4);
-        }
-        if (game.clanSystem.raid) {
-            ctx.strokeStyle = '#ff5a4a';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(
-                x + game.clanSystem.raid.x * scale,
-                y + game.clanSystem.raid.y * scale,
-                8 + Math.sin(performance.now() / 200) * 3,
-                0,
-                TAU,
-            );
-            ctx.stroke();
         }
         if (game.player.alive) {
             // You are an arrow, not a dot: the point shows which way you are facing,

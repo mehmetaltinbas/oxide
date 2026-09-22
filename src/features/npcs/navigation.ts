@@ -16,7 +16,6 @@ import { World } from 'src/features/world/world';
  * through the door. This is A* over the build grid, where a step between two
  * cells is only legal if the edge between them is not a wall or a shut door: * so a path through a base genuinely routes through its doorway.
  *
- * See docs/systems/ai-survivor.md.
  */
 
 /** Cap on expansions per search, so a hopeless request cannot stall a frame. */

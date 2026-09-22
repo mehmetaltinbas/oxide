@@ -25,7 +25,6 @@ import { RemoteBuild } from 'src/features/building/remote-build';
 import { StructureSystem } from 'src/features/building/structures';
 import { BuildKind } from 'src/features/building/types/build-kind.type';
 import { Deployable } from 'src/features/building/types/deployable.interface';
-import { ClanSystem } from 'src/features/clans/clans';
 import { Combat } from 'src/features/combat/combat';
 import { MELEE_KNOCKBACK } from 'src/features/combat/constants/melee-knockback.constant';
 import { CraftSystem } from 'src/features/crafting/crafting';
@@ -76,7 +75,6 @@ export class Game {
     build!: BuildSystem;
     npcs!: NpcSystem;
     combat!: Combat;
-    clanSystem!: ClanSystem;
     craftSystem!: CraftSystem;
     survival!: SurvivalSystem;
     held!: HeldItemSystem;
@@ -108,8 +106,6 @@ export class Game {
     craftAmount = 1;
     /** The inventory slot being inspected, if any. */
     inspecting: { container: Container; index: number } | null = null;
-    /** Recon overlay: shows every clan compound and clan-owned piece on the map. */
-    revealClans = false;
     /** Smoothed frames per second, fed by the render loop. */
     fps = 60;
 
@@ -140,9 +136,6 @@ export class Game {
     private messageTimer = 0;
     private autosaveTimer = AUTOSAVE_SECONDS;
 
-    /** Owner ids keep climbing so a new clan never inherits a dead one's pieces. */
-    /** How many clans the island should currently support. */
-
     constructor(
         public input: Input,
         viewW: number,
@@ -169,8 +162,7 @@ export class Game {
                 radius: PLAYER.radius,
                 alive: this.player.alive,
             }),
-            hitNpc: (n, dmg, fx, fy, byClan) =>
-                this.npcs.damage(n, dmg, fx, fy, MELEE_KNOCKBACK, byClan ?? 0),
+            hitNpc: (n, dmg, fx, fy) => this.npcs.damage(n, dmg, fx, fy, MELEE_KNOCKBACK),
             hitPlayer: (dmg, fx, fy) => this.survival.hurtPlayer(dmg, fx, fy),
             hitBreakable: (n, dmg) => this.held.strikeBarrel(n, dmg),
             hitStructure: (id, dmg, fx, fy, melee) => {
@@ -186,18 +178,8 @@ export class Game {
 
         this.npcs = new NpcSystem(this.world, this.build, {
             damagePlayer: (dmg, fx, fy) => this.survival.hurtPlayer(dmg, fx, fy),
-            fire: (x, y, a, dmg, speed, range, clan) => {
-                this.combat.fire(
-                    x,
-                    y,
-                    a,
-                    dmg,
-                    speed,
-                    range,
-                    'hostile',
-                    WORLD.hostileTracer,
-                    clan ?? 0,
-                );
+            fire: (x, y, a, dmg, speed, range) => {
+                this.combat.fire(x, y, a, dmg, speed, range, 'hostile', WORLD.hostileTracer);
                 // They carry rifles, so they sound like one, from where they
                 // stand: out of earshot, not at all.
                 const rifle = GUN_SOUNDS.rifle;
@@ -209,48 +191,11 @@ export class Game {
                         GUNFIRE_HEARING.range,
                     );
             },
-            attackStructure: (id, dmg, fx, fy) =>
-                this.structures.damageBuilt(id, dmg, fx, fy, true),
-            plantCharge: (npc, s) => {
-                // Read from the item, not retyped: these had already drifted
-                // to a 3.4s fuse against the satchel's own 3.2s.
-                const charge = ITEMS.satchel.boom!;
-                this.combat.attachExplosive(
-                    'satchel',
-                    s,
-                    charge.damage,
-                    charge.radius,
-                    charge.fuse,
-                    'hostile',
-                );
-                this.particles.text(npc.x, npc.y - 26, 'charge planted', WORLD.hostileTracer);
-                this.audio.from(npc.x, npc.y, () => this.audio.build());
-            },
             scheduleRegrowth: (kind) =>
                 this.wildlifeRegrowth.push({ kind, seconds: regrowthSeconds() }),
             dropLoot: (kind, x, y, loot, weapon) =>
                 this.structures.dropLootTable(kind, x, y, loot, weapon),
-            raidTarget: () =>
-                this.clanSystem.raid
-                    ? { x: this.clanSystem.raid.x, y: this.clanSystem.raid.y }
-                    : null,
-            weakestStructureNear: (x, y, r) => this.structures.weakestStructureNear(x, y, r),
         });
-
-        this.clanSystem = new ClanSystem(
-            this.world,
-            this.build,
-            this.npcs,
-            this.combat,
-            this.particles,
-            this.audio,
-            {
-                clock: () => this.clock,
-                isNight: () => this.isNight,
-                notify: (text) => this.notify(text),
-                player: () => this.player,
-            },
-        );
 
         this.craftSystem = new CraftSystem(this.build, this.audio, {
             containers: () => this.containers,
@@ -379,13 +324,11 @@ export class Game {
             if (this.build.deployableAt(gx, gy)) return true;
             return this.build.regionAt(x, y) !== 0;
         };
-        this.npcs.attachSurvivorWorld(this.clanSystem.survivorWorld());
         this.resetPlayer();
         this.spawnWildlife();
         this.spawnScientists();
-        this.clanSystem.spawnClans();
-        // Placed last, so the beach check can see every cupboard the clans just
-        // put down and drop you somewhere that is nobody's back garden.
+        // Placed last, so the beach check can see every cupboard on the island
+        // and drop you somewhere that is nobody's back garden.
         const start = this.beachSpawn();
         this.player.x = start.x;
         this.player.y = start.y;
@@ -555,7 +498,6 @@ export class Game {
             this.camera.y = this.player.y;
             // The AI island belongs to single-player; a room is people against people.
             this.npcs.clear();
-            this.clanSystem.clans = [];
             this.phase = 'play';
             this.notify('Joined the island.');
         };
@@ -730,7 +672,6 @@ export class Game {
         }
         this.craftSystem.updateCrafting(dt);
         this.interaction.updateGround(dt);
-        this.clanSystem.updateClans(dt);
         this.particles.update(dt);
 
         this.camera.follow(this.player.x, this.player.y, WORLD_W, WORLD_H, dt);
@@ -810,7 +751,7 @@ export class Game {
         if (i.justPressed('KeyE')) this.interaction.interact();
         if (i.justPressed('KeyR')) this.survival.reloadHeld();
         if (i.justPressed('KeyG')) this.interaction.dropHeld();
-        // M opens the whole island. Recon is a button on the map, not a key.
+        // M opens the whole island.
         if (i.justPressed('KeyM')) this.panel = this.panel === 'map' ? 'none' : 'map';
         if (this.sandbox) {
             if (i.justPressed('KeyF')) this.panel = this.panel === 'sandbox' ? 'none' : 'sandbox';
@@ -827,11 +768,6 @@ export class Game {
                     ZOOM_MAX,
                 );
         }
-    }
-
-    toggleReveal(): void {
-        this.revealClans = !this.revealClans;
-        this.notify(this.revealClans ? 'Recon on: clan holdings marked.' : 'Recon off.');
     }
 
     private cycleBuildKind(dir = 1): void {
@@ -1162,6 +1098,4 @@ export class Game {
     // ----------------------------------------------------------------- items
 
     // ----------------------------------------------------------------- damage
-
-    // ----------------------------------------------------------------- clans
 }

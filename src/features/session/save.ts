@@ -17,7 +17,6 @@ export function saveGame(game: Game): void {
             player: game.player,
             structures: game.build.structures,
             deployables: game.build.deployables,
-            clans: game.clanSystem.clans,
             nodeDeltas,
             lootedCrates: game.world.crates.filter((c) => c.looted).map((c) => c.id),
             nextBuildId: game.build.nextIdValue,

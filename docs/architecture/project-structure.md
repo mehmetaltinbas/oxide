@@ -20,7 +20,6 @@ src/
     game.ts                   the orchestrator, owns the systems and wires their hooks
   features/
       building/
-      clans/
       combat/
       crafting/
       items/
@@ -104,7 +103,7 @@ methods in it belongs to a feature.
 
 ### Why
 
-An orchestrator that also implements crafting, survival, clan politics and building is a file nobody
+An orchestrator that also implements crafting, survival and building is a file nobody
 can hold in their head, nothing can be tested in isolation, and every unrelated change touches. Both
 games reached two and a half thousand lines this way before the split.
 

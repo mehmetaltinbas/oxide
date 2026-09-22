@@ -5,7 +5,7 @@ import { Npc } from 'src/features/npcs/types/npc.interface';
 export interface CombatHooks {
     npcs(): Npc[];
     playerPos(): { x: number; y: number; radius: number; alive: boolean };
-    hitNpc(npc: Npc, damage: number, fromX: number, fromY: number, byClan: number): void;
+    hitNpc(npc: Npc, damage: number, fromX: number, fromY: number): void;
     hitPlayer(damage: number, fromX: number, fromY: number): void;
     /** A round has struck a barrel or the like. */
     hitBreakable(node: ResourceNode, damage: number): void;

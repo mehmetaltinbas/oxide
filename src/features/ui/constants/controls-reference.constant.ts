@@ -35,7 +35,7 @@ export const CONTROLS_REFERENCE: { group: string; rows: [string, string][] }[] =
     {
         group: 'The island',
         rows: [
-            ['M', 'Mark clan compounds'],
+            ['M', 'Open the map'],
             ['H', 'How the island works'],
             ['Esc', 'Settings, or back out'],
         ],

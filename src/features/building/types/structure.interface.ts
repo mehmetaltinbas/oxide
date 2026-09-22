@@ -12,7 +12,7 @@ export interface Structure {
     side?: EdgeSide;
     hp: number;
     maxHp: number;
-    /** Owner id: 0 is the player, otherwise a clan index + 1. */
+    /** Owner id: 0 is the player. */
     owner: number;
     /** Doors only. */
     open?: boolean;

@@ -119,24 +119,4 @@ export const SCENARIOS: Record<string, Scenario> = {
             settle(game, 0.5);
         },
     },
-
-    clanNeighbours: {
-        what: 'Next door to the nearest AI clan, for raids and building privilege.',
-        set(game) {
-            SCENARIOS.kitted.set(game);
-            const tc = game.build
-                .toolCupboards()
-                .filter((d) => d.owner !== 0)
-                .sort(
-                    (a, b) =>
-                        Math.hypot(a.x - game.player.x, a.y - game.player.y) -
-                        Math.hypot(b.x - game.player.x, b.y - game.player.y),
-                )[0];
-            if (tc) {
-                game.player.x = tc.x + 260;
-                game.player.y = tc.y;
-            }
-            settle(game, 0.5);
-        },
-    },
 };

@@ -13,7 +13,6 @@ import { CONTROLS_REFERENCE } from 'src/features/ui/constants/controls-reference
 import { SettingsTab } from 'src/features/ui/types/settings-tab.type';
 import { Game } from 'src/app/game';
 import { BuildKind } from 'src/features/building/types/build-kind.type';
-import { CLAN_SKILLS } from 'src/features/clans/constants/clan-skills.constant';
 import { CRAFT_QUEUE_MAX } from 'src/features/crafting/constants/craft-queue-max.constant';
 import { RECIPES } from 'src/features/crafting/constants/recipes.constant';
 import { ITEMS } from 'src/features/items/constants/items.constant';
@@ -168,13 +167,7 @@ export class Hud {
         // Centre line: only when something is actually happening.
         let banner = '';
         let bannerColor: string = UI.onDarkSubtle;
-        if (game.clanSystem.raid) {
-            const raider = game.clanSystem.clans.find(
-                (c) => c.index === game.clanSystem.raid!.clan,
-            );
-            banner = `${raider?.name ?? 'A clan'} is raiding your base`;
-            bannerColor = UI.warn;
-        } else if (game.craftSystem.craftJob) {
+        if (game.craftSystem.craftJob) {
             const r = RECIPES[game.craftSystem.craftJob.recipeIndex];
             const waiting = game.craftSystem.craftQueue.length - 1;
             banner =
@@ -340,72 +333,15 @@ export class Hud {
     }
 
     /**
-     * Minimap, the recon toggle and the clan roster. Frameless like the rest of
-     * the in-game overlay: a soft wash behind the map for legibility, nothing more.
+     * The minimap. Frameless like the rest of the in-game overlay: a soft wash
+     * behind the map for legibility, nothing more.
      */
     private drawMapPanel(game: Game, w: number): void {
-        const ui = this.ui;
-        const live = game.clanSystem.clans.filter((c) => !c.wiped);
         const size = 168;
         const x = w - size - 20;
         const y = 62;
-
-        ui.glass(x - 4, y - 4, size + 8, size + 8, RADIUS.sm);
+        this.ui.glass(x - 4, y - 4, size + 8, size + 8, RADIUS.sm);
         this.renderer.drawMinimap(game, x, y, size);
-
-        // Recon toggle.
-        const btn: Rect = { x, y: y + size + 8, w: size, h: 24 };
-        const hovered = hit(btn, game.input.mouseX, game.input.mouseY);
-        ui.roundRect(btn.x, btn.y, btn.w, btn.h, RADIUS.sm);
-        this.ctx.fillStyle = game.revealClans
-            ? 'rgba(10,110,235,0.72)'
-            : hovered
-              ? 'rgba(255,255,255,0.14)'
-              : UI.glass;
-        this.ctx.fill();
-        ui.textOnDark(
-            game.revealClans ? 'Recon on' : 'Reveal clans',
-            btn.x + btn.w / 2,
-            btn.y + 7,
-            {
-                size: 'caption',
-                weight: 600,
-                align: 'center',
-                color: game.revealClans ? '#ffffff' : UI.onDarkSubtle,
-            },
-        );
-        if (hovered) {
-            game.uiHover = true;
-            if (game.input.mouseClicked) game.toggleReveal();
-        }
-
-        // Who is on the island is intelligence, not a given: it only shows while
-        // recon is running.
-        if (!game.revealClans) return;
-
-        let ry = btn.y + 38;
-        ui.textOnDark(`CLANS ${live.length}`, x, ry, { size: 'micro', color: UI.onDarkFaint });
-        ry += 14;
-        for (const c of live) {
-            this.ctx.save();
-            this.ctx.shadowColor = WORLD.nameTagShadow;
-            this.ctx.shadowBlur = 3;
-            this.ctx.fillStyle = c.color;
-            this.ctx.fillRect(x, ry + 3, 6, 6);
-            this.ctx.restore();
-            const members = game.npcs.list.filter((n) => n.clan === c.index + 1).length;
-            ui.fit(`${c.name}, ${CLAN_SKILLS[c.skill].label}`, x + 12, ry, size - 40, {
-                size: 'caption',
-                color: UI.onDarkSubtle,
-            });
-            ui.textOnDark(`${members}`, x + size, ry, {
-                size: 'caption',
-                weight: 600,
-                align: 'right',
-                color: members > 4 ? '#ff9a72' : UI.onDarkSubtle,
-            });
-            ry += 15;
-        }
     }
 
     // No progress bar here. Every timed action draws one arc beside the player
@@ -727,7 +663,7 @@ export class Hud {
      * The whole island, opened with M.
      *
      * The corner map is for a glance; this is for planning where to go. The
-     * recon toggle lives here too, now that M is the map's key.
+     * Opened and closed with M.
      */
     private drawIslandMap(game: Game, w: number, h: number): void {
         const ui = this.ui;
@@ -750,13 +686,6 @@ export class Hud {
         const my = top + 12;
         this.renderer.drawMinimap(game, mx, my, size, 2);
         this.drawMapGrid(mx, my, size);
-
-        const btn: Rect = { x: x + SPACE.lg, y: top + 12 + size + 12, w: 200, h: 30 };
-        const hovered = hit(btn, game.input.mouseX, game.input.mouseY);
-        ui.button(btn.x, btn.y, btn.w, btn.h, game.revealClans ? 'Recon on' : 'Reveal clans', {
-            hovered,
-        });
-        if (hovered && game.input.mouseClicked) game.toggleReveal();
     }
 
     /**
@@ -1511,7 +1440,7 @@ export class Hud {
 
         ui.divider(x + SPACE.lg, y + cardH - 150, cardW - SPACE.lg * 2);
         ui.text(
-            'Three to eight clans live here. Once you have something worth taking, they come for it.',
+            'An island of wildlife and the scientists who hold its monuments. Everything else is yours to build.',
             x + cardW / 2,
             y + cardH - 136,
             { size: 'caption', color: UI.subtle, align: 'center' },
@@ -1711,8 +1640,8 @@ export class Hud {
                 'Privacy',
                 'You cannot see into, or reach into, a sealed room you have no authority over.',
             ],
-            ['Raiding', 'Satchels and C4 open walls. The clans use them on you too.'],
-            ['Recon', 'Press m to mark every clan compound and piece on the map.'],
+            ['Raiding', 'Satchels, C4 and rockets open walls.'],
+            ['Map', 'Press m for the whole island, marked out in lettered squares.'],
             ['Guns', 'r reloads what you hold. Firing dry starts the reload for you.'],
             ['Dropping', 'g throws the held stack on the ground, or drag it out of the pack.'],
             [

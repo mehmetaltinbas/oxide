@@ -43,7 +43,6 @@ export function loadGame(game: Game): boolean {
     }
 
     game.player = data.player;
-    game.clanSystem.clans = data.clans ?? [];
     game.build.structures = data.structures ?? [];
     game.build.deployables = data.deployables ?? [];
     game.build.reindex();

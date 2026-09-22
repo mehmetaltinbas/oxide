@@ -4,7 +4,7 @@
  * the shadow under every actor, the backing behind every health bar, the red
  * that always means hostile.
  *
- * Per-entity colours: an item's colour, a biome's colour, a clan's colour -
+ * Per-entity colours: an item's colour, a biome's colour -
  * are NOT tokens. They live on that entity's definition, which is already the
  * single source for them. See docs/design-system/design-tokens.md.
  */

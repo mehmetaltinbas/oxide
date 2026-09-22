@@ -2,8 +2,8 @@
  * The map grid, Rust's way: columns lettered from A, rows numbered from 0, so
  * a place is called by its square, "F7".
  *
- * Eleven a side, which makes a square about 1,900 units: ten by ten of the
- * blocks the open map is painted in. At twenty a side a square was barely six
- * blocks across and the labels crowded the island.
+ * Fifteen a side, which makes a square about 1,380 units: seven by seven of the
+ * blocks the open map is painted in. A finer grid than eleven, so a place can
+ * be called out more precisely, A to O and 0 to 14.
  */
-export const MAP_GRID_CELLS = 11;
+export const MAP_GRID_CELLS = 15;

@@ -248,9 +248,9 @@ export class StructureSystem {
     }
 
     /**
-     * The piece a raider should be hitting: always an edge, never a floor.
+     * The weakest piece near a point: always an edge, never a floor.
      * Floors are usually the weakest thing in a base, but they sit inside the
-     * walls, so a raider that targets one just mills about outside forever.
+     * walls, so anything that targets one mills about outside forever.
      */
     weakestStructureNear(x: number, y: number, radius: number): Structure | null {
         let best: Structure | null = null;

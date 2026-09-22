@@ -38,7 +38,6 @@ export class Combat {
         range: number,
         faction: Faction,
         color = '#ffe9a8',
-        shooterClan = 0,
     ): void {
         this.shots.push({
             x,
@@ -48,7 +47,6 @@ export class Combat {
             life: range / speed,
             damage,
             faction,
-            shooterClan,
             color,
             length: faction === 'player' ? 14 : 12,
         });
@@ -112,7 +110,7 @@ export class Combat {
         return t;
     }
 
-    /** Stick a charge straight onto a piece, the way a raider places one. */
+    /** Stick a charge straight onto a piece, the way a satchel is placed. */
     attachExplosive(
         item: ItemId,
         s: Structure,
@@ -182,15 +180,12 @@ export class Combat {
                 continue;
             }
 
-            // A shot hits whatever it meets that is not on the shooter's side. A
-            // clansman's bullet can therefore kill a boar, and friendly fire between
-            // clanmates is impossible.
+            // A shot hits the first thing in its path: a scientist's round can
+            // drop a boar that wanders into the firefight.
             let consumed = false;
             for (const n of npcs) {
-                if (p.faction !== 'player' && n.clan === p.shooterClan && n.clan !== 0) continue;
-                if (p.faction !== 'player' && p.shooterClan === 0 && n.clan === 0) continue;
                 if (!segmentHitsCircle(px, py, p.x, p.y, n.x, n.y, n.radius)) continue;
-                this.hooks.hitNpc(n, p.damage, px, py, p.shooterClan);
+                this.hooks.hitNpc(n, p.damage, px, py);
                 consumed = true;
                 break;
             }
@@ -241,7 +236,7 @@ export class Combat {
                     // target takes the whole round. The blast after it only
                     // spreads a quarter of that, which alone left a boar
                     // (90 hp) standing after a direct hit.
-                    this.hooks.hitNpc(n, t.damage, px, py, 0);
+                    this.hooks.hitNpc(n, t.damage, px, py);
                     hit = true;
                     break;
                 }

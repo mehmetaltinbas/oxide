@@ -15,7 +15,7 @@ export interface NpcDef {
      * Wildlife rather than people.
      *
      * Wildlife is a resource: it regrows a day after it is killed, like a tree
-     * or an ore node. People are not: clans replace their own on their own
+     * or an ore node. The monument guards are not: they hold their post and
      * timer. Set this on any future animal and the island keeps its population
      * with no other change.
      */
