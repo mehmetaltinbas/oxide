@@ -18,6 +18,8 @@ export interface PlayerState {
     hurtFlash: number;
     attackTimer: number;
     swingAnim: number;
+    /** Seconds the bow has been drawn for, up to BOW_DRAW_SECONDS. 0 when it is not. */
+    bowDraw: number;
     walkPhase: number;
     /** Hotbar index currently held. */
     activeSlot: number;

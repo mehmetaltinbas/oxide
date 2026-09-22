@@ -9,6 +9,8 @@ export class Input {
     mouseClicked = false;
     mouseReleased = false;
     rightClicked = false;
+    /** Right button held, for drawing a bow. */
+    rightDown = false;
     wheel = 0;
     /**
      * Modifiers as they were at the moment of the click. Read from the mouse
@@ -44,6 +46,7 @@ export class Input {
         window.addEventListener('blur', () => {
             this.down.clear();
             this.mouseDown = false;
+            this.rightDown = false;
         });
 
         canvas.addEventListener('mousemove', (e) => {
@@ -61,6 +64,7 @@ export class Input {
                 this.ctrlClick = e.ctrlKey || e.metaKey;
             } else if (e.button === 2) {
                 this.rightClicked = true;
+                this.rightDown = true;
             }
         });
 
@@ -68,6 +72,8 @@ export class Input {
             if (e.button === 0) {
                 this.mouseDown = false;
                 this.mouseReleased = true;
+            } else if (e.button === 2) {
+                this.rightDown = false;
             }
         });
 

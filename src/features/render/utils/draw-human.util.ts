@@ -54,7 +54,10 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
               [-7, -14 - reach],
               [7, -14 + reach],
           ]
-        : [[-12.5, -2 + step * 0.9], look.holding ? [7.5, -12] : [12.5, -2 - step * 0.9]];
+        : [
+              look.offHand ?? [-12.5, -2 + step * 0.9],
+              look.holding ? (look.holdAt ?? [7.5, -12]) : [12.5, -2 - step * 0.9],
+          ];
     // Shoulders: where each arm leaves the body.
     const shoulders: [number, number][] = [
         [-10, -1],

@@ -1,3 +1,4 @@
+import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { FIST_FRACTION } from 'src/features/items/constants/fists.constant';
 import { regrowthSeconds } from 'src/features/world/utils/regrowth-seconds.util';
 import { BuildSystem } from 'src/features/building/building';
@@ -140,6 +141,15 @@ export class HeldItemSystem {
             return;
         }
         if (def.gun) {
+            if (held.id === 'bow') {
+                // Rust's bow: right mouse draws, left looses, and only a full
+                // draw looses anything. Clicking early does nothing at all.
+                if (!this.hooks.edgeStep() || !this.hooks.input().mouseClicked) return;
+                if ((p.bowDraw ?? 0) < BOW_DRAW_SECONDS) return;
+                this.shoot(held.id);
+                p.bowDraw = 0;
+                return;
+            }
             this.shoot(held.id);
             return;
         }

@@ -2,6 +2,9 @@ import { TYPE } from 'src/shared/design/constants/type.constant';
 import { PROGRESS_ARC } from 'src/shared/design/constants/progress-arc.constant';
 import { drawHuman } from 'src/features/render/utils/draw-human.util';
 import { drawHeldItem } from 'src/features/render/utils/draw-held-item.util';
+import { drawBow } from 'src/features/render/utils/draw-bow.util';
+import { BOW_HOLD } from 'src/features/items/constants/bow-hold.constant';
+import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { ItemId } from 'src/features/items/types/item-id.type';
 import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
 import { TRACER } from 'src/features/combat/constants/tracer.constant';
@@ -1212,13 +1215,25 @@ export class Renderer {
             stride: Math.min(1, Math.hypot(p.vx, p.vy) / 90),
             swimming,
             holding: !!held && !swimming,
+            holdAt: held?.id === 'bow' && !swimming ? BOW_HOLD.grip : undefined,
+            offHand:
+                held?.id === 'bow' && !swimming && p.bowDraw > 0
+                    ? [
+                          BOW_HOLD.grip[0],
+                          BOW_HOLD.grip[1] +
+                              BOW_HOLD.nockRest +
+                              BOW_HOLD.pull * (p.bowDraw / BOW_DRAW_SECONDS),
+                      ]
+                    : undefined,
             punch:
                 !held && p.swingAnim > 0
                     ? { t: 1 - p.swingAnim / 0.2, side: this.punchSide(p.swingAnim) }
                     : undefined,
             held:
                 held && !swimming
-                    ? (c) => drawHeldItem(c, held.id, this.swingTurn(p.swingAnim, held.id))
+                    ? held.id === 'bow'
+                        ? (c) => drawBow(c, p.bowDraw / BOW_DRAW_SECONDS)
+                        : (c) => drawHeldItem(c, held.id, this.swingTurn(p.swingAnim, held.id))
                     : undefined,
             hood: worn === 'hazmat' ? ITEMS[worn].color : null,
             hurt: p.hurtFlash > 0 ? '#ff9a9a' : null,

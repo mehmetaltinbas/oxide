@@ -1,3 +1,4 @@
+import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { UI } from 'src/shared/design/constants/ui.constant';
 import { wornId } from 'src/features/items/utils/worn-id.util';
 import { MONUMENT_NO_BUILD_MARGIN } from 'src/features/world/constants/monument-no-build.constant';
@@ -401,6 +402,7 @@ export class Game {
             hurtFlash: 0,
             attackTimer: 0,
             swingAnim: 0,
+            bowDraw: 0,
             walkPhase: 0,
             activeSlot: 0,
             inventory: makeContainer(INVENTORY_SIZE),
@@ -941,6 +943,9 @@ export class Game {
         if (p.using && p.useTotal > 0) {
             return { progress: 1 - p.useLeft / p.useTotal, color: WORLD.vital };
         }
+        if (p.bowDraw > 0) {
+            return { progress: p.bowDraw / BOW_DRAW_SECONDS, color: UI.accentInk };
+        }
         if (p.reloadLeft > 0 && p.reloadTotal > 0) {
             return { progress: 1 - p.reloadLeft / p.reloadTotal, color: UI.accentInk };
         }
@@ -1054,6 +1059,18 @@ export class Game {
         const m = this.camera.screenToWorld(this.input.mouseX, this.input.mouseY);
         // Aim stays put while a menu is open, so the cursor can be used for the UI.
         if (!menuOpen) p.facing = Math.atan2(m.y - p.y, m.x - p.x);
+
+        // Drawing a bow: hold the right button. It takes a full draw before an
+        // arrow can go, and letting go, running, swimming or opening a menu
+        // lets the string back down.
+        const drawing =
+            this.heldItem()?.id === 'bow' &&
+            this.input.rightDown &&
+            !menuOpen &&
+            !this.uiHover &&
+            !swimming &&
+            !sprinting;
+        p.bowDraw = drawing ? Math.min(BOW_DRAW_SECONDS, (p.bowDraw ?? 0) + dt) : 0;
 
         if (menuOpen || this.uiHover) return;
         if (swimming) {

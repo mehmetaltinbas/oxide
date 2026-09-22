@@ -23,6 +23,10 @@ export interface HumanLook {
      * is which fist throws it. Absent when not punching.
      */
     punch?: { t: number; side: -1 | 1 };
+    /** Where the holding hand is, if not the usual spot out to the right. */
+    holdAt?: [number, number];
+    /** Where the other hand is, if it is doing something: drawing a string. */
+    offHand?: [number, number];
     /** Paints what is in that hand, with the hand at the origin. */
     held?: (ctx: CanvasRenderingContext2D) => void;
     /** A full hood over the head, as the hazmat suit has. */

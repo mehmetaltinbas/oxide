@@ -1,3 +1,4 @@
+import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { INK } from 'src/shared/design/constants/ink.constant';
 import { MAP_GRID_CELLS } from 'src/features/world/constants/map-grid.constant';
 import { gridColumn } from 'src/features/world/utils/grid-column.util';
@@ -418,13 +419,21 @@ export class Hud {
 
         const prev = game.held.buildPreview();
         if (prev && !prev.valid && prev.reason) hint = prev.reason;
-        const dep = game.held.deployPreview();
-        if (!hint && dep) hint = dep.valid ? `click  place ${ITEMS[dep.id].name}` : dep.reason;
         if (!hint) {
             // Whatever E would do, from the same place E asks. Never scan for
             // interactables here: see `InteractionSystem.target`.
             const t = game.interaction.target();
             if (t) hint = game.interaction.prompt(t);
+        }
+        const dep = game.held.deployPreview();
+        if (!hint && dep) hint = dep.valid ? `click  place ${ITEMS[dep.id].name}` : dep.reason;
+        // The bow is the one weapon with two buttons, so it says how. After
+        // the interact prompt, which always wins: see docs/systems/ui.md.
+        if (!hint && game.heldItem()?.id === 'bow') {
+            hint =
+                p.bowDraw >= BOW_DRAW_SECONDS
+                    ? 'left click  loose'
+                    : 'hold right click  draw the bow';
         }
         if (!hint) return;
 

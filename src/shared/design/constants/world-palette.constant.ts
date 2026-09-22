@@ -79,6 +79,8 @@ export const WORLD = {
     fuse: '#ff6b4a',
     /** Milled timber and planking. */
     timber: '#8a6034',
+    /** Worked timber in the hand: a bow's limbs, an arrow's shaft. */
+    wood: '#8a6034',
     /** The two browns everything wooden is built from. */
     woodDark: '#3f2f22',
     woodShade: '#2f2b22',
