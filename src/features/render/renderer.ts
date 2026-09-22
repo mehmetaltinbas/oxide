@@ -213,8 +213,15 @@ export class Renderer {
                 // Nothing grows in the sea.
                 const bx = Math.floor(x / BIOME_TILE);
                 const by = Math.floor(y / BIOME_TILE);
+                // Nothing grows in the sea, on a road, or on sand.
                 const here = this.biomes ? this.biomes[by * BIOME_W + bx] : null;
-                if (here === 'water' || here === 'road') continue;
+                if (
+                    here === 'water' ||
+                    here === 'road' ||
+                    here === 'beach' ||
+                    here === 'snow_beach'
+                )
+                    continue;
                 for (let i = 0; i < GRASS.blades; i++) {
                     const lean = (i - 1) * 3.5 + (r - 0.5) * 3;
                     const h = GRASS.height * (0.7 + r2 * 0.6);
@@ -1904,10 +1911,14 @@ export class Renderer {
      */
     drawMinimap(game: GameView, x: number, y: number, size: number): void {
         const ctx = this.ctx;
+        // `size` is the longest side; a map that is not square is drawn at its
+        // own shape rather than stretched to fill a square.
         const scale = size / Math.max(WORLD_W, WORLD_H);
+        const mapW = WORLD_W * scale;
+        const mapH = WORLD_H * scale;
         ctx.save();
         ctx.fillStyle = '#0e120e';
-        ctx.fillRect(x, y, size, size);
+        ctx.fillRect(x, y, mapW, mapH);
 
         // The island, from the same bake the world view is painted from: every
         // biome tile, not a block of them. It used to be redrawn tile by tile
@@ -1933,7 +1944,7 @@ export class Renderer {
         }
         ctx.strokeStyle = '#3f5240';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, size, size);
+        ctx.strokeRect(x, y, mapW, mapH);
 
         for (const m of game.world.monuments) {
             const def = MONUMENTS.find((d) => d.id === m.defId);

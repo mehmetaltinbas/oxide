@@ -1,7 +1,13 @@
 import { BIOME_LABEL } from 'src/features/world/constants/biome-label.constant';
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { INK } from 'src/shared/design/constants/ink.constant';
-import { MAP_GRID_CELLS } from 'src/features/world/constants/map-grid.constant';
+import {
+    MAP_GRID_COLS,
+    MAP_GRID_ROWS,
+    MAP_GRID_SIZE,
+} from 'src/features/world/constants/map-grid.constant';
+import { WORLD_H } from 'src/features/world/constants/world-h.constant';
+import { WORLD_W } from 'src/features/world/constants/world-w.constant';
 import { gridColumn } from 'src/features/world/utils/grid-column.util';
 import { gridLabel } from 'src/features/world/utils/grid-label.util';
 import { CELL } from 'src/features/building/constants/cell.constant';
@@ -115,7 +121,6 @@ export class Hud {
         this.drawTopBar(game, w);
         this.drawVitals(game, h);
         this.drawHotbar(game, w, h);
-        this.drawMapPanel(game, w);
         this.drawContextHints(game, w, h);
 
         if (game.panel === 'inventory') this.drawInventory(game, w, h);
@@ -330,18 +335,6 @@ export class Hud {
         // No general hint strip under the belt. It took up screen the whole run
         // to say something you need once, and the full list now lives in
         // Settings. The building-plan line above stays: that one is contextual.
-    }
-
-    /**
-     * The minimap. Frameless like the rest of the in-game overlay: a soft wash
-     * behind the map for legibility, nothing more.
-     */
-    private drawMapPanel(game: Game, w: number): void {
-        const size = 168;
-        const x = w - size - 20;
-        const y = 62;
-        this.ui.glass(x - 4, y - 4, size + 8, size + 8, RADIUS.sm);
-        this.renderer.drawMinimap(game, x, y, size);
     }
 
     // No progress bar here. Every timed action draws one arc beside the player
@@ -667,9 +660,13 @@ export class Hud {
      */
     private drawIslandMap(game: Game, w: number, h: number): void {
         const ui = this.ui;
-        const size = Math.max(200, Math.min(w, h) - 190);
-        const panelW = size + SPACE.lg * 2;
-        const panelH = size + 130;
+        // The map is drawn at the island's own shape, so a map that is not
+        // square is not stretched into one.
+        const longest = Math.max(200, Math.min(w, h) - 190);
+        const mapW = WORLD_W >= WORLD_H ? longest : (longest * WORLD_W) / WORLD_H;
+        const mapH = WORLD_H >= WORLD_W ? longest : (longest * WORLD_H) / WORLD_W;
+        const panelW = mapW + SPACE.lg * 2;
+        const panelH = mapH + 130;
         const x = Math.round(w / 2 - panelW / 2);
         const y = Math.round(h / 2 - panelH / 2);
         ui.scrim(w, h);
@@ -684,26 +681,30 @@ export class Hud {
         );
         const mx = x + SPACE.lg;
         const my = top + 12;
-        this.renderer.drawMinimap(game, mx, my, size);
-        this.drawMapGrid(mx, my, size);
+        this.renderer.drawMinimap(game, mx, my, longest);
+        this.drawMapGrid(mx, my, mapW, mapH);
     }
 
     /**
      * Rust's grid over the map: a line between squares and each square's name
      * in its top-left corner, so a place can be called out as "F7".
      */
-    private drawMapGrid(x: number, y: number, size: number): void {
+    private drawMapGrid(x: number, y: number, w: number, h: number): void {
         const ctx = this.ctx;
-        const cell = size / MAP_GRID_CELLS;
+        // One square is MAP_GRID_SIZE of world in both directions, so the
+        // squares stay square whatever shape or size the map is.
+        const cell = (w / WORLD_W) * MAP_GRID_SIZE;
         ctx.save();
         ctx.strokeStyle = UI.mapGrid;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (let i = 1; i < MAP_GRID_CELLS; i++) {
+        for (let i = 1; i < MAP_GRID_COLS; i++) {
             ctx.moveTo(Math.round(x + i * cell) + 0.5, y);
-            ctx.lineTo(Math.round(x + i * cell) + 0.5, y + size);
+            ctx.lineTo(Math.round(x + i * cell) + 0.5, y + h);
+        }
+        for (let i = 1; i < MAP_GRID_ROWS; i++) {
             ctx.moveTo(x, Math.round(y + i * cell) + 0.5);
-            ctx.lineTo(x + size, Math.round(y + i * cell) + 0.5);
+            ctx.lineTo(x + w, Math.round(y + i * cell) + 0.5);
         }
         ctx.stroke();
         // Small enough to leave the map readable, big enough to read at a glance.
@@ -714,8 +715,8 @@ export class Hud {
         ctx.lineWidth = 2.5;
         ctx.strokeStyle = INK.line;
         ctx.fillStyle = UI.onDark;
-        for (let row = 0; row < MAP_GRID_CELLS; row++) {
-            for (let col = 0; col < MAP_GRID_CELLS; col++) {
+        for (let row = 0; row < MAP_GRID_ROWS; row++) {
+            for (let col = 0; col < MAP_GRID_COLS; col++) {
                 const label = `${gridColumn(col)}${row}`;
                 const lx = x + col * cell + 2;
                 const ly = y + row * cell + 2;
