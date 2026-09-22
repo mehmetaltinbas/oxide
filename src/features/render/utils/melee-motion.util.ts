@@ -27,10 +27,11 @@ interface Key {
  * The strike takes the first third of the swing and eases out, the way a
  * swing is fastest at the start and brakes through the follow-through.
  *
- * - A chop (hatchet) swings from out at the right side across the front.
- * - An overhead blow (pick, hammer) comes from up over the shoulder, head
- *   behind you, down onto the ground ahead: from above, the tool looks short
- *   while it points at the sky and full length when it lands.
+ * - A chop (hatchet, pickaxe, hammer) is a side blow, the way an axe goes into the
+ *   side of a trunk: swung flat from out at the right, and at the moment it
+ *   lands the tool lies across your front, head to the left, not pointing
+ *   ahead like a spear. It is carried upright at the hip, head up and tipped
+ *   about 20 degrees forward, so from above it looks short.
  * - A smash (a rock in the fist) is drawn back by the ear and driven forward.
  *
  * `t` runs 0 to 1 over the swing; null is the carry between blows.
@@ -110,8 +111,10 @@ function easeInOut(u: number): number {
  * of the tool out ahead and a little to the side, not pointed at the sky.
  */
 const CARRY: Record<MeleeStrike, Key> = {
-    chop: { arm: 0.75, tool: 0.35, stretch: 1, twist: 0, hand: [12, -5] },
-    overhead: { arm: 0.75, tool: 0.3, stretch: 1, twist: 0, hand: [12, -5] },
+    // Upright at the hip: handle up out of the page, head tipped 20 degrees
+    // forward. From directly above only a third of it would show, which read
+    // as a stub in the fist; 0.55 keeps the head recognisable.
+    chop: { arm: 0.75, tool: 0, stretch: 0.55, twist: 0, hand: [12, -6] },
     smash: { arm: 0.4, tool: 0, stretch: 1, twist: 0, hand: [9.5, -9] },
     thrust: { arm: 0.3, tool: 0, stretch: 1, twist: 0, hand: [7.5, -12] },
 };
@@ -119,16 +122,11 @@ const CARRY: Record<MeleeStrike, Key> = {
 /** Where each blow starts and where it lands. */
 const SWING: Record<MeleeStrike, { windup: Key; strike: Key }> = {
     chop: {
-        // Out to the right, head swung back behind the shoulder.
-        windup: { arm: 1.75, tool: 2.1, stretch: 1, twist: 0.25 },
-        // Across the front, head through the target and past it.
-        strike: { arm: -0.3, tool: -0.55, stretch: 1, twist: -0.3 },
-    },
-    overhead: {
-        // Raised over the shoulder: head behind you, pointing up, so short.
-        windup: { arm: 2.4, tool: 2.9, stretch: 0.55, twist: 0.12, hand: [8, 2] },
-        // Driven down onto the ground ahead, at full length.
-        strike: { arm: 0.1, tool: 0.02, stretch: 1.08, twist: -0.18, hand: [5.5, -16] },
+        // Drawn back flat, out to the right, head pointing back past the hip.
+        windup: { arm: 1.6, tool: 1.9, stretch: 1, twist: 0.3 },
+        // Landing side-on: hand in front, tool lying across the front with
+        // its head to the left, into the side of whatever is there.
+        strike: { arm: 0.15, tool: -1.4, stretch: 1, twist: -0.25, hand: [6, -12] },
     },
     smash: {
         // Cocked back beside the ear.

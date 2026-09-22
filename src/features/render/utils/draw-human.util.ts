@@ -139,18 +139,6 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
             ctx.fill();
         }
     }
-    // At the moment of impact, a burst of short strokes round the knuckles:
-    // the comic way of saying that landed.
-    if (look.punch && jab > 0.8) {
-        const [hx, hy] = hands[throwing];
-        marks(ctx, () => {
-            for (let k = -2; k <= 2; k++) {
-                const a = -Math.PI / 2 + k * 0.42;
-                ctx.moveTo(hx + Math.cos(a) * 5.5, hy + Math.sin(a) * 5.5);
-                ctx.lineTo(hx + Math.cos(a) * 8.5, hy + Math.sin(a) * 8.5);
-            }
-        });
-    }
 
     // The shoulders and chest: wider than deep, rounded at the ends.
     const halfW = look.swimming ? 9.5 : 11.5;

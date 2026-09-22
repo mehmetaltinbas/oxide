@@ -16,8 +16,8 @@ export interface HeldPose {
     angle: number;
     /**
      * How a melee blow is struck, which is also how the thing is carried:
-     * a side chop (an axe), an overhead blow (a pick, a hammer), a smash (a
-     * rock in the fist) or a straight thrust (a spear). Absent is a chop.
+     * a side blow (hatchet, pickaxe, hammer), a smash (a rock in the fist) or
+     * a straight thrust (a spear). Absent is a side blow.
      */
     strike?: MeleeStrike;
 }
