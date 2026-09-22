@@ -46,4 +46,24 @@ export const NODES: Record<NodeDef['kind'], NodeDef> = {
         prefers: 'pick',
         color: '#8cc94a',
     },
+    /**
+     * A roadside barrel, as Rust leaves along its roads: a few hits with
+     * anything but your fists and it gives up its scrap, the one thing the
+     * roads are for. Sometimes a little more.
+     */
+    barrel: {
+        kind: 'barrel',
+        name: 'Barrel',
+        hp: 50,
+        radius: 14,
+        yield: {},
+        prefers: 'break',
+        color: '#3a6fa8',
+        loot: [
+            { id: 'scrap', count: [3, 6], chance: 1 },
+            { id: 'metal', count: [10, 25], chance: 0.3 },
+            { id: 'lowgrade', count: [5, 12], chance: 0.25 },
+            { id: 'pistol_ammo', count: [4, 8], chance: 0.12 },
+        ],
+    },
 };

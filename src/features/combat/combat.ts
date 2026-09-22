@@ -1,3 +1,4 @@
+import { NODES } from 'src/features/world/constants/nodes.constant';
 import { BuildSystem } from 'src/features/building/building';
 import { Structure } from 'src/features/building/types/structure.interface';
 import { centerOf } from 'src/features/building/utils/center-of.util';
@@ -169,6 +170,9 @@ export class Combat {
             for (const n of this.world.nodesNear(p.x, p.y, 30)) {
                 if (n.hp <= 0 || n.kind === 'nettle') continue;
                 if (dist(p.x, p.y, n.x, n.y) < n.radius * 0.5) {
+                    // Your rounds smash a barrel as a blow would.
+                    if (p.faction === 'player' && NODES[n.kind].loot)
+                        this.hooks.hitBreakable(n, p.damage);
                     blocked = true;
                     break;
                 }

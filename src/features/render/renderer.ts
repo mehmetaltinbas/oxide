@@ -209,7 +209,8 @@ export class Renderer {
                 // Nothing grows in the sea.
                 const bx = Math.floor(x / BIOME_TILE);
                 const by = Math.floor(y / BIOME_TILE);
-                if (this.biomes && this.biomes[by * BIOME_W + bx] === 'water') continue;
+                const here = this.biomes ? this.biomes[by * BIOME_W + bx] : null;
+                if (here === 'water' || here === 'road') continue;
                 for (let i = 0; i < GRASS.blades; i++) {
                     const lean = (i - 1) * 3.5 + (r - 0.5) * 3;
                     const h = GRASS.height * (0.7 + r2 * 0.6);
@@ -421,6 +422,62 @@ export class Renderer {
             ctx.lineJoin = 'round';
             ctx.stroke(outline);
         });
+    }
+
+    /**
+     * A steel drum seen from above: the lid, the rolled rim round it, the two
+     * bung caps, and rust eating in from the edge. Blue or red by its seed,
+     * the two colours road barrels come in.
+     */
+    private drawBarrel(n: ResourceNode, blue: string): void {
+        const ctx = this.ctx;
+        const r = n.radius;
+        const body = seeded(n.seed, 1) < 0.5 ? blue : '#b0473a';
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = darken(body);
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.78, 0, TAU);
+        ctx.fill();
+        // Rust, in from the rim.
+        this.ink.suspend(() => {
+            ctx.fillStyle = 'rgba(122, 70, 30, 0.55)';
+            for (let k = 0; k < 3; k++) {
+                const a = seeded(n.seed, 2 + k) * TAU;
+                ctx.beginPath();
+                ctx.ellipse(
+                    Math.cos(a) * r * 0.62,
+                    Math.sin(a) * r * 0.62,
+                    r * 0.22,
+                    r * 0.12,
+                    a,
+                    0,
+                    TAU,
+                );
+                ctx.fill();
+            }
+        });
+        // The bung caps.
+        ctx.fillStyle = '#c9ced4';
+        for (const [bx, by] of [
+            [r * 0.38, -r * 0.2],
+            [-r * 0.42, r * 0.3],
+        ] as const) {
+            ctx.beginPath();
+            ctx.arc(bx, by, r * 0.14, 0, TAU);
+            ctx.fill();
+        }
+        // The rolled rim, as a mark just inside the lid's edge.
+        this.lines(
+            ctx,
+            (d) => {
+                d.moveTo(r * 0.9, 0);
+                d.arc(0, 0, r * 0.9, 0, TAU);
+            },
+            INK.fineWidth,
+        );
     }
 
     /**
@@ -1158,6 +1215,8 @@ export class Renderer {
             }
         } else if (n.kind === 'nettle') {
             this.drawNettle(n, def.color);
+        } else if (n.kind === 'barrel') {
+            this.drawBarrel(n, def.color);
         } else {
             // One outline, used for the fill, the pen and the clip, so every
             // mark inside lands inside the rock that is actually drawn. The

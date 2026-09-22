@@ -1,3 +1,4 @@
+import { BARRELS } from 'src/features/world/constants/barrels.constant';
 import { regrowthSeconds } from 'src/features/world/utils/regrowth-seconds.util';
 import { REGROWTH } from 'src/features/world/constants/regrowth.constant';
 import { ITEMS } from 'src/features/items/constants/items.constant';
@@ -411,6 +412,26 @@ export class World {
             if (b !== 'grass' && b !== 'forest') continue;
             if (!free(x, y, 52)) continue;
             push('nettle', x, y);
+        }
+        // Barrels, on the roads and only there: the one thing a road has that
+        // the wilds do not. Every road tile gets a chance at one, kept apart
+        // so a stretch of road reads as a few barrels, not a wall of them.
+        for (let ty = 0; ty < BIOME_H; ty++) {
+            for (let tx = 0; tx < BIOME_W; tx++) {
+                if (this.biomes[ty * BIOME_W + tx] !== 'road') continue;
+                if (rng() > BARRELS.chancePerTile) continue;
+                const x = (tx + 0.2 + rng() * 0.6) * BIOME_TILE;
+                const y = (ty + 0.2 + rng() * 0.6) * BIOME_TILE;
+                let crowded = false;
+                const m2 = BARRELS.spacing * BARRELS.spacing;
+                for (const n of this.nodeHash.query(x, y, BARRELS.spacing, this.scratch)) {
+                    if (dist2(x, y, n.x, n.y) < m2) {
+                        crowded = true;
+                        break;
+                    }
+                }
+                if (!crowded) push('barrel', x, y);
+            }
         }
     }
 

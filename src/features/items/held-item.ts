@@ -196,6 +196,8 @@ export class HeldItemSystem {
         // Then resources. Plants are ignored: you pick those up, not swing at them.
         for (const node of this.world.nodesNear(p.x, p.y, reach + 40)) {
             if (node.hp <= 0 || node.kind === 'nettle') continue;
+            // Fists gather and fight; they do not smash barrels.
+            if (!tool && NODES[node.kind].prefers === 'break') continue;
             if (dist(p.x, p.y, node.x, node.y) > reach + node.radius) continue;
             if (!inCone(p.x, p.y, p.facing, 0.9, node.x, node.y)) continue;
             this.gather(node.id, damage, gather, tool);
@@ -205,6 +207,52 @@ export class HeldItemSystem {
         this.particles.burst(tipX, tipY, 3, '#6b7a5c', { speed: 70, life: 0.2, size: 1.8 });
     }
 
+    /**
+     * A hit on something that is smashed rather than gathered: nothing comes
+     * off it until it breaks, and then its loot is rolled once. Called for a
+     * melee blow and for a bullet alike.
+     */
+    strikeBarrel(node: ResourceNode, damage: number): void {
+        const def = NODES[node.kind];
+        if (!def.loot || node.hp <= 0) return;
+        node.hp -= damage;
+        node.shake = 0.16;
+        this.audio.hitMetal();
+        this.particles.burst(node.x, node.y - 4, 5, def.color, {
+            speed: 120,
+            life: 0.35,
+            size: 2.2,
+        });
+        if (node.hp > 0) return;
+        node.respawn = regrowthSeconds();
+        this.npcs.invalidateNavigation();
+        this.particles.burst(node.x, node.y, 14, '#7a6a5c', {
+            speed: 170,
+            life: 0.6,
+            size: 3,
+            gravity: 200,
+        });
+        for (const drop of def.loot) {
+            if (Math.random() > drop.chance) continue;
+            const amount = Math.round(randRange(Math.random, drop.count[0], drop.count[1]));
+            if (amount <= 0) continue;
+            const left = acquire(
+                this.hooks.player().hotbar,
+                this.hooks.player().inventory,
+                drop.id,
+                amount,
+            );
+            const got = amount - left;
+            if (got > 0)
+                this.particles.text(
+                    node.x,
+                    node.y - 24,
+                    `+${got} ${ITEMS[drop.id].name}`,
+                    ITEMS[drop.id].color,
+                );
+        }
+    }
+
     gather(nodeId: number, damage: number, gather: number, tool?: ItemId): void {
         const node = this.world.nodeById_(nodeId);
         if (!node) return;
@@ -212,6 +260,10 @@ export class HeldItemSystem {
 
         // Nettle is not chopped at all, it is picked with E.
         if (node.kind === 'nettle') return;
+        if (def.loot) {
+            this.strikeBarrel(node, damage);
+            return;
+        }
 
         // The right tool for the job: hatchets on wood, pickaxes on rock.
         let mult = gather;

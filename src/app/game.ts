@@ -170,6 +170,7 @@ export class Game {
             hitNpc: (n, dmg, fx, fy, byClan) =>
                 this.npcs.damage(n, dmg, fx, fy, MELEE_KNOCKBACK, byClan ?? 0),
             hitPlayer: (dmg, fx, fy) => this.survival.hurtPlayer(dmg, fx, fy),
+            hitBreakable: (n, dmg) => this.held.strikeBarrel(n, dmg),
             hitStructure: (id, dmg, fx, fy, melee) => {
                 this.structures.damageBuilt(id, dmg, fx, fy, melee);
                 // Raiding is shared: the server keeps the health everybody
