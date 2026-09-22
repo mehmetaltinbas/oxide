@@ -1,3 +1,4 @@
+import { GUN_SOUNDS } from 'src/features/items/constants/gun-sounds.constant';
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { FIST_FRACTION } from 'src/features/items/constants/fists.constant';
 import { regrowthSeconds } from 'src/features/world/utils/regrowth-seconds.util';
@@ -356,7 +357,7 @@ export class HeldItemSystem {
                 'player',
             );
             this.camera.shake(6, 0.2);
-            this.audio.roar();
+            this.gunSound(id);
             return;
         }
         // A shotgun throws its pellets across the whole spread at once; a gun
@@ -386,7 +387,14 @@ export class HeldItemSystem {
             spread: 0.7,
         });
         this.camera.shake(id === 'rifle' ? 3 : 2, 0.12);
-        this.audio.hit();
+        this.gunSound(id);
+    }
+
+    /** The gun's own report, or a plain one for a gun without its own yet. */
+    private gunSound(id: ItemId): void {
+        const sound = GUN_SOUNDS[id];
+        if (sound) this.audio.gunshot(sound);
+        else this.audio.hit();
     }
 
     throwHeld(id: ItemId, mx: number, my: number): void {

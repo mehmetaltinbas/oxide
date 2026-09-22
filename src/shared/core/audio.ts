@@ -1,4 +1,5 @@
 import { AUDIO_DEFAULT_LEVEL } from 'src/shared/design/constants/audio-default-level.constant';
+import { GunSound } from 'src/shared/types/gun-sound.interface';
 /** Tiny procedural sound bank, no asset files, everything is synthesized on the fly. */
 export class Audio {
     private ctx: AudioContext | null = null;
@@ -49,10 +50,10 @@ export class Audio {
         if (this.master) this.master.gain.value = this.enabled ? this.level : 0;
     }
 
-    private env(dur: number, peak: number): GainNode | null {
+    private env(dur: number, peak: number, at = 0): GainNode | null {
         if (!this.ctx || !this.master || !this.enabled) return null;
         const g = this.ctx.createGain();
-        const t = this.ctx.currentTime;
+        const t = this.ctx.currentTime + at;
         g.gain.setValueAtTime(0.0001, t);
         g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -66,12 +67,13 @@ export class Audio {
         type: OscillatorType,
         peak = 0.5,
         slideTo?: number,
+        at = 0,
     ): void {
-        const g = this.env(dur, peak);
+        const g = this.env(dur, peak, at);
         if (!g || !this.ctx) return;
         const o = this.ctx.createOscillator();
         o.type = type;
-        const t = this.ctx.currentTime;
+        const t = this.ctx.currentTime + at;
         o.frequency.setValueAtTime(freq, t);
         if (slideTo !== undefined)
             o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
@@ -85,8 +87,9 @@ export class Audio {
         peak: number,
         filterHz: number,
         filterType: BiquadFilterType = 'lowpass',
+        at = 0,
     ): void {
-        const g = this.env(dur, peak);
+        const g = this.env(dur, peak, at);
         if (!g || !this.ctx) return;
         const frames = Math.floor(this.ctx.sampleRate * dur);
         const buf = this.ctx.createBuffer(1, Math.max(1, frames), this.ctx.sampleRate);
@@ -99,7 +102,17 @@ export class Audio {
         f.frequency.value = filterHz;
         src.connect(f);
         f.connect(g);
-        src.start();
+        src.start(this.ctx.currentTime + at);
+    }
+
+    /** A firearm going off, from its own description. See GunSound. */
+    gunshot(s: GunSound, loudness = 1): void {
+        if (loudness <= 0.01) return;
+        const k = loudness;
+        this.noise(s.crack.dur, s.crack.peak * k, s.crack.hz, s.crack.filter);
+        this.tone(s.thump.from, s.thump.dur, s.thump.wave, s.thump.peak * k, s.thump.to);
+        if (s.tail) this.noise(s.tail.dur, s.tail.peak * k, s.tail.hz, 'lowpass');
+        for (const at of s.mech ?? []) this.noise(0.035, 0.22 * k, 3200, 'highpass', at);
     }
 
     // ---- material-specific impacts. Each one has its own body so you can tell

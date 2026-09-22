@@ -1,3 +1,5 @@
+import { GUNFIRE_HEARING } from 'src/features/combat/constants/gunfire-hearing.constant';
+import { GUN_SOUNDS } from 'src/features/items/constants/gun-sounds.constant';
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { UI } from 'src/shared/design/constants/ui.constant';
 import { wornId } from 'src/features/items/utils/worn-id.util';
@@ -184,7 +186,7 @@ export class Game {
 
         this.npcs = new NpcSystem(this.world, this.build, {
             damagePlayer: (dmg, fx, fy) => this.survival.hurtPlayer(dmg, fx, fy),
-            fire: (x, y, a, dmg, speed, range, clan) =>
+            fire: (x, y, a, dmg, speed, range, clan) => {
                 this.combat.fire(
                     x,
                     y,
@@ -195,7 +197,18 @@ export class Game {
                     'hostile',
                     WORLD.hostileTracer,
                     clan ?? 0,
-                ),
+                );
+                // They carry rifles, so they sound like one, and quieter the
+                // further off they are.
+                const d = Math.hypot(x - this.player.x, y - this.player.y);
+                const near = Math.max(0, 1 - d / GUNFIRE_HEARING.range);
+                const rifle = GUN_SOUNDS.rifle;
+                if (rifle)
+                    this.audio.gunshot(
+                        rifle,
+                        GUNFIRE_HEARING.nearLoudness * Math.pow(near, GUNFIRE_HEARING.falloff),
+                    );
+            },
             attackStructure: (id, dmg, fx, fy) =>
                 this.structures.damageBuilt(id, dmg, fx, fy, true),
             plantCharge: (npc, s) => {
