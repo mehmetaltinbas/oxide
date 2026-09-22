@@ -25,6 +25,13 @@ const A = (id: ItemId, name: string, color: string, desc: string, stack: number)
     desc,
 });
 
+/**
+ * `melee.reach` is how far the weapon's head gets from the middle of you, in
+ * world units, and a blow lands when that reaches the target's edge. Measured
+ * off the swing as it is drawn (2026-09-23): a hatchet's head is about 34 out
+ * at the moment it lands, a spear's tip 58. They used to be 50 and 74, which
+ * is why a blow that plainly missed still counted.
+ */
 export const ITEMS: Record<ItemId, ItemDef> = {
     // ---- resources
     wood: R('wood', 'Wood', '#b36e25', 'Chopped from trees. The bottom of every recipe.', 1000),
@@ -95,7 +102,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
         stack: 1,
         color: '#9e9e9e',
         desc: 'What you start with. Slow at everything.',
-        melee: { damage: 12, gather: 1, cooldown: 0.62, reach: 46 },
+        melee: { damage: 12, gather: 1, cooldown: 0.62, reach: 30 },
     },
     hatchet: {
         id: 'hatchet',
@@ -104,7 +111,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
         stack: 1,
         color: '#d5dae0',
         desc: 'Fast on trees, poor on rock.',
-        melee: { damage: 22, gather: 3, cooldown: 0.5, reach: 50 },
+        melee: { damage: 22, gather: 3, cooldown: 0.5, reach: 34 },
     },
     pickaxe: {
         id: 'pickaxe',
@@ -113,7 +120,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
         stack: 1,
         color: '#d7ebfe',
         desc: 'Fast on ore, poor on wood.',
-        melee: { damage: 20, gather: 3, cooldown: 0.52, reach: 50 },
+        melee: { damage: 20, gather: 3, cooldown: 0.52, reach: 34 },
     },
     hammer: {
         id: 'hammer',
@@ -122,7 +129,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
         stack: 1,
         color: '#f0d9a3',
         desc: 'Upgrades and repairs building pieces you own.',
-        melee: { damage: 8, gather: 1, cooldown: 0.5, reach: 56 },
+        melee: { damage: 8, gather: 1, cooldown: 0.5, reach: 36 },
     },
     building_plan: {
         id: 'building_plan',
@@ -141,7 +148,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
         stack: 1,
         color: '#c89646',
         desc: 'Cheap reach. Better than fists.',
-        melee: { damage: 38, gather: 1, cooldown: 0.85, reach: 74 },
+        melee: { damage: 38, gather: 1, cooldown: 0.85, reach: 58 },
     },
     bow: {
         id: 'bow',
