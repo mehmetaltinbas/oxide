@@ -1,7 +1,7 @@
 import { ItemId } from 'src/features/items/types/item-id.type';
 
 export interface NodeDef {
-    kind: 'tree' | 'stone_node' | 'metal_node' | 'sulfur_node' | 'hemp';
+    kind: 'tree' | 'stone_node' | 'metal_node' | 'sulfur_node' | 'cotton';
     name: string;
     hp: number;
     radius: number;

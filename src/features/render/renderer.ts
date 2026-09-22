@@ -9,6 +9,7 @@ import { THRUST_REACH } from 'src/features/items/constants/thrust-reach.constant
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { ItemId } from 'src/features/items/types/item-id.type';
 import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
+import { NODE_LINE_SCALE } from 'src/features/render/constants/node-line-scale.constant';
 import { TRACER } from 'src/features/combat/constants/tracer.constant';
 import { HEALTH_BAR } from 'src/shared/design/constants/health-bar.constant';
 import { ThrownExplosive } from 'src/features/combat/types/thrown-explosive.interface';
@@ -164,7 +165,7 @@ export class Renderer {
                     } else {
                         const n = ((x * 73856093) ^ (y * 19349663)) >>> 0;
                         if (n % 5 !== 0) continue;
-                        ctx.fillStyle = 'rgba(0,0,0,0.07)';
+                        ctx.fillStyle = 'rgba(0,0,0,0.05)';
                     }
                     ctx.fillRect(x * BIOME_TILE, y * BIOME_TILE, BIOME_TILE + 1, BIOME_TILE + 1);
                 }
@@ -248,7 +249,7 @@ export class Renderer {
         ctx.save();
         ctx.strokeStyle = INK.line;
         ctx.globalAlpha = 1;
-        ctx.lineWidth = INK.markWidth;
+        ctx.lineWidth = INK.markWidth * this.markScale;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.stroke(path);
@@ -281,7 +282,7 @@ export class Renderer {
         ctx.lineJoin = 'round';
 
         // Branches, two rows, the lower one wider: a tier spreads as it drops.
-        ctx.lineWidth = INK.markWidth;
+        ctx.lineWidth = INK.markWidth * this.markScale;
         ctx.beginPath();
         for (const t of [0.42, 0.7]) {
             const py = apexY + height * t;
@@ -297,7 +298,7 @@ export class Renderer {
 
         // Shade down the right flank: hatching is how a press says the light
         // comes from the other side.
-        ctx.lineWidth = INK.hatchMarkWidth;
+        ctx.lineWidth = INK.hatchMarkWidth * this.markScale;
         ctx.beginPath();
         const step = INK.hatchSpacing * 0.75;
         for (let hx = r * 0.18; hx < r; hx += step) {
@@ -306,6 +307,73 @@ export class Renderer {
         }
         ctx.stroke();
         ctx.restore();
+    }
+
+    /**
+     * A cotton bush: a low mound of leaves, and on top of it the bolls, each a
+     * white puff bursting out of a brown husk. The bolls are what you are
+     * there for, so they sit on top and read from a distance.
+     */
+    private drawCotton(n: ResourceNode, leaf: string): void {
+        const ctx = this.ctx;
+        // Drawn larger than it stands: a bush is wider than the stem you bump
+        // into, and at its real radius the bolls were specks.
+        const r = n.radius * 1.5;
+        // Leaves: five broad ones round the middle, a darker one under each.
+        for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * TAU + (n.seed % 7) * 0.2;
+            ctx.fillStyle = i % 2 === 0 ? leaf : darken(leaf);
+            ctx.beginPath();
+            ctx.ellipse(
+                Math.cos(a) * r * 0.55,
+                Math.sin(a) * r * 0.45,
+                r * 0.55,
+                r * 0.34,
+                a,
+                0,
+                TAU,
+            );
+            ctx.fill();
+        }
+        // The leaves' midribs.
+        this.lines(ctx, (d) => {
+            for (let i = 0; i < 5; i++) {
+                const a = (i / 5) * TAU + (n.seed % 7) * 0.2;
+                d.moveTo(Math.cos(a) * r * 0.25, Math.sin(a) * r * 0.2);
+                d.lineTo(Math.cos(a) * r * 0.85, Math.sin(a) * r * 0.7);
+            }
+        });
+        // The bolls.
+        const bolls = 3 + (n.seed % 2);
+        for (let i = 0; i < bolls; i++) {
+            const a = (i / bolls) * TAU + (n.seed % 11) * 0.3;
+            const bx = Math.cos(a) * r * 0.42;
+            const by = Math.sin(a) * r * 0.34 - r * 0.1;
+            // The husk, four brown points behind the puff.
+            ctx.fillStyle = '#8a5a2e';
+            ctx.beginPath();
+            for (let k = 0; k < 4; k++) {
+                const ka = (k / 4) * TAU + Math.PI / 4;
+                ctx.moveTo(bx, by);
+                ctx.lineTo(bx + Math.cos(ka - 0.35) * r * 0.2, by + Math.sin(ka - 0.35) * r * 0.2);
+                ctx.lineTo(bx + Math.cos(ka) * r * 0.34, by + Math.sin(ka) * r * 0.34);
+                ctx.lineTo(bx + Math.cos(ka + 0.35) * r * 0.2, by + Math.sin(ka + 0.35) * r * 0.2);
+            }
+            ctx.closePath();
+            ctx.fill();
+            // The puff: three lobes of white.
+            ctx.fillStyle = '#fbf8ef';
+            ctx.beginPath();
+            for (const [ox, oy] of [
+                [-0.1, -0.02],
+                [0.1, -0.02],
+                [0, -0.14],
+            ] as const) {
+                ctx.moveTo(bx + ox * r + r * 0.19, by + oy * r);
+                ctx.arc(bx + ox * r, by + oy * r, r * 0.19, 0, TAU);
+            }
+            ctx.fill();
+        }
     }
 
     /**
@@ -879,7 +947,25 @@ export class Renderer {
         main.restore();
     }
 
+    /**
+     * Trees and ore are drawn with a pen half again as heavy as everything
+     * else, outline and inside marks alike: they are most of the screen, and
+     * at the ordinary weight the forest read thin next to the people in it.
+     */
     private drawNode(n: ResourceNode): void {
+        if (n.kind === 'cotton') {
+            this.drawNodeBody(n);
+            return;
+        }
+        this.markScale = NODE_LINE_SCALE;
+        this.ink.weight(INK.width * NODE_LINE_SCALE, () => this.drawNodeBody(n));
+        this.markScale = 1;
+    }
+
+    /** How much heavier the interior marks are drawn right now. */
+    private markScale = 1;
+
+    private drawNodeBody(n: ResourceNode): void {
         const ctx = this.ctx;
         const def = NODES[n.kind];
         const shake = n.shake > 0 ? Math.sin(n.shake * 70) * 3 : 0;
@@ -918,7 +1004,7 @@ export class Renderer {
             // Bottom tier first, crown last: a conifer's top sits in front of
             // the skirt below it, and painting downward buried every crown.
             for (let i = tiers.length - 1; i >= 0; i--) {
-                ctx.fillStyle = i % 2 === 0 ? def.color : '#45a94f';
+                ctx.fillStyle = i % 2 === 0 ? def.color : '#5cc063';
                 ctx.beginPath();
                 ctx.moveTo(0, tiers[i].y - tiers[i].r);
                 ctx.lineTo(-tiers[i].r, tiers[i].y + tiers[i].r * 0.5);
@@ -927,14 +1013,8 @@ export class Renderer {
                 ctx.fill();
                 this.markTier(ctx, tiers[i].y, tiers[i].r, n.seed + i);
             }
-        } else if (n.kind === 'hemp') {
-            ctx.fillStyle = def.color;
-            for (let i = 0; i < 5; i++) {
-                const a = (i / 5) * TAU;
-                ctx.beginPath();
-                ctx.ellipse(Math.cos(a) * 5, Math.sin(a) * 4 - 3, 4, 8, a, 0, TAU);
-                ctx.fill();
-            }
+        } else if (n.kind === 'cotton') {
+            this.drawCotton(n, def.color);
         } else {
             // One outline, used for the fill, the pen and the clip, so every
             // mark inside lands inside the rock that is actually drawn. The

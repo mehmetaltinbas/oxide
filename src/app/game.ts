@@ -343,8 +343,8 @@ export class Game {
             if (!n) return null;
             return n.kind === 'tree'
                 ? 'Chop the tree down first'
-                : n.kind === 'hemp'
-                  ? 'Pick the hemp first'
+                : n.kind === 'cotton'
+                  ? 'Pick the cotton first'
                   : 'Mine the node out first';
         };
         // Monument ground belongs to everybody. See MONUMENT_NO_BUILD_MARGIN.
@@ -1114,7 +1114,7 @@ export class Game {
         let best: ResourceNode | null = null;
         let bestD: number = PLAYER.interact;
         for (const n of this.world.nodesNear(this.player.x, this.player.y, PLAYER.interact + 30)) {
-            if (n.hp <= 0 || n.kind !== 'hemp') continue;
+            if (n.hp <= 0 || n.kind !== 'cotton') continue;
             const d = dist(this.player.x, this.player.y, n.x, n.y);
             if (d < bestD) {
                 bestD = d;

@@ -103,7 +103,7 @@ export class BuildSystem {
 
     /** Whether a foundation may go on this cell, and why not if it may not. */
     /**
-     * Set by the game: is there a tree, rock or hemp still standing on this
+     * Set by the game: is there a tree, rock or cotton still standing on this
      * spot? Nothing gets built on top of natural cover: you clear the ground
      * first, the same as anyone would. The build system does not know the world
      * exists, so this arrives as a hook, like `World.respawnBlocked`.

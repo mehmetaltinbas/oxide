@@ -9,11 +9,13 @@ import { Biome } from 'src/features/world/types/biome.type';
  * starts muted has nowhere left to go.
  */
 export const BIOME_COLOR: Record<Biome, string> = {
-    grass: '#55812e',
-    forest: '#3a6a22',
-    beach: '#d9be85',
-    desert: '#c2a04e',
-    snow: '#c6d6e4',
-    road: '#5c584f',
-    water: '#1f68ad',
+    // Lifted a step on 2026-09-22: the whole frame averaged 90 to 114 out of
+    // 255 in brightness, and with the ink on top it read as dusk at noon.
+    grass: '#6c9c3b',
+    forest: '#508a31',
+    beach: '#e8cf96',
+    desert: '#d8b762',
+    snow: '#dde9f2',
+    road: '#726d62',
+    water: '#2f80c8',
 };

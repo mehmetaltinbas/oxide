@@ -707,6 +707,53 @@ const GLYPHS: Partial<Record<ItemId, Glyph>> = {
         ctx.lineTo(0.02, 0.07);
         ctx.stroke();
     },
+    // A pipe gun, barrel right: a length of grey water pipe lashed onto a
+    // rough wooden stock, with the tape round the joint.
+    waterpipe: (ctx) => {
+        poly(
+            ctx,
+            [
+                [-0.44, -0.04],
+                [-0.08, -0.04],
+                [-0.06, 0.06],
+                [-0.42, 0.16],
+            ],
+            WOOD,
+            WOOD_DARK,
+        );
+        rect(ctx, -0.12, -0.1, 0.56, 0.1, '#8a8f94');
+        rect(ctx, 0.4, -0.12, 0.05, 0.14, '#6f767d');
+        rect(ctx, -0.02, -0.12, 0.08, 0.14, '#c8b89a');
+        rect(ctx, 0.2, -0.12, 0.06, 0.14, '#c8b89a');
+        rect(ctx, -0.14, 0.0, 0.05, 0.12, '#3a3a42');
+    },
+    // A pump-action, barrel right: stock, receiver, the barrel with the
+    // magazine tube under it, and the wooden pump grip on the tube.
+    pump_shotgun: (ctx) => {
+        poly(
+            ctx,
+            [
+                [-0.45, -0.06],
+                [-0.2, -0.05],
+                [-0.2, 0.04],
+                [-0.43, 0.14],
+            ],
+            '#5a4a3a',
+            WOOD_DARK,
+        );
+        rect(ctx, -0.2, -0.08, 0.2, 0.12, '#3c3c44');
+        rect(ctx, 0.0, -0.08, 0.44, 0.06, '#4a4a52');
+        rect(ctx, 0.0, -0.01, 0.4, 0.05, '#35353c');
+        rect(ctx, 0.12, -0.03, 0.16, 0.09, '#8a6034');
+        rect(ctx, -0.15, 0.04, 0.05, 0.12, '#3a3a42');
+    },
+    // Three shells: red hulls, brass bases.
+    shotgun_shell: (ctx) => {
+        for (const x of [-0.18, 0, 0.18]) {
+            rect(ctx, x - 0.06, -0.2, 0.12, 0.3, '#c8433a');
+            rect(ctx, x - 0.07, 0.1, 0.14, 0.1, '#d8b44a');
+        }
+    },
     pistol_ammo: (ctx) => {
         for (const x of [-0.18, 0, 0.18]) {
             rect(ctx, x - 0.055, -0.05, 0.11, 0.3, '#c9a94a');

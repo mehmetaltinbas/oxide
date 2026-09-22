@@ -28,9 +28,13 @@ export const RECIPES: Recipe[] = [
     { out: 'lock', amount: 1, cost: { metal: 100 }, bench: 1, seconds: 4 },
     { out: 'gunpowder', amount: 10, cost: { sulfur: 20, charcoal: 30 }, bench: 1, seconds: 3 },
     { out: 'medkit', amount: 1, cost: { cloth: 15, lowgrade: 10 }, bench: 1, seconds: 4 },
+    // Shotguns as Rust has them: the waterpipe early, the pump a tier on.
+    { out: 'waterpipe', amount: 1, cost: { wood: 150, metal: 75 }, bench: 1, seconds: 6 },
+    { out: 'shotgun_shell', amount: 4, cost: { gunpowder: 8, metal: 6 }, bench: 1, seconds: 3 },
     { out: 'workbench2', amount: 1, cost: { metal: 500, scrap: 250 }, bench: 1, seconds: 10 },
 
     { out: 'revolver', amount: 1, cost: { metal: 150, scrap: 75 }, bench: 2, seconds: 8 },
+    { out: 'pump_shotgun', amount: 1, cost: { metal: 200, scrap: 120 }, bench: 2, seconds: 8 },
     { out: 'pistol_ammo', amount: 12, cost: { gunpowder: 10, metal: 10 }, bench: 2, seconds: 3 },
     {
         out: 'satchel',

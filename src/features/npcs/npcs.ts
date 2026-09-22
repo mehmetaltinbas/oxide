@@ -140,7 +140,7 @@ export class NpcSystem {
         const py = n.y + Math.sin(heading) * probe;
         if (this.build.blocksLine(n.x, n.y, px, py)) return true;
         for (const node of this.world.nodesNear(px, py, 40)) {
-            if (node.hp <= 0 || node.kind === 'hemp') continue;
+            if (node.hp <= 0 || node.kind === 'cotton') continue;
             if (dist(px, py, node.x, node.y) < node.radius * 0.6 + n.radius) return true;
         }
         return false;

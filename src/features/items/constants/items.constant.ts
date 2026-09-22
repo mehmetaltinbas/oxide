@@ -45,7 +45,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
         'Half of gunpowder, and therefore half of every raid.',
         1000,
     ),
-    cloth: R('cloth', 'Cloth', '#e1d1b3', 'Cut from hemp. Bandages, clothing, bags.', 1000),
+    cloth: R('cloth', 'Cloth', '#e1d1b3', 'Picked from cotton. Bandages, clothing, bags.', 1000),
     leather: R('leather', 'Leather', '#c87f46', 'Skinned from animals.', 500),
     bone: R('bone', 'Bone Fragments', '#f3efe2', 'From carcasses. Crude tools and arrows.', 500),
     scrap: R('scrap', 'Scrap', '#b1a080', 'Salvaged at monuments. Buys the good blueprints.', 1000),
@@ -164,6 +164,51 @@ export const ITEMS: Record<ItemId, ItemDef> = {
             reloadSeconds: 3,
         },
     },
+    /**
+     * Shotguns, Rust's pair. The waterpipe is one shell and a long reload (6s
+     * in Rust) that hits harder; the pump holds six and cycles about once a
+     * second. Both throw a cone of pellets, so they kill up close and fall
+     * apart past short range: the range here is a third of the revolver's.
+     * Pellet damage is set so a full close hit is a kill on a 100 hp player.
+     */
+    waterpipe: {
+        id: 'waterpipe',
+        name: 'Waterpipe Shotgun',
+        category: 'weapon',
+        stack: 1,
+        color: '#8a8f94',
+        desc: 'One shell, a long reload, and a very bad day for whoever is in front of it.',
+        gun: {
+            damage: 14,
+            cooldown: 1,
+            speed: 820,
+            range: 260,
+            spread: 0.26,
+            ammo: 'shotgun_shell',
+            magazine: 1,
+            reloadSeconds: 6,
+            pellets: 9,
+        },
+    },
+    pump_shotgun: {
+        id: 'pump_shotgun',
+        name: 'Pump Shotgun',
+        category: 'weapon',
+        stack: 1,
+        color: '#5a4a3a',
+        desc: 'Six shells, one a second. Nothing clears a room faster.',
+        gun: {
+            damage: 13,
+            cooldown: 1.05,
+            speed: 860,
+            range: 300,
+            spread: 0.2,
+            ammo: 'shotgun_shell',
+            magazine: 6,
+            reloadSeconds: 5.5,
+            pellets: 8,
+        },
+    },
     rifle: {
         id: 'rifle',
         name: 'Semi-Automatic Rifle',
@@ -236,6 +281,13 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     },
 
     // ---- ammo
+    shotgun_shell: A(
+        'shotgun_shell',
+        'Shotgun Shells',
+        '#c8433a',
+        'For both shotguns. A handful of pellets each.',
+        64,
+    ),
     rocket: A(
         'rocket',
         'Rocket',

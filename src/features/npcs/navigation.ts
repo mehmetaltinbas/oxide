@@ -95,7 +95,7 @@ export class Navigator {
         else if (this.build.deployableAt(gx, gy)) blocked = true;
         else {
             for (const n of this.world.nodesNear(cx, cy, CELL)) {
-                if (n.hp <= 0 || n.kind === 'hemp') continue;
+                if (n.hp <= 0 || n.kind === 'cotton') continue;
                 const dx = cx - n.x;
                 const dy = cy - n.y;
                 if (dx * dx + dy * dy < (n.radius * 0.55 + r) ** 2) {

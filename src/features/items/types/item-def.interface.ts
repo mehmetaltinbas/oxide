@@ -29,6 +29,11 @@ export interface ItemDef {
          * explodes on whatever it meets, or at the end of its range.
          */
         rocket?: { damage: number; radius: number };
+        /**
+         * A shotgun: each shot is this many pellets, each carrying `damage`
+         * and scattered across `spread` either side. Absent is one round.
+         */
+        pellets?: number;
     };
     /** Food and drink restore these. */
     food?: { calories?: number; hydration?: number; health?: number };

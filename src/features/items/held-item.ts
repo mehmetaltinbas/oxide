@@ -195,7 +195,7 @@ export class HeldItemSystem {
 
         // Then resources. Plants are ignored: you pick those up, not swing at them.
         for (const node of this.world.nodesNear(p.x, p.y, reach + 40)) {
-            if (node.hp <= 0 || node.kind === 'hemp') continue;
+            if (node.hp <= 0 || node.kind === 'cotton') continue;
             if (dist(p.x, p.y, node.x, node.y) > reach + node.radius) continue;
             if (!inCone(p.x, p.y, p.facing, 0.9, node.x, node.y)) continue;
             this.gather(node.id, damage, gather, tool);
@@ -210,8 +210,8 @@ export class HeldItemSystem {
         if (!node) return;
         const def = NODES[node.kind];
 
-        // Hemp is not chopped at all, it is collected with E, like a plant in Rust.
-        if (node.kind === 'hemp') return;
+        // Cotton is not chopped at all, it is picked with E.
+        if (node.kind === 'cotton') return;
 
         // The right tool for the job: hatchets on wood, pickaxes on rock.
         let mult = gather;
@@ -307,17 +307,25 @@ export class HeldItemSystem {
             this.audio.roar();
             return;
         }
-        this.combat.fire(
-            p.x + Math.cos(a) * 20,
-            p.y + Math.sin(a) * 20,
-            a,
-            def.damage,
-            def.speed,
-            def.range,
-            'player',
-            // An arrow is a shaft in its own colour; everything else is a round.
-            id === 'bow' ? ITEMS[def.ammo].color : WORLD.tracer,
-        );
+        // A shotgun throws its pellets across the whole spread at once; a gun
+        // with one round throws that round somewhere within it.
+        const pellets = def.pellets ?? 1;
+        for (let k = 0; k < pellets; k++) {
+            const pa = pellets > 1 ? p.facing + randRange(Math.random, -def.spread, def.spread) : a;
+            this.combat.fire(
+                p.x + Math.cos(pa) * 20,
+                p.y + Math.sin(pa) * 20,
+                pa,
+                def.damage,
+                // Pellets leave at slightly different speeds, so the pattern
+                // opens out into a cloud rather than a flat line.
+                pellets > 1 ? def.speed * randRange(Math.random, 0.85, 1.1) : def.speed,
+                def.range,
+                'player',
+                // An arrow is a shaft in its own colour; everything else is a round.
+                id === 'bow' ? ITEMS[def.ammo].color : WORLD.tracer,
+            );
+        }
         this.particles.burst(p.x + Math.cos(a) * 22, p.y + Math.sin(a) * 22, 5, '#ffd28a', {
             speed: 180,
             life: 0.15,

@@ -8,7 +8,7 @@ export const NODES: Record<NodeDef['kind'], NodeDef> = {
         radius: 17,
         yield: { wood: 12 },
         prefers: 'chop',
-        color: '#2e8b3d',
+        color: '#3aa24a',
     },
     stone_node: {
         kind: 'stone_node',
@@ -37,9 +37,9 @@ export const NODES: Record<NodeDef['kind'], NodeDef> = {
         prefers: 'mine',
         color: '#e7dd64',
     },
-    hemp: {
-        kind: 'hemp',
-        name: 'Hemp',
+    cotton: {
+        kind: 'cotton',
+        name: 'Cotton',
         hp: 40,
         radius: 11,
         yield: { cloth: 10 },

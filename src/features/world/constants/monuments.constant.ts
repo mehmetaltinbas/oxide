@@ -47,6 +47,7 @@ export const MONUMENTS: MonumentDef[] = [
             metal: [60, 160],
             sulfur: [20, 60],
             pistol_ammo: [8, 24],
+            shotgun_shell: [4, 12],
             medkit: [1, 2],
             gunpowder: [10, 40],
         },

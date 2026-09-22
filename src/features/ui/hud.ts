@@ -1693,7 +1693,7 @@ export class Hud {
             ],
             [
                 'Gathering',
-                'Hatchets favour wood, pickaxes favour ore. Hemp is picked with e, not hit.',
+                'Hatchets favour wood, pickaxes favour ore. Cotton is picked with e, not hit.',
             ],
             ['Smelting', 'Ore and wood into a furnace, then light it with e.'],
             [
