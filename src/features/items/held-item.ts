@@ -1,3 +1,4 @@
+import { TAU } from 'src/shared/constants/tau.constant';
 import { GUN_SOUNDS } from 'src/features/items/constants/gun-sounds.constant';
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { FIST_FRACTION } from 'src/features/items/constants/fists.constant';
@@ -49,6 +50,8 @@ import { randRange } from 'src/shared/utils/rand-range.util';
  */
 export interface HeldItemHooks {
     player(): PlayerState;
+    /** Put a stack down on the ground, where anyone can pick it up. */
+    dropStack(stack: ItemStack, x: number, y: number): void;
     containers(): Container[];
     heldItem(): ItemStack | null;
     /** Running keeps your hands busy. */
@@ -234,24 +237,19 @@ export class HeldItemSystem {
             size: 3,
             gravity: 200,
         });
+        // What was inside spills onto the ground where it stood, scattered a
+        // little so the stacks do not sit in one pile, for whoever gets there.
         for (const drop of def.loot) {
             if (Math.random() > drop.chance) continue;
             const amount = Math.round(randRange(Math.random, drop.count[0], drop.count[1]));
             if (amount <= 0) continue;
-            const left = acquire(
-                this.hooks.player().hotbar,
-                this.hooks.player().inventory,
-                drop.id,
-                amount,
+            const a = Math.random() * TAU;
+            const d = randRange(Math.random, 4, 16);
+            this.hooks.dropStack(
+                { id: drop.id, count: amount },
+                node.x + Math.cos(a) * d,
+                node.y + Math.sin(a) * d,
             );
-            const got = amount - left;
-            if (got > 0)
-                this.particles.text(
-                    node.x,
-                    node.y - 24,
-                    `+${got} ${ITEMS[drop.id].name}`,
-                    ITEMS[drop.id].color,
-                );
         }
     }
 

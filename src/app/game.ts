@@ -299,6 +299,7 @@ export class Game {
                 damageBuilt: (id, dmg, fx, fy, melee) =>
                     this.structures.damageBuilt(id, dmg, fx, fy, melee),
                 notify: (text) => this.notify(text),
+                dropStack: (stack, x, y) => this.interaction.dropStack(stack, x, y),
                 reportBuild: (kind, gx, gy, side) => {
                     if (this.net.online) this.net.reportBuild(kind, gx, gy, side);
                 },
