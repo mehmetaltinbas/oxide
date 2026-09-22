@@ -113,7 +113,9 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
             limb(ctx, sx, sy, hx, hy, 5.2, sleeve);
         }
         // The item goes under the fist, so the hand closes over its grip.
-        if (i === 1 && look.held) {
+        // Unless it is carried upright: then what is over the fist is the
+        // head of the tool, and the hand is behind it.
+        if (i === 1 && look.held && !look.heldOverHand) {
             ctx.save();
             ctx.translate(hx, hy);
             look.held(ctx);
@@ -137,6 +139,12 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
             ctx.beginPath();
             ctx.arc(hx, hy, 2.9, 0, TAU);
             ctx.fill();
+        }
+        if (i === 1 && look.held && look.heldOverHand) {
+            ctx.save();
+            ctx.translate(hx, hy);
+            look.held(ctx);
+            ctx.restore();
         }
     }
 

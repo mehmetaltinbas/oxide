@@ -1672,6 +1672,7 @@ export class Renderer {
                     ? this.thrustHand(p.swingAnim)
                     : undefined,
             twist: motion?.twist,
+            heldOverHand: motion?.overHand,
             offHand:
                 held?.id === 'bow' && !swimming && p.bowDraw > 0
                     ? [
@@ -1690,7 +1691,14 @@ export class Renderer {
                     ? held.id === 'bow'
                         ? (c) => drawBow(c, p.bowDraw / BOW_DRAW_SECONDS)
                         : motion
-                          ? (c) => drawHeldItem(c, held.id, motion.angle, motion.stretch)
+                          ? (c) =>
+                                drawHeldItem(
+                                    c,
+                                    held.id,
+                                    motion.angle,
+                                    motion.stretch,
+                                    motion.overHand,
+                                )
                           : (c) => drawHeldItem(c, held.id)
                     : undefined,
             hood: worn === 'hazmat' ? ITEMS[worn].color : null,
@@ -1777,8 +1785,13 @@ export class Renderer {
         ctx.lineCap = 'round';
         for (const s of game.combat.shots) {
             const a = Math.atan2(s.vy, s.vx);
-            const width = TRACER.baseWidth + s.damage * TRACER.widthPerDamage;
+            // A round spends its last moments fading out, so one that runs out
+            // of range on screen visibly dies rather than blinking away.
+            const fade = Math.max(0, Math.min(1, s.life / TRACER.fadeSeconds));
+            const width =
+                (TRACER.baseWidth + s.damage * TRACER.widthPerDamage) * (0.5 + fade * 0.5);
             const length = s.length * (0.7 + s.damage * TRACER.lengthPerDamage);
+            ctx.globalAlpha = fade;
             const tx = s.x - Math.cos(a) * length;
             const ty = s.y - Math.sin(a) * length;
             // Ink under the core, so a round shows on sand, snow and water alike.
@@ -1792,6 +1805,7 @@ export class Renderer {
             ctx.lineWidth = width;
             ctx.stroke();
         }
+        ctx.globalAlpha = 1;
         ctx.lineCap = 'butt';
     }
 

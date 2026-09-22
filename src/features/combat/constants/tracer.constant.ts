@@ -12,4 +12,10 @@ export const TRACER = {
     lengthPerDamage: 0.006,
     /** The black line round the core, each side. */
     inkWidth: 1.6,
+    /**
+     * A round fades out over its last moments in the air, and thins as it
+     * goes. Long enough to read at a glance: a rifle round covers about 250
+     * units in this time.
+     */
+    fadeSeconds: 0.2,
 } as const;

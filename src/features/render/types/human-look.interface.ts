@@ -29,6 +29,8 @@ export interface HumanLook {
     holdAt?: [number, number];
     /** Where the other hand is, if it is doing something: drawing a string. */
     offHand?: [number, number];
+    /** Draw what is held over the hand rather than under it: see `held`. */
+    heldOverHand?: boolean;
     /** Paints what is in that hand, with the hand at the origin. */
     held?: (ctx: CanvasRenderingContext2D) => void;
     /** A full hood over the head, as the hazmat suit has. */

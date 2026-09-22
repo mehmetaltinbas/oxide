@@ -82,7 +82,9 @@ function pose(k: Key): MeleeMotion {
         SHOULDER[0] + Math.sin(k.arm) * ARM,
         SHOULDER[1] - Math.cos(k.arm) * ARM,
     ];
-    return { hand, angle: k.tool, stretch: k.stretch, twist: k.twist };
+    // Carried upright, what you see over the fist is the head; mid-swing the
+    // tool lies flat and hangs off the grip as it should.
+    return { hand, angle: k.tool, stretch: k.stretch, twist: k.twist, overHand: k.stretch < 0.9 };
 }
 
 function mix(a: Key, b: Key, u: number): Key {

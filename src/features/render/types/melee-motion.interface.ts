@@ -9,6 +9,8 @@ export interface MeleeMotion {
     angle: number;
     /** Along-its-length scale, below 1 when it points up out of the page. */
     stretch: number;
+    /** Whether the head, not the grip, sits over the hand: see drawHeldItem. */
+    overHand: boolean;
     /** How far the upper body is turned into the blow. */
     twist: number;
     /**
