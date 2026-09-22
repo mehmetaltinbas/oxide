@@ -170,14 +170,17 @@ export class HeldItemSystem {
             return;
         }
 
-        // Then someone else's building.
+        // Then someone else's building, with something in your hand. Fists
+        // gather and fight and do nothing else: a punch does not dent a wall.
         const tipX = p.x + Math.cos(p.facing) * reach * 0.75;
         const tipY = p.y + Math.sin(p.facing) * reach * 0.75;
-        const near = this.build.inBlast(tipX, tipY, 26);
-        const hostile = near.find((t) => t.owner !== 0);
-        if (hostile) {
-            this.hooks.damageBuilt(hostile.id, damage, p.x, p.y, true);
-            return;
+        if (tool) {
+            const near = this.build.inBlast(tipX, tipY, 26);
+            const hostile = near.find((t) => t.owner !== 0);
+            if (hostile) {
+                this.hooks.damageBuilt(hostile.id, damage, p.x, p.y, true);
+                return;
+            }
         }
 
         // Then resources. Plants are ignored: you pick those up, not swing at them.
