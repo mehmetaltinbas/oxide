@@ -360,17 +360,27 @@ export class Renderer {
         ctx.closePath();
         ctx.fill();
 
-        // The crown: a ring of clumps round a centre one, the back ones darker.
+        // The crown: clumps of foliage at uneven distances and sizes, spread a
+        // little wider than tall, with a couple of stray ones at the edge, so
+        // it reads as a tree's canopy and not a ball.
         const clumps = 6 + Math.floor(v(3) * 3);
         const crown = new Path2D();
         const pts: [number, number, number][] = [];
         for (let i = 0; i < clumps; i++) {
-            const a = (i / clumps) * TAU + v(4) * TAU;
-            const d = cr * (0.52 + v(10 + i) * 0.12);
-            const rr = cr * (0.46 + v(20 + i) * 0.12);
-            pts.push([cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.85, rr]);
+            const a = (i / clumps) * TAU + v(4) * TAU + (v(50 + i) - 0.5) * 0.6;
+            const d = cr * (0.4 + v(10 + i) * 0.4);
+            const rr = cr * (0.3 + v(20 + i) * 0.25);
+            pts.push([cx + Math.cos(a) * d * 1.1, cy + Math.sin(a) * d * 0.78, rr]);
         }
-        pts.push([cx, cy, cr * 0.6]);
+        for (let i = 0; i < 2; i++) {
+            const a = v(60 + i) * TAU;
+            pts.push([
+                cx + Math.cos(a) * cr * 0.95,
+                cy + Math.sin(a) * cr * 0.7,
+                cr * (0.2 + v(62 + i) * 0.1),
+            ]);
+        }
+        pts.push([cx, cy, cr * 0.55]);
         for (const [x, y, rr] of pts) {
             crown.moveTo(x + rr, y);
             crown.arc(x, y, rr, 0, TAU);
@@ -396,15 +406,27 @@ export class Renderer {
                 ctx.arc(x - rr * 0.12, y - rr * 0.12, rr * 0.82, 0, TAU);
                 ctx.fill();
             }
-            // Each clump's scalloped edge, as a mark inside the crown.
-            ctx.strokeStyle = INK.line;
-            ctx.lineWidth = INK.markWidth * this.markScale;
+            // A few branches showing between the leaves.
+            ctx.strokeStyle = '#5a3a20';
+            ctx.lineWidth = r * 0.12;
             ctx.lineCap = 'round';
             ctx.beginPath();
-            for (const [x, y, rr] of pts) {
-                const a0 = Math.PI * 0.15;
-                ctx.moveTo(x + Math.cos(a0) * rr * 0.8, y + Math.sin(a0) * rr * 0.8);
-                ctx.arc(x, y, rr * 0.8, a0, Math.PI * 0.85);
+            for (let k = 0; k < 3; k++) {
+                const a = -Math.PI / 2 + (v(70 + k) - 0.5) * 2.2;
+                ctx.moveTo(cx, cy + cr * 0.35);
+                ctx.lineTo(cx + Math.cos(a) * cr * 0.55, cy + cr * 0.35 + Math.sin(a) * cr * 0.5);
+            }
+            ctx.stroke();
+            // The underside of some of the clumps, as a light mark: every other
+            // clump, and fine, so the crown stays leafy rather than lumpy.
+            ctx.strokeStyle = INK.line;
+            ctx.lineWidth = INK.fineWidth * this.markScale;
+            ctx.beginPath();
+            for (let k = 0; k < pts.length; k += 2) {
+                const [x, y, rr] = pts[k];
+                const a0 = Math.PI * 0.25;
+                ctx.moveTo(x + Math.cos(a0) * rr * 0.78, y + Math.sin(a0) * rr * 0.78);
+                ctx.arc(x, y, rr * 0.78, a0, Math.PI * 0.75);
             }
             ctx.stroke();
             // Hatching down the shaded side.
