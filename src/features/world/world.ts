@@ -468,12 +468,13 @@ export class World {
             return true;
         };
 
-        // Trees cluster in forest, thin out elsewhere, and skip sand entirely.
+        // Trees cluster in forest, thin out in the open, and skip sand of any kind.
         for (let i = 0; i < 176000; i++) {
             const x = randRange(rng, 30, WORLD_W - 30);
             const y = randRange(rng, 30, WORLD_H - 30);
             const b = this.biomeAt(x, y);
-            const chance = b === 'forest' ? 0.9 : b === 'grass' ? 0.3 : b === 'snow' ? 0.35 : 0.03;
+            // Nothing grows in the desert.
+            const chance = b === 'forest' ? 0.9 : b === 'grass' ? 0.3 : b === 'snow' ? 0.35 : 0;
             if (rng() > chance) continue;
             if (!free(x, y, 58)) continue;
             push('tree', x, y);
