@@ -1,3 +1,4 @@
+import { FIST_NODES } from 'src/features/items/constants/fist-nodes.constant';
 import { HELD_POSES } from 'src/features/items/constants/held-poses.constant';
 import { TOOL_SWING_SECONDS } from 'src/features/items/constants/tool-swing-seconds.constant';
 import { TAU } from 'src/shared/constants/tau.constant';
@@ -203,8 +204,10 @@ export class HeldItemSystem {
         // Then resources. Plants are ignored: you pick those up, not swing at them.
         for (const node of this.world.nodesNear(p.x, p.y, reach + 40)) {
             if (node.hp <= 0 || node.kind === 'nettle') continue;
-            // Fists gather and fight; they do not smash barrels.
-            if (!tool && NODES[node.kind].prefers === 'break') continue;
+            // Bare hands get wood off a tree and stone off a stone. Metal and
+            // sulfur are in hard rock and need a pick; a barrel needs a tool
+            // of some sort too.
+            if (!tool && !FIST_NODES.includes(node.kind)) continue;
             if (dist(p.x, p.y, node.x, node.y) > reach + node.radius) continue;
             if (!inCone(p.x, p.y, p.facing, 0.9, node.x, node.y)) continue;
             this.gather(node.id, damage, gather, tool);

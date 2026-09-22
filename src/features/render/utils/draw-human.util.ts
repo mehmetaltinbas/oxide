@@ -48,12 +48,16 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
 
     // Arms, from the shoulder to the hand, drawn before the torso so the
     // shoulder sits over the top of the arm. A swimmer reaches forward in turn.
-    const reach = look.swimming ? Math.sin(look.phase) * 5 : 0;
+    // A front crawl, seen from above: each hand goes round a loop, reaching
+    // out ahead, pulling in under the body, back past the hip, then out wide
+    // to come round again. The two arms are half a stroke apart, so one is
+    // always pulling while the other recovers.
+    const stroke = (side: -1 | 1, phase: number): [number, number] => [
+        side * (9 - Math.sin(phase) * 4.5),
+        -6 - Math.cos(phase) * 10,
+    ];
     const hands: [number, number][] = look.swimming
-        ? [
-              [-7, -14 - reach],
-              [7, -14 + reach],
-          ]
+        ? [stroke(-1, look.phase), stroke(1, look.phase + Math.PI)]
         : [
               look.offHand ?? [-12.5, -2 + step * 0.9],
               look.holding ? (look.holdAt ?? [7.5, -12]) : [12.5, -2 - step * 0.9],
@@ -66,7 +70,8 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
     // Where each elbow is, when the arm is bent. Null is a straight arm.
     const elbows: ([number, number] | null)[] = [null, null];
     let jab = 0;
-    let twist = look.twist ?? 0;
+    // A swimmer rolls with the stroke, shoulder down on the pulling side.
+    let twist = look.swimming ? Math.sin(look.phase) * 0.2 : (look.twist ?? 0);
     const throwing = look.punch ? (look.punch.side === -1 ? 0 : 1) : -1;
     if (look.punch && !look.swimming) {
         // Out fast and back slower, the way a punch is thrown: the fist lands
