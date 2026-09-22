@@ -195,7 +195,7 @@ export class HeldItemSystem {
 
         // Then resources. Plants are ignored: you pick those up, not swing at them.
         for (const node of this.world.nodesNear(p.x, p.y, reach + 40)) {
-            if (node.hp <= 0 || node.kind === 'cotton') continue;
+            if (node.hp <= 0 || node.kind === 'nettle') continue;
             if (dist(p.x, p.y, node.x, node.y) > reach + node.radius) continue;
             if (!inCone(p.x, p.y, p.facing, 0.9, node.x, node.y)) continue;
             this.gather(node.id, damage, gather, tool);
@@ -210,8 +210,8 @@ export class HeldItemSystem {
         if (!node) return;
         const def = NODES[node.kind];
 
-        // Cotton is not chopped at all, it is picked with E.
-        if (node.kind === 'cotton') return;
+        // Nettle is not chopped at all, it is picked with E.
+        if (node.kind === 'nettle') return;
 
         // The right tool for the job: hatchets on wood, pickaxes on rock.
         let mult = gather;

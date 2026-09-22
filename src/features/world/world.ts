@@ -410,7 +410,7 @@ export class World {
             const b = this.biomeAt(x, y);
             if (b !== 'grass' && b !== 'forest') continue;
             if (!free(x, y, 52)) continue;
-            push('cotton', x, y);
+            push('nettle', x, y);
         }
     }
 
@@ -578,7 +578,7 @@ export class World {
     /** Push a circle out of solid nodes and the world edge. */
     clampToWorld(x: number, y: number, radius: number): { x: number; y: number } {
         for (const n of this.nodesNear(x, y, radius + 40)) {
-            if (n.hp <= 0 || n.kind === 'cotton') continue;
+            if (n.hp <= 0 || n.kind === 'nettle') continue;
             const d = dist(x, y, n.x, n.y);
             const min = radius + n.radius * 0.55;
             if (d < min && d > 0.0001) {

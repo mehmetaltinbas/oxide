@@ -18,7 +18,7 @@ const GATHER_KINDS: Record<string, ResourceNode['kind'][]> = {
     stone: ['stone_node'],
     metal_ore: ['metal_node'],
     sulfur_ore: ['sulfur_node'],
-    cloth: ['cotton'],
+    cloth: ['nettle'],
 };
 
 export class SurvivorBrain {

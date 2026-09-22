@@ -37,9 +37,9 @@ export const NODES: Record<NodeDef['kind'], NodeDef> = {
         prefers: 'mine',
         color: '#e7dd64',
     },
-    cotton: {
-        kind: 'cotton',
-        name: 'Cotton',
+    nettle: {
+        kind: 'nettle',
+        name: 'Nettle',
         hp: 40,
         radius: 11,
         yield: { cloth: 10 },

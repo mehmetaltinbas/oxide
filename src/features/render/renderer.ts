@@ -243,13 +243,17 @@ export class Renderer {
      * solid black: a comic has one ink and no grey, and a mark at half opacity
      * reads as pencil left under the ink.
      */
-    private lines(ctx: CanvasRenderingContext2D, build: (path: Path2D) => void): void {
+    private lines(
+        ctx: CanvasRenderingContext2D,
+        build: (path: Path2D) => void,
+        width: number = INK.markWidth,
+    ): void {
         const path = new Path2D();
         build(path);
         ctx.save();
         ctx.strokeStyle = INK.line;
         ctx.globalAlpha = 1;
-        ctx.lineWidth = INK.markWidth * this.markScale;
+        ctx.lineWidth = width * this.markScale;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.stroke(path);
@@ -310,70 +314,60 @@ export class Renderer {
     }
 
     /**
-     * A cotton bush: a low mound of leaves, and on top of it the bolls, each a
-     * white puff bursting out of a brown husk. The bolls are what you are
-     * there for, so they sit on top and read from a distance.
+     * A nettle clump: all leaf, nothing that reads as a flower. Seven long
+     * leaves radiating from the middle, each with a sawtooth edge and a vein
+     * down it, in two greens so the clump has depth.
      */
-    private drawCotton(n: ResourceNode, leaf: string): void {
+    private drawNettle(n: ResourceNode, leaf: string): void {
         const ctx = this.ctx;
-        // Drawn larger than it stands: a bush is wider than the stem you bump
-        // into, and at its real radius the bolls were specks.
+        // Drawn wider than it stands, as a clump spreads past its stem.
         const r = n.radius * 1.5;
-        // Leaves: five broad ones round the middle, a darker one under each.
-        for (let i = 0; i < 5; i++) {
-            const a = (i / 5) * TAU + (n.seed % 7) * 0.2;
-            ctx.fillStyle = i % 2 === 0 ? leaf : darken(leaf);
-            ctx.beginPath();
-            ctx.ellipse(
-                Math.cos(a) * r * 0.55,
-                Math.sin(a) * r * 0.45,
-                r * 0.55,
-                r * 0.34,
-                a,
-                0,
-                TAU,
-            );
-            ctx.fill();
+        const count = 7;
+        const turn = (n.seed % 13) * 0.17;
+        // Back leaves first, darker, then the front ones over them.
+        for (let pass = 0; pass < 2; pass++) {
+            for (let i = pass; i < count; i += 2) {
+                const a = (i / count) * TAU + turn;
+                const len = r * (pass === 0 ? 0.95 : 0.8);
+                ctx.save();
+                ctx.rotate(a);
+                ctx.fillStyle = pass === 0 ? darken(leaf) : leaf;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                // A serrated edge out one side and back the other.
+                const teeth = 5;
+                const half = len * 0.26;
+                for (let k = 1; k <= teeth; k++) {
+                    const t = k / teeth;
+                    const w = half * Math.sin(Math.PI * t);
+                    ctx.lineTo(len * (t - 0.1), -w * 1.25);
+                    ctx.lineTo(len * t, -w * 0.8);
+                }
+                for (let k = teeth; k >= 1; k--) {
+                    const t = k / teeth;
+                    const w = half * Math.sin(Math.PI * t);
+                    ctx.lineTo(len * t, w * 0.8);
+                    ctx.lineTo(len * (t - 0.1), w * 1.25);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
         }
-        // The leaves' midribs.
-        this.lines(ctx, (d) => {
-            for (let i = 0; i < 5; i++) {
-                const a = (i / 5) * TAU + (n.seed % 7) * 0.2;
-                d.moveTo(Math.cos(a) * r * 0.25, Math.sin(a) * r * 0.2);
-                d.lineTo(Math.cos(a) * r * 0.85, Math.sin(a) * r * 0.7);
-            }
-        });
-        // The bolls.
-        const bolls = 3 + (n.seed % 2);
-        for (let i = 0; i < bolls; i++) {
-            const a = (i / bolls) * TAU + (n.seed % 11) * 0.3;
-            const bx = Math.cos(a) * r * 0.42;
-            const by = Math.sin(a) * r * 0.34 - r * 0.1;
-            // The husk, four brown points behind the puff.
-            ctx.fillStyle = '#8a5a2e';
-            ctx.beginPath();
-            for (let k = 0; k < 4; k++) {
-                const ka = (k / 4) * TAU + Math.PI / 4;
-                ctx.moveTo(bx, by);
-                ctx.lineTo(bx + Math.cos(ka - 0.35) * r * 0.2, by + Math.sin(ka - 0.35) * r * 0.2);
-                ctx.lineTo(bx + Math.cos(ka) * r * 0.34, by + Math.sin(ka) * r * 0.34);
-                ctx.lineTo(bx + Math.cos(ka + 0.35) * r * 0.2, by + Math.sin(ka + 0.35) * r * 0.2);
-            }
-            ctx.closePath();
-            ctx.fill();
-            // The puff: three lobes of white.
-            ctx.fillStyle = '#fbf8ef';
-            ctx.beginPath();
-            for (const [ox, oy] of [
-                [-0.1, -0.02],
-                [0.1, -0.02],
-                [0, -0.14],
-            ] as const) {
-                ctx.moveTo(bx + ox * r + r * 0.19, by + oy * r);
-                ctx.arc(bx + ox * r, by + oy * r, r * 0.19, 0, TAU);
-            }
-            ctx.fill();
-        }
+        // The veins, one down each leaf, fine: at full weight they turned the
+        // clump into a black star.
+        this.lines(
+            ctx,
+            (d) => {
+                for (let i = 0; i < count; i++) {
+                    const a = (i / count) * TAU + turn;
+                    const len = r * (i % 2 === 0 ? 0.95 : 0.8);
+                    d.moveTo(Math.cos(a) * r * 0.2, Math.sin(a) * r * 0.2);
+                    d.lineTo(Math.cos(a) * len * 0.7, Math.sin(a) * len * 0.7);
+                }
+            },
+            INK.fineWidth * 0.6,
+        );
     }
 
     /**
@@ -953,7 +947,7 @@ export class Renderer {
      * at the ordinary weight the forest read thin next to the people in it.
      */
     private drawNode(n: ResourceNode): void {
-        if (n.kind === 'cotton') {
+        if (n.kind === 'nettle') {
             this.drawNodeBody(n);
             return;
         }
@@ -1013,8 +1007,8 @@ export class Renderer {
                 ctx.fill();
                 this.markTier(ctx, tiers[i].y, tiers[i].r, n.seed + i);
             }
-        } else if (n.kind === 'cotton') {
-            this.drawCotton(n, def.color);
+        } else if (n.kind === 'nettle') {
+            this.drawNettle(n, def.color);
         } else {
             // One outline, used for the fill, the pen and the clip, so every
             // mark inside lands inside the rock that is actually drawn. The

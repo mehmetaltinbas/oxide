@@ -167,7 +167,7 @@ export class Combat {
             }
             let blocked = false;
             for (const n of this.world.nodesNear(p.x, p.y, 30)) {
-                if (n.hp <= 0 || n.kind === 'cotton') continue;
+                if (n.hp <= 0 || n.kind === 'nettle') continue;
                 if (dist(p.x, p.y, n.x, n.y) < n.radius * 0.5) {
                     blocked = true;
                     break;
@@ -223,7 +223,7 @@ export class Combat {
         }
         if (!hit) {
             for (const n of this.world.nodesNear(t.x, t.y, 30)) {
-                if (n.hp <= 0 || n.kind === 'cotton') continue;
+                if (n.hp <= 0 || n.kind === 'nettle') continue;
                 if (dist(t.x, t.y, n.x, n.y) < n.radius * 0.6) {
                     hit = true;
                     break;
