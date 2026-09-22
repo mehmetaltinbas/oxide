@@ -1,6 +1,7 @@
 import { BARRELS } from 'src/features/world/constants/barrels.constant';
 import { ORES } from 'src/features/world/constants/ores.constant';
 import { TREES } from 'src/features/world/constants/trees.constant';
+import { NETTLES } from 'src/features/world/constants/nettles.constant';
 import { SNOW_SMOOTHING } from 'src/features/world/constants/snow-smoothing.constant';
 import { regrowthSeconds } from 'src/features/world/utils/regrowth-seconds.util';
 import { REGROWTH } from 'src/features/world/constants/regrowth.constant';
@@ -550,14 +551,9 @@ export class World {
                 return roll < a.share ? a.kind : roll < a.share + b2.share ? b2.kind : c.kind;
             });
         }
-        for (let i = 0; i < 42000; i++) {
-            const x = randRange(rng, 30, WORLD_W - 30);
-            const y = randRange(rng, 30, WORLD_H - 30);
-            const b = this.biomeAt(x, y);
-            if (b !== 'grass' && b !== 'forest') continue;
-            if (!free(x, y, 52)) continue;
-            push('nettle', x, y);
-        }
+        // Nettle, in the green only, at a set number per tile of it.
+        const green = tilesOf(['grass', 'forest']);
+        place(green, Math.round(NETTLES.perTile * green.length), NETTLES.spacing, () => 'nettle');
         // Barrels, along the edges of the roads: pushed to the verge the way
         // things end up at a roadside, not left in the middle of the lane. A
         // tile qualifies if it is road with open land beside it, and the barrel
@@ -580,10 +576,10 @@ export class World {
                 if (rng() > BARRELS.chancePerTile) continue;
                 const [dx, dy] = sides[Math.floor(rng() * sides.length)];
                 const inset = BIOME_TILE / 2 - BARRELS.verge;
-                const along = (rng() - 0.5) * BIOME_TILE * 0.6;
+                const along = (rng() - 0.5) * BIOME_TILE * 0.4;
                 const x = (tx + 0.5) * BIOME_TILE + dx * inset + (dy !== 0 ? along : 0);
                 const y = (ty + 0.5) * BIOME_TILE + dy * inset + (dx !== 0 ? along : 0);
-                // Spaced from other barrels, and clear of anything it would
+                // Spaced from other clusters, and clear of anything it would
                 // overlap; the trees along the verge are fine to stand beside.
                 let crowded = false;
                 const m2 = BARRELS.spacing * BARRELS.spacing;
@@ -595,7 +591,19 @@ export class World {
                         break;
                     }
                 }
-                if (!crowded) push('barrel', x, y);
+                if (crowded) continue;
+                // One, two or three, side by side along the verge, as barrels
+                // get left: never a neat row, each nudged off the line a little.
+                const count = 1 + Math.floor(rng() * BARRELS.maxCluster);
+                const ax = dy !== 0 ? 1 : 0;
+                const ay = dx !== 0 ? 1 : 0;
+                for (let k = 0; k < count; k++) {
+                    const off = (k - (count - 1) / 2) * BARRELS.gap;
+                    const bx = x + ax * off + (rng() - 0.5) * 4;
+                    const by = y + ay * off + (rng() - 0.5) * 4;
+                    if (this.biomeAt(bx, by) !== 'road') continue;
+                    push('barrel', bx, by);
+                }
             }
         }
     }
