@@ -248,7 +248,9 @@ export class Combat {
             }
         }
         if (!hit) return false;
-        this.hooks.explosion(t.x, t.y, t.radius, t.damage, t.owner, t.stuckTo);
+        // A rocket's blast takes in whatever is round what it hit, as Rust's
+        // does: a hit near a join opens more than one wall.
+        this.hooks.explosion(t.x, t.y, t.radius, t.damage, t.owner, t.stuckTo, true);
         return true;
     }
 

@@ -17,5 +17,7 @@ export interface CombatHooks {
         damage: number,
         owner: Faction,
         stuckTo: number | null,
+        /** A blast that damages every piece it reaches, not only the one it is on. */
+        splashStructures?: boolean,
     ): void;
 }

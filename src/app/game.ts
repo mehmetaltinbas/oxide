@@ -343,6 +343,7 @@ export class Game {
                 player: () => this.player,
                 interaction: () => this.interaction,
                 survival: () => this.survival,
+                blastWorld: (x, y, r, dmg) => this.held.blastNodes(x, y, r, dmg),
                 viewingContainerOf: (d) => this.openContainer?.source === d,
                 closeContainer: () => {
                     this.openContainer = null;

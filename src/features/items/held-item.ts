@@ -1,3 +1,4 @@
+import { BLAST } from 'src/features/combat/constants/blast.constant';
 import { FIST_NODES } from 'src/features/items/constants/fist-nodes.constant';
 import { HELD_POSES } from 'src/features/items/constants/held-poses.constant';
 import { TOOL_SWING_SECONDS } from 'src/features/items/constants/tool-swing-seconds.constant';
@@ -235,8 +236,7 @@ export class HeldItemSystem {
             size: 2.2,
         });
         if (node.hp > 0) return;
-        node.respawn = regrowthSeconds();
-        this.npcs.invalidateNavigation();
+        this.breakNode(node);
         this.particles.burst(node.x, node.y, 14, '#7a6a5c', {
             speed: 170,
             life: 0.6,
@@ -309,16 +309,56 @@ export class HeldItemSystem {
                 );
         }
 
-        if (node.hp <= 0) {
-            node.respawn = regrowthSeconds();
-            this.npcs.invalidateNavigation();
-            this.particles.burst(node.x, node.y, 16, def.color, {
-                speed: 160,
-                life: 0.8,
-                size: 3.4,
-                gravity: 200,
-            });
-            this.audio.treeFall();
+        if (node.hp <= 0) this.breakNode(node);
+    }
+
+    /**
+     * Something in the world comes down: it goes quiet for a while and grows
+     * back, the paths round it change, and it makes a noise where it stood.
+     * Every way of destroying one ends here, so a new kind of thing only has
+     * to say what it drops.
+     */
+    breakNode(node: ResourceNode): void {
+        const def = NODES[node.kind];
+        node.hp = 0;
+        node.respawn = regrowthSeconds();
+        this.npcs.invalidateNavigation();
+        this.particles.burst(node.x, node.y, 16, def.color, {
+            speed: 160,
+            life: 0.8,
+            size: 3.4,
+            gravity: 200,
+        });
+        this.audio.from(node.x, node.y, () => this.audio.treeFall());
+    }
+
+    /**
+     * A blast tearing through the world: trees come down, ore is blown apart,
+     * barrels burst and spill, and anything added later is carried along with
+     * them. Damage falls off from the middle of the blast to nothing at its
+     * edge, the same curve the built pieces take.
+     *
+     * This is the one way an explosion touches the world, so a new kind of
+     * world entity needs nothing here: give it a row in NODES, say what it
+     * drops, and a rocket will already break it.
+     */
+    blastNodes(x: number, y: number, radius: number, damage: number): void {
+        for (const node of this.world.nodesNear(x, y, radius)) {
+            if (node.hp <= 0) continue;
+            const d = dist(x, y, node.x, node.y);
+            if (d > radius + node.radius) continue;
+            const dealt =
+                damage * Math.pow(Math.max(0, 1 - d / (radius + node.radius)), BLAST.falloff);
+            if (dealt < 1) continue;
+            // A barrel bursts by its own rules, so what is inside it still
+            // lands on the ground.
+            if (NODES[node.kind].loot) {
+                this.strikeBarrel(node, dealt);
+                continue;
+            }
+            node.hp -= dealt;
+            node.shake = 0.16;
+            if (node.hp <= 0) this.breakNode(node);
         }
     }
 

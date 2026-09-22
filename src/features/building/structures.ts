@@ -1,3 +1,4 @@
+import { BLAST } from 'src/features/combat/constants/blast.constant';
 import { SOUND_HEARING } from 'src/shared/constants/sound-hearing.constant';
 import { BuildSystem } from 'src/features/building/building';
 import { DECAY_PER_HOUR } from 'src/features/building/constants/decay-per-hour.constant';
@@ -42,6 +43,8 @@ export interface StructureHooks {
     viewingContainerOf(d: Deployable): boolean;
     /** Shut the container panel, because what it was showing is gone. */
     closeContainer(): void;
+    /** A blast tearing through trees, ore, barrels and the like. */
+    blastWorld(x: number, y: number, radius: number, damage: number): void;
 }
 
 export class StructureSystem {
@@ -187,6 +190,12 @@ export class StructureSystem {
         damage: number,
         owner: Faction,
         stuckTo: number | null = null,
+        /**
+         * Whether the blast damages everything built that it reaches, falling
+         * off with distance, rather than only the piece it is stuck to. A
+         * rocket does; a charge placed on a wall breaks that wall alone.
+         */
+        splashStructures = false,
     ): void {
         this.particles.burst(x, y, 46, WORLD.fire, { speed: 300, life: 1, size: 5 });
         this.particles.burst(x, y, 24, WORLD.emberHot, { speed: 200, life: 0.7, size: 3.6 });
@@ -194,8 +203,9 @@ export class StructureSystem {
         // A blast carries further than anything else.
         this.audio.from(x, y, () => this.audio.roar(), SOUND_HEARING.range * 2);
 
+        const near = this.build.inBlast(x, y, radius);
         if (stuckTo !== null) {
-            const target = this.build.inBlast(x, y, radius).find((t) => t.id === stuckTo);
+            const target = near.find((t) => t.id === stuckTo);
             if (target) {
                 target.hp -= damage;
                 target.flash = 0.2;
@@ -203,6 +213,21 @@ export class StructureSystem {
                     if ('tier' in target) this.destroyStructure(target as Structure);
                     else this.destroyDeployable(target as Deployable);
                 }
+            }
+        }
+        if (splashStructures) {
+            // The world takes it as well: trees, ore, barrels, whatever is there.
+            this.hooks.blastWorld(x, y, radius, damage);
+            // Everything else the blast reaches, by how far off it is: full
+            // damage against what it struck, nothing at the edge of the blast.
+            for (const t of near) {
+                if (t.id === stuckTo || t.hp <= 0) continue;
+                const c = centerOf(t);
+                const d = dist(x, y, c.x, c.y);
+                if (d > radius) continue;
+                const dealt = damage * Math.pow(1 - d / radius, BLAST.falloff);
+                if (dealt < 1) continue;
+                this.damageBuilt(t.id, dealt, x, y, false);
             }
         }
         for (const n of this.npcs.list) {
