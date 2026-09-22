@@ -22,7 +22,7 @@ export const HELD_POSES: Partial<Record<ItemId, HeldPose>> = {
     hammer: { size: 24, gripX: 0, gripY: 0.28, angle: 0 },
     building_plan: { size: 20, gripX: 0, gripY: 0.22, angle: 0 },
     // The spear's shaft runs corner to corner in its icon; turned to point ahead.
-    spear: { size: 44, gripX: -0.12, gripY: 0.16, angle: -0.69 },
+    spear: { size: 44, gripX: -0.12, gripY: 0.16, angle: -0.69, strike: 'thrust' },
     // The bow is held across the body, belly forward.
     bow: { size: 30, gripX: -0.24, gripY: 0, angle: Math.PI / 2 },
     // Guns point along +x in their icons.

@@ -13,4 +13,9 @@ export interface HeldPose {
     gripY: number;
     /** Radians to turn the icon so it points forward, up the figure. */
     angle: number;
+    /**
+     * How a melee blow is struck: swung through an arc like an axe, or driven
+     * straight ahead like a spear. Absent is a swing.
+     */
+    strike?: 'swing' | 'thrust';
 }

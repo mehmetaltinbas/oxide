@@ -4,6 +4,8 @@ import { drawHuman } from 'src/features/render/utils/draw-human.util';
 import { drawHeldItem } from 'src/features/render/utils/draw-held-item.util';
 import { drawBow } from 'src/features/render/utils/draw-bow.util';
 import { BOW_HOLD } from 'src/features/items/constants/bow-hold.constant';
+import { HELD_POSES } from 'src/features/items/constants/held-poses.constant';
+import { THRUST_REACH } from 'src/features/items/constants/thrust-reach.constant';
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { ItemId } from 'src/features/items/types/item-id.type';
 import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
@@ -1122,11 +1124,24 @@ export class Renderer {
     }
 
     /**
+     * Where the hand is during a thrust: driven straight out along the line
+     * the weapon points, fast, then drawn back. No turn at all, which is what
+     * makes it a stab rather than a chop.
+     */
+    private thrustHand(swingAnim: number): [number, number] {
+        const t = 1 - swingAnim / 0.2;
+        const out = t < 0.4 ? t / 0.4 : 1 - (t - 0.4) / 0.6;
+        const e = out * out * (3 - 2 * out);
+        return [7.5 - 3 * e, -12 - THRUST_REACH * e];
+    }
+
+    /**
      * How far a melee swing has turned the item in the hand: back, then
      * through, over the swing's 0.2 seconds. Nothing for a gun.
      */
     private swingTurn(swingAnim: number, id: ItemId): number {
         if (swingAnim <= 0 || !ITEMS[id].melee) return 0;
+        if (HELD_POSES[id]?.strike === 'thrust') return 0;
         const t = 1 - swingAnim / 0.2;
         return (-1.1 + t * 2.2) * 0.8;
     }
@@ -1189,7 +1204,8 @@ export class Renderer {
         ctx.rotate(p.facing + Math.PI / 2);
 
         const held = game.heldItem();
-        if (p.swingAnim > 0 && held && ITEMS[held.id].melee) {
+        const thrust = !!held && HELD_POSES[held.id]?.strike === 'thrust';
+        if (p.swingAnim > 0 && held && ITEMS[held.id].melee && !thrust) {
             const t = 1 - p.swingAnim / 0.2;
             ctx.save();
             ctx.rotate(-1.1 + t * 2.2);
@@ -1215,7 +1231,12 @@ export class Renderer {
             stride: Math.min(1, Math.hypot(p.vx, p.vy) / 90),
             swimming,
             holding: !!held && !swimming,
-            holdAt: held?.id === 'bow' && !swimming ? BOW_HOLD.grip : undefined,
+            holdAt:
+                held?.id === 'bow' && !swimming
+                    ? BOW_HOLD.grip
+                    : thrust && p.swingAnim > 0
+                      ? this.thrustHand(p.swingAnim)
+                      : undefined,
             offHand:
                 held?.id === 'bow' && !swimming && p.bowDraw > 0
                     ? [
