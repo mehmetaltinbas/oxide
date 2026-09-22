@@ -111,10 +111,13 @@ function easeInOut(u: number): number {
  * of the tool out ahead and a little to the side, not pointed at the sky.
  */
 const CARRY: Record<MeleeStrike, Key> = {
-    // Upright at the hip: handle up out of the page, head tipped 20 degrees
-    // forward. From directly above only a third of it would show, which read
-    // as a stub in the fist; 0.55 keeps the head recognisable.
-    chop: { arm: 0.75, tool: 0, stretch: 0.55, twist: 0, hand: [12, -6] },
+    // Upright at the hip, handle up out of the page, and the head turned so
+    // its two ends point ahead of you and behind you: the blade forward and
+    // the back of the axe to the rear, as you carry one. Turned a quarter
+    // round from pointing ahead, so the head, which lies across the top of
+    // the tool, runs front to back; the handle, pointing at the sky, shows
+    // only as a short stub beside the fist.
+    chop: { arm: 0.75, tool: Math.PI / 2, stretch: 0.55, twist: 0, hand: [12, -6] },
     smash: { arm: 0.4, tool: 0, stretch: 1, twist: 0, hand: [9.5, -9] },
     thrust: { arm: 0.3, tool: 0, stretch: 1, twist: 0, hand: [7.5, -12] },
 };
