@@ -11,6 +11,7 @@ import { ItemId } from 'src/features/items/types/item-id.type';
 import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
 import { NODE_LINE_SCALE } from 'src/features/render/constants/node-line-scale.constant';
 import { SNOW } from 'src/features/render/constants/snow.constant';
+import { BROADLEAF } from 'src/features/render/constants/broadleaf.constant';
 import { seeded } from 'src/shared/utils/seeded.util';
 import { TRACER } from 'src/features/combat/constants/tracer.constant';
 import { HEALTH_BAR } from 'src/shared/design/constants/health-bar.constant';
@@ -316,13 +317,107 @@ export class Renderer {
         ctx.restore();
     }
 
-    /** Whether this spot is in the snow biome. */
-    private snowyAt(x: number, y: number): boolean {
-        if (!this.biomes) return false;
+    /** The biome under a point, or null off the map. */
+    private biomeHere(x: number, y: number): string | null {
+        if (!this.biomes) return null;
         const bx = Math.floor(x / BIOME_TILE);
         const by = Math.floor(y / BIOME_TILE);
-        if (bx < 0 || by < 0 || bx >= BIOME_W || by >= BIOME_H) return false;
-        return this.biomes[by * BIOME_W + bx] === 'snow';
+        if (bx < 0 || by < 0 || bx >= BIOME_W || by >= BIOME_H) return null;
+        return this.biomes[by * BIOME_W + bx];
+    }
+
+    /** Whether this spot is in the snow biome. */
+    private snowyAt(x: number, y: number): boolean {
+        return this.biomeHere(x, y) === 'snow';
+    }
+
+    /**
+     * A broadleaf tree, for the open grassland: a short trunk and a round
+     * crown built of overlapping leaf clumps in two light greens, with the
+     * scalloped edge of each clump inked inside the crown and hatching down the
+     * shaded side. The pines stay in the forest and the snow.
+     *
+     * Sized to stay inside TREE_COVER's box: the crown's top is at most 3.25
+     * radii above the trunk and its edge 1.7 radii out.
+     */
+    private drawBroadleaf(n: ResourceNode): void {
+        const ctx = this.ctx;
+        const r = n.radius;
+        const v = (k: number): number => seeded(n.seed, k);
+        const size = 0.9 + v(1) * 0.18;
+        const lean = (v(2) - 0.5) * r * 0.2;
+        const cx = lean;
+        const cy = -r * 1.85 * size;
+        const cr = r * 1.3 * size;
+
+        // The trunk, and a fork into the crown.
+        ctx.fillStyle = '#7b4a26';
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.2, r * 0.4);
+        ctx.lineTo(r * 0.2, r * 0.4);
+        ctx.lineTo(cx + r * 0.14, cy + cr * 0.4);
+        ctx.lineTo(cx - r * 0.14, cy + cr * 0.4);
+        ctx.closePath();
+        ctx.fill();
+
+        // The crown: a ring of clumps round a centre one, the back ones darker.
+        const clumps = 6 + Math.floor(v(3) * 3);
+        const crown = new Path2D();
+        const pts: [number, number, number][] = [];
+        for (let i = 0; i < clumps; i++) {
+            const a = (i / clumps) * TAU + v(4) * TAU;
+            const d = cr * (0.52 + v(10 + i) * 0.12);
+            const rr = cr * (0.46 + v(20 + i) * 0.12);
+            pts.push([cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.85, rr]);
+        }
+        pts.push([cx, cy, cr * 0.6]);
+        for (const [x, y, rr] of pts) {
+            crown.moveTo(x + rr, y);
+            crown.arc(x, y, rr, 0, TAU);
+        }
+        this.ink.suspend(() => {
+            // The pen round the silhouette only: stroke every clump at twice
+            // the pen, then fill the crown over the top, which buries the
+            // inner half of each stroke and every line inside. What is left
+            // is one outline round the whole crown, not a ring round each clump.
+            ctx.strokeStyle = INK.line;
+            ctx.lineWidth = this.ink.penWidth() * 2;
+            ctx.lineJoin = 'round';
+            ctx.stroke(crown);
+            ctx.fillStyle = BROADLEAF.dark;
+            ctx.fill(crown, 'nonzero');
+            ctx.save();
+            ctx.clip(crown);
+            // The lit clumps, up and to the left, in the lighter green.
+            ctx.fillStyle = BROADLEAF.light;
+            for (const [x, y, rr] of pts) {
+                if (x - cx + (y - cy) > cr * 0.25) continue;
+                ctx.beginPath();
+                ctx.arc(x - rr * 0.12, y - rr * 0.12, rr * 0.82, 0, TAU);
+                ctx.fill();
+            }
+            // Each clump's scalloped edge, as a mark inside the crown.
+            ctx.strokeStyle = INK.line;
+            ctx.lineWidth = INK.markWidth * this.markScale;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            for (const [x, y, rr] of pts) {
+                const a0 = Math.PI * 0.15;
+                ctx.moveTo(x + Math.cos(a0) * rr * 0.8, y + Math.sin(a0) * rr * 0.8);
+                ctx.arc(x, y, rr * 0.8, a0, Math.PI * 0.85);
+            }
+            ctx.stroke();
+            // Hatching down the shaded side.
+            ctx.lineWidth = INK.hatchMarkWidth * this.markScale;
+            ctx.beginPath();
+            const step = INK.hatchSpacing * 0.75;
+            for (let hx = cx + cr * 0.25; hx < cx + cr * 1.2; hx += step) {
+                ctx.moveTo(hx, cy + cr);
+                ctx.lineTo(hx + cr * 0.6, cy - cr * 0.1);
+            }
+            ctx.stroke();
+            ctx.restore();
+        });
     }
 
     /**
@@ -1150,7 +1245,9 @@ export class Renderer {
         // Up in the snow, the snow settles on everything.
         const snowy = this.snowyAt(n.x, n.y);
 
-        if (n.kind === 'tree') {
+        if (n.kind === 'tree' && this.biomeHere(n.x, n.y) === 'grass') {
+            this.drawBroadleaf(n);
+        } else if (n.kind === 'tree') {
             // No two trees alike: each one's own seed sets how wide and tall
             // its tiers are, which way it leans, and how thick its trunk is.
             // Kept inside TREE_COVER's box so the see-through test still fits.
