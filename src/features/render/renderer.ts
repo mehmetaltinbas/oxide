@@ -1902,24 +1902,34 @@ export class Renderer {
      * The island, small or large. `step` is how many biome tiles one painted
      * block covers: coarse is plenty for the corner, the open map wants more.
      */
-    drawMinimap(game: GameView, x: number, y: number, size: number, step = 4): void {
+    drawMinimap(game: GameView, x: number, y: number, size: number): void {
         const ctx = this.ctx;
         const scale = size / Math.max(WORLD_W, WORLD_H);
         ctx.save();
         ctx.fillStyle = '#0e120e';
         ctx.fillRect(x, y, size, size);
 
-        // Biome thumbnail.
-        for (let by = 0; by < BIOME_H; by += step) {
-            for (let bx = 0; bx < BIOME_W; bx += step) {
-                ctx.fillStyle = BIOME_COLOR[game.world.biomes[by * BIOME_W + bx]];
-                ctx.fillRect(
-                    x + bx * BIOME_TILE * scale,
-                    y + by * BIOME_TILE * scale,
-                    BIOME_TILE * scale * step + 1,
-                    BIOME_TILE * scale * step + 1,
-                );
-            }
+        // The island, from the same bake the world view is painted from: every
+        // biome tile, not a block of them. It used to be redrawn tile by tile
+        // here and could only afford to sample every second or fourth one,
+        // which is what made the map look like a blurred copy of the island.
+        this.biomes = game.world.biomes;
+        const map = this.terrainMap();
+        if (map) {
+            const smoothing = ctx.imageSmoothingEnabled;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(
+                map,
+                0,
+                0,
+                BIOME_W,
+                BIOME_H,
+                x,
+                y,
+                BIOME_W * BIOME_TILE * scale,
+                BIOME_H * BIOME_TILE * scale,
+            );
+            ctx.imageSmoothingEnabled = smoothing;
         }
         ctx.strokeStyle = '#3f5240';
         ctx.lineWidth = 2;

@@ -684,7 +684,7 @@ export class Hud {
         );
         const mx = x + SPACE.lg;
         const my = top + 12;
-        this.renderer.drawMinimap(game, mx, my, size, 2);
+        this.renderer.drawMinimap(game, mx, my, size);
         this.drawMapGrid(mx, my, size);
     }
 
