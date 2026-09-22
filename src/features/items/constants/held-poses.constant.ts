@@ -15,11 +15,11 @@ export const DEFAULT_HELD_POSE: HeldPose = { size: 14, gripX: 0, gripY: 0, angle
 export const HELD_POSES: Partial<Record<ItemId, HeldPose>> = {
     // A rock is a stone in the fist, gripped from behind so it shows past the
     // knuckles; held by its middle, the hand covered it completely.
-    rock: { size: 17, gripX: 0, gripY: 0.2, angle: 0 },
+    rock: { size: 17, gripX: 0, gripY: 0.2, angle: 0, strike: 'smash' },
     // Tools by the end of the handle, head forward.
-    hatchet: { size: 28, gripX: 0.11, gripY: 0.28, angle: 0 },
-    pickaxe: { size: 30, gripX: 0, gripY: 0.28, angle: 0 },
-    hammer: { size: 24, gripX: 0, gripY: 0.28, angle: 0 },
+    hatchet: { size: 28, gripX: 0.11, gripY: 0.28, angle: 0, strike: 'chop' },
+    pickaxe: { size: 30, gripX: 0, gripY: 0.28, angle: 0, strike: 'overhead' },
+    hammer: { size: 24, gripX: 0, gripY: 0.28, angle: 0, strike: 'overhead' },
     building_plan: { size: 20, gripX: 0, gripY: 0.22, angle: 0 },
     // The spear's shaft runs corner to corner in its icon; turned to point ahead.
     spear: { size: 44, gripX: -0.12, gripY: 0.16, angle: -0.69, strike: 'thrust' },

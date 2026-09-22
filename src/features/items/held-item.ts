@@ -1,3 +1,5 @@
+import { HELD_POSES } from 'src/features/items/constants/held-poses.constant';
+import { TOOL_SWING_SECONDS } from 'src/features/items/constants/tool-swing-seconds.constant';
 import { TAU } from 'src/shared/constants/tau.constant';
 import { GUN_SOUNDS } from 'src/features/items/constants/gun-sounds.constant';
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
@@ -171,7 +173,8 @@ export class HeldItemSystem {
     melee(damage: number, gather: number, cooldown: number, reach: number, tool?: ItemId): void {
         const p = this.hooks.player();
         p.attackTimer = cooldown;
-        p.swingAnim = 0.2;
+        const style = tool ? (HELD_POSES[tool]?.strike ?? 'chop') : null;
+        p.swingAnim = style && style !== 'thrust' ? TOOL_SWING_SECONDS : 0.2;
 
         // Living things first.
         for (const n of this.npcs.list) {

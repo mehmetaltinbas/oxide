@@ -23,6 +23,8 @@ export interface HumanLook {
      * is which fist throws it. Absent when not punching.
      */
     punch?: { t: number; side: -1 | 1 };
+    /** Radians the upper body turns, for putting a shoulder into a blow. */
+    twist?: number;
     /** Where the holding hand is, if not the usual spot out to the right. */
     holdAt?: [number, number];
     /** Where the other hand is, if it is doing something: drawing a string. */

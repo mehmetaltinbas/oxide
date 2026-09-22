@@ -6,6 +6,9 @@ import { drawBow } from 'src/features/render/utils/draw-bow.util';
 import { BOW_HOLD } from 'src/features/items/constants/bow-hold.constant';
 import { HELD_POSES } from 'src/features/items/constants/held-poses.constant';
 import { THRUST_REACH } from 'src/features/items/constants/thrust-reach.constant';
+import { TOOL_SWING_SECONDS } from 'src/features/items/constants/tool-swing-seconds.constant';
+import { meleeMotion } from 'src/features/render/utils/melee-motion.util';
+import { MeleeMotion } from 'src/features/render/types/melee-motion.interface';
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { ItemId } from 'src/features/items/types/item-id.type';
 import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
@@ -1542,14 +1545,39 @@ export class Renderer {
     }
 
     /**
-     * How far a melee swing has turned the item in the hand: back, then
-     * through, over the swing's 0.2 seconds. Nothing for a gun.
+     * Motion lines behind a swing, in the comic way: a few strokes following
+     * the path the head just took, drawn under the body and the tool. An arc
+     * about the shoulder for a chop or an overhead blow, straight lines for a
+     * smash. Turned with the body, as the tool is.
      */
-    private swingTurn(swingAnim: number, id: ItemId): number {
-        if (swingAnim <= 0 || !ITEMS[id].melee) return 0;
-        if (HELD_POSES[id]?.strike === 'thrust') return 0;
-        const t = 1 - swingAnim / 0.2;
-        return (-1.1 + t * 2.2) * 0.8;
+    private drawSmear(m: MeleeMotion): void {
+        const ctx = this.ctx;
+        const smear = m.smear;
+        if (!smear) return;
+        this.ink.suspend(() => {
+            ctx.save();
+            ctx.rotate(m.twist);
+            ctx.strokeStyle = INK.line;
+            ctx.lineCap = 'round';
+            ctx.lineWidth = INK.fineWidth;
+            ctx.beginPath();
+            if (smear.kind === 'arc') {
+                const lo = Math.min(smear.from, smear.to);
+                const hi = Math.max(smear.from, smear.to);
+                for (const dr of [-3, 0, 3]) {
+                    const r = smear.radius + dr;
+                    ctx.moveTo(10 + Math.cos(lo) * r, -1 + Math.sin(lo) * r);
+                    ctx.arc(10, -1, r, lo, hi);
+                }
+            } else {
+                for (const off of [-2.5, 0, 2.5]) {
+                    ctx.moveTo(smear.x0 + off, smear.y0);
+                    ctx.lineTo(smear.x1 + off * 0.6, smear.y1 + 5);
+                }
+            }
+            ctx.stroke();
+            ctx.restore();
+        });
     }
 
     /**
@@ -1611,17 +1639,16 @@ export class Renderer {
 
         const held = game.heldItem();
         const thrust = !!held && HELD_POSES[held.id]?.strike === 'thrust';
-        if (p.swingAnim > 0 && held && ITEMS[held.id].melee && !thrust) {
-            const t = 1 - p.swingAnim / 0.2;
-            ctx.save();
-            ctx.rotate(-1.1 + t * 2.2);
-            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(0, 0, 34, -1.0, 0.2);
-            ctx.stroke();
-            ctx.restore();
-        }
+        // A melee tool is carried and swung by its own motion; see meleeMotion.
+        const motion =
+            held && !swimming && ITEMS[held.id].melee && !thrust
+                ? meleeMotion(
+                      HELD_POSES[held.id]?.strike ?? 'chop',
+                      p.swingAnim > 0 ? 1 - p.swingAnim / TOOL_SWING_SECONDS : null,
+                      p.walkPhase,
+                  )
+                : null;
+        if (motion?.smear) this.drawSmear(motion);
 
         // You wash up with nothing on: no shirt is bare skin, not a green
         // shirt. What you wear is the shirt, so a garment reads as a garment,
@@ -1637,12 +1664,14 @@ export class Renderer {
             stride: Math.min(1, Math.hypot(p.vx, p.vy) / 90),
             swimming,
             holding: !!held && !swimming,
-            holdAt:
-                held?.id === 'bow' && !swimming
-                    ? BOW_HOLD.grip
-                    : thrust && p.swingAnim > 0
-                      ? this.thrustHand(p.swingAnim)
-                      : undefined,
+            holdAt: motion
+                ? motion.hand
+                : held?.id === 'bow' && !swimming
+                  ? BOW_HOLD.grip
+                  : thrust && p.swingAnim > 0
+                    ? this.thrustHand(p.swingAnim)
+                    : undefined,
+            twist: motion?.twist,
             offHand:
                 held?.id === 'bow' && !swimming && p.bowDraw > 0
                     ? [
@@ -1660,7 +1689,9 @@ export class Renderer {
                 held && !swimming
                     ? held.id === 'bow'
                         ? (c) => drawBow(c, p.bowDraw / BOW_DRAW_SECONDS)
-                        : (c) => drawHeldItem(c, held.id, this.swingTurn(p.swingAnim, held.id))
+                        : motion
+                          ? (c) => drawHeldItem(c, held.id, motion.angle, motion.stretch)
+                          : (c) => drawHeldItem(c, held.id)
                     : undefined,
             hood: worn === 'hazmat' ? ITEMS[worn].color : null,
             hurt: p.hurtFlash > 0 ? '#ff9a9a' : null,

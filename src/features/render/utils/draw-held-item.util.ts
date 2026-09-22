@@ -8,10 +8,22 @@ import { ItemId } from 'src/features/items/types/item-id.type';
  * Drawn from the item's own icon rather than a generic handle and blade, which
  * is what made a rock look like a pickaxe. `swing` turns it about the grip.
  */
-export function drawHeldItem(ctx: CanvasRenderingContext2D, id: ItemId, swing = 0): void {
+export function drawHeldItem(
+    ctx: CanvasRenderingContext2D,
+    id: ItemId,
+    swing = 0,
+    /**
+     * How long the item looks along its length, 1 as it is. Below 1 is
+     * foreshortening: a pick raised over the shoulder points half at the sky,
+     * and from above it looks shorter.
+     */
+    stretch = 1,
+): void {
     const pose = HELD_POSES[id] ?? DEFAULT_HELD_POSE;
     ctx.save();
-    ctx.rotate(pose.angle + swing);
+    ctx.rotate(swing);
+    ctx.scale(1, stretch);
+    ctx.rotate(pose.angle);
     drawItemIcon(ctx, id, -pose.gripX * pose.size, -pose.gripY * pose.size, pose.size);
     ctx.restore();
 }

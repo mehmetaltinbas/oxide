@@ -66,7 +66,7 @@ export function drawHuman(ctx: CanvasRenderingContext2D, look: HumanLook): void 
     // Where each elbow is, when the arm is bent. Null is a straight arm.
     const elbows: ([number, number] | null)[] = [null, null];
     let jab = 0;
-    let twist = 0;
+    let twist = look.twist ?? 0;
     const throwing = look.punch ? (look.punch.side === -1 ? 0 : 1) : -1;
     if (look.punch && !look.swimming) {
         // Out fast and back slower, the way a punch is thrown: the fist lands

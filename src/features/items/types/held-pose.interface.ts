@@ -1,3 +1,4 @@
+import { MeleeStrike } from 'src/features/items/types/melee-strike.type';
 /**
  * How an item sits in the hand, as seen from above.
  *
@@ -14,8 +15,9 @@ export interface HeldPose {
     /** Radians to turn the icon so it points forward, up the figure. */
     angle: number;
     /**
-     * How a melee blow is struck: swung through an arc like an axe, or driven
-     * straight ahead like a spear. Absent is a swing.
+     * How a melee blow is struck, which is also how the thing is carried:
+     * a side chop (an axe), an overhead blow (a pick, a hammer), a smash (a
+     * rock in the fist) or a straight thrust (a spear). Absent is a chop.
      */
-    strike?: 'swing' | 'thrust';
+    strike?: MeleeStrike;
 }
