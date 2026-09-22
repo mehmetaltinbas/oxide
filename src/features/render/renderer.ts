@@ -309,19 +309,29 @@ export class Renderer {
     }
 
     /**
-     * Facets and stipple on stone.
+     * The inside of a boulder: a highlight, stipple down the shaded side, the
+     * facets, and for ore the flecks of what it is worth.
      *
-     * A boulder is flat faces meeting at edges, and a press shades the far side
-     * with dots rather than with a darker grey.
+     * Everything is clipped to the rock's own outline. The facets run from a
+     * ridge near the top to the rock's corners, so each one meets the outline
+     * where the outline turns, and they are drawn with the same pen as the
+     * outline: a comic has one weight of line on a rock, not two.
      */
-    private markStone(radius: number, seed: number): void {
+    private markStone(outline: Path2D, pts: [number, number][], n: ResourceNode): void {
         const ctx = this.ctx;
+        const radius = n.radius;
+        const pen = this.ink.penWidth();
         this.ink.suspend(() => {
             ctx.save();
-            ctx.beginPath();
-            ctx.ellipse(0, 0, radius * 0.95, radius * 0.74, 0, 0, TAU);
-            ctx.clip();
+            ctx.clip(outline);
 
+            // The lit face. Light, not an object, so it has no line.
+            ctx.fillStyle = 'rgba(255,255,255,0.16)';
+            ctx.beginPath();
+            ctx.ellipse(-radius * 0.2, -radius * 0.25, radius * 0.4, radius * 0.22, -0.4, 0, TAU);
+            ctx.fill();
+
+            // Stipple down the side away from the light.
             ctx.fillStyle = INK.line;
             const step = INK.halftoneSpacing * 0.55;
             for (let y = -radius; y < radius; y += step) {
@@ -335,15 +345,36 @@ export class Renderer {
                 }
             }
 
+            // Ore: flecks of the metal or the sulfur, chipped rather than round.
+            if (n.kind === 'metal_node' || n.kind === 'sulfur_node') {
+                ctx.fillStyle = n.kind === 'metal_node' ? '#e0d0b0' : '#f4ec9a';
+                for (let i = 0; i < 4; i++) {
+                    const a = (((n.seed + i * 23) % 100) / 100) * TAU;
+                    const cx = Math.cos(a) * radius * 0.42;
+                    const cy = Math.sin(a) * radius * 0.32;
+                    const r = radius * 0.13;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - r, cy - r * 0.2);
+                    ctx.lineTo(cx - r * 0.1, cy - r);
+                    ctx.lineTo(cx + r, cy - r * 0.1);
+                    ctx.lineTo(cx + r * 0.2, cy + r);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+
+            // Facets: from a ridge near the top to every other corner.
+            const ridgeX = -radius * 0.12;
+            const ridgeY = -radius * 0.14;
             ctx.strokeStyle = INK.line;
-            ctx.lineWidth = INK.markWidth;
+            ctx.lineWidth = pen;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.beginPath();
-            for (let i = 0; i < 3; i++) {
-                const a = (((seed + i * 29) % 100) / 100) * TAU;
-                ctx.moveTo(-radius * 0.1, -radius * 0.12);
-                ctx.lineTo(Math.cos(a) * radius * 0.9, Math.sin(a) * radius * 0.7);
+            const first = n.seed % 2;
+            for (let i = first; i < pts.length; i += 2) {
+                ctx.moveTo(ridgeX, ridgeY);
+                ctx.lineTo(pts[i][0], pts[i][1]);
             }
             ctx.stroke();
             ctx.restore();
@@ -905,51 +936,24 @@ export class Renderer {
                 ctx.fill();
             }
         } else {
-            ctx.fillStyle = def.color;
-            ctx.beginPath();
+            // One outline, used for the fill, the pen and the clip, so every
+            // mark inside lands inside the rock that is actually drawn. The
+            // marks used to be clipped to an oval of roughly the same size,
+            // and ran past the edge on one side and stopped short on another.
+            const pts: [number, number][] = [];
             const points = 7;
             for (let i = 0; i < points; i++) {
                 const a = (i / points) * TAU;
                 const wob = 0.75 + (((n.seed * (i + 3)) % 37) / 37) * 0.45;
-                const px = Math.cos(a) * n.radius * wob;
-                const py = Math.sin(a) * n.radius * 0.78 * wob;
-                if (i === 0) ctx.moveTo(px, py);
-                else ctx.lineTo(px, py);
+                pts.push([Math.cos(a) * n.radius * wob, Math.sin(a) * n.radius * 0.78 * wob]);
             }
-            ctx.closePath();
-            ctx.fill();
-            // A highlight is light, not an object: inked it became a pale
-            // pebble stuck to the front of every boulder.
-            this.ink.suspend(() => {
-                ctx.fillStyle = 'rgba(255,255,255,0.16)';
-                ctx.beginPath();
-                ctx.ellipse(
-                    -n.radius * 0.2,
-                    -n.radius * 0.25,
-                    n.radius * 0.4,
-                    n.radius * 0.22,
-                    -0.4,
-                    0,
-                    TAU,
-                );
-                ctx.fill();
-            });
-            this.markStone(n.radius, n.seed);
-            if (n.kind === 'metal_node' || n.kind === 'sulfur_node') {
-                ctx.fillStyle = n.kind === 'metal_node' ? '#e0d0b0' : '#f4ec9a';
-                for (let i = 0; i < 4; i++) {
-                    const a = (((n.seed + i * 23) % 100) / 100) * TAU;
-                    ctx.beginPath();
-                    ctx.arc(
-                        Math.cos(a) * n.radius * 0.45,
-                        Math.sin(a) * n.radius * 0.35,
-                        2.4,
-                        0,
-                        TAU,
-                    );
-                    ctx.fill();
-                }
-            }
+            const outline = new Path2D();
+            outline.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length; i++) outline.lineTo(pts[i][0], pts[i][1]);
+            outline.closePath();
+            ctx.fillStyle = def.color;
+            ctx.fill(outline);
+            this.markStone(outline, pts, n);
         }
 
         if (n.hp < n.maxHp) this.hpBar(-16, n.radius * 0.9, 32, n.hp / n.maxHp);

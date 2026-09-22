@@ -211,6 +211,15 @@ export class Ink {
         return area > 0.000001 ? Math.sqrt(area) : 1;
     }
 
+    /**
+     * The outline pen's width in the current transform's units. Marks drawn
+     * at this width land on the page exactly as heavy as the outline round
+     * them, however far the camera is zoomed.
+     */
+    penWidth(): number {
+        return this.width / this.scale();
+    }
+
     /** Draw at a different pen weight, for whatever the eye should land on. */
     weight(width: number, draw: () => void): void {
         const was = this.width;
