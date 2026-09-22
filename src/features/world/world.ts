@@ -366,8 +366,9 @@ export class World {
 
         const free = (x: number, y: number, min: number): boolean => {
             if (this.biomeAt(x, y) === 'water') return false;
-            // Nothing grows or sits on a road, not even overhanging one: the
-            // centre and a node's width either side all have to be off it.
+            // Nothing grows or sits on a road or a beach, not even overhanging
+            // one: the centre and a node's width either side all have to be
+            // clear. Beaches are where you wash up, and they stay open sand.
             const edge = min * 0.5;
             for (const [dx, dy] of [
                 [0, 0],
@@ -376,7 +377,8 @@ export class World {
                 [0, -edge],
                 [0, edge],
             ] as const) {
-                if (this.biomeAt(x + dx, y + dy) === 'road') return false;
+                const b = this.biomeAt(x + dx, y + dy);
+                if (b === 'road' || b === 'beach') return false;
             }
             for (const m of this.monuments) {
                 if (dist(x, y, m.x, m.y) < m.radius + 40) return false;
