@@ -233,6 +233,11 @@ export class Combat {
         if (!hit) {
             for (const n of this.hooks.npcs()) {
                 if (segmentHitsCircle(px, py, t.x, t.y, n.x, n.y, n.radius)) {
+                    // Whoever it strikes takes the whole rocket, as a round's
+                    // target takes the whole round. The blast after it only
+                    // spreads a quarter of that, which alone left a boar
+                    // (90 hp) standing after a direct hit.
+                    this.hooks.hitNpc(n, t.damage, px, py, 0);
                     hit = true;
                     break;
                 }
