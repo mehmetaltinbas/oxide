@@ -1,4 +1,6 @@
 import { BARRELS } from 'src/features/world/constants/barrels.constant';
+import { ORES } from 'src/features/world/constants/ores.constant';
+import { TREES } from 'src/features/world/constants/trees.constant';
 import { SNOW_SMOOTHING } from 'src/features/world/constants/snow-smoothing.constant';
 import { regrowthSeconds } from 'src/features/world/utils/regrowth-seconds.util';
 import { REGROWTH } from 'src/features/world/constants/regrowth.constant';
@@ -468,23 +470,85 @@ export class World {
             return true;
         };
 
-        // Trees cluster in forest, thin out in the open, and skip sand of any kind.
+        // A random free spot in one of these biomes, or null if none turned up
+        // in a fair number of tries. Drawn from the biome's own tiles rather
+        // than the whole map, so a small biome is filled as reliably as a big one.
+        const tilesOf = (kinds: Biome[]): number[] => {
+            const out: number[] = [];
+            for (let i = 0; i < this.biomes.length; i++)
+                if (kinds.includes(this.biomes[i])) out.push(i);
+            return out;
+        };
+        const spotIn = (tiles: number[], min: number): { x: number; y: number } | null => {
+            if (tiles.length === 0) return null;
+            for (let t = 0; t < 12; t++) {
+                const i = tiles[Math.floor(rng() * tiles.length)];
+                const tx = i % BIOME_W;
+                const ty = (i - tx) / BIOME_W;
+                const x = (tx + rng()) * BIOME_TILE;
+                const y = (ty + rng()) * BIOME_TILE;
+                if (free(x, y, min)) return { x, y };
+            }
+            return null;
+        };
+        /** Place up to `count` in these tiles, giving up after enough misses. */
+        const place = (
+            tiles: number[],
+            count: number,
+            min: number,
+            make: () => ResourceNode['kind'],
+        ): number => {
+            let placed = 0;
+            for (let tries = 0; placed < count && tries < count * 10; tries++) {
+                const at = spotIn(tiles, min);
+                if (!at) continue;
+                push(make(), at.x, at.y);
+                placed++;
+            }
+            return placed;
+        };
+
+        // Trees. The forest first, at its own density. Then the open
+        // grassland at half the forest's measured density, so the ratio holds
+        // whatever size the map or its forest comes out. The snow keeps its own
+        // thinner stand, and nothing grows on sand of any kind.
+        const forestTiles = tilesOf(['forest']);
+        const grassTiles = tilesOf(['grass']);
+        place(
+            forestTiles,
+            Math.round(TREES.forestPerTile * forestTiles.length),
+            TREES.spacing,
+            () => 'tree',
+        );
+        const forestTrees = this.nodes.length;
+        const forestDensity = forestTiles.length > 0 ? forestTrees / forestTiles.length : 0;
+        place(
+            grassTiles,
+            Math.round(forestDensity * TREES.grassShare * grassTiles.length),
+            TREES.spacing,
+            () => 'tree',
+        );
         for (let i = 0; i < 176000; i++) {
             const x = randRange(rng, 30, WORLD_W - 30);
             const y = randRange(rng, 30, WORLD_H - 30);
-            const b = this.biomeAt(x, y);
-            // Nothing grows in the desert.
-            const chance = b === 'forest' ? 0.9 : b === 'grass' ? 0.3 : b === 'snow' ? 0.35 : 0;
-            if (rng() > chance) continue;
-            if (!free(x, y, 58)) continue;
+            if (this.biomeAt(x, y) !== 'snow') continue;
+            if (rng() > TREES.snowChance) continue;
+            if (!free(x, y, TREES.spacing)) continue;
             push('tree', x, y);
         }
-        for (let i = 0; i < 50000; i++) {
-            const x = randRange(rng, 30, WORLD_W - 30);
-            const y = randRange(rng, 30, WORLD_H - 30);
-            if (!free(x, y, 76)) continue;
-            const roll = rng();
-            push(roll < 0.6 ? 'stone_node' : roll < 0.83 ? 'metal_node' : 'sulfur_node', x, y);
+
+        // Ore. A fixed amount per region, scaled by the size of the map, so a
+        // server running a bigger or smaller island gets the same feel: as much
+        // in the snow as in the desert, and half that across the green. Each
+        // region leans to one ore, 45 / 30 / 25, with stone as the filler.
+        const scale = (WORLD_W * WORLD_H) / ORES.referenceArea;
+        const x = ORES.perRegion * scale;
+        for (const region of ORES.regions) {
+            const [a, b2, c] = region.mix;
+            place(tilesOf(region.biomes), Math.round(x * region.share), ORES.spacing, () => {
+                const roll = rng();
+                return roll < a.share ? a.kind : roll < a.share + b2.share ? b2.kind : c.kind;
+            });
         }
         for (let i = 0; i < 42000; i++) {
             const x = randRange(rng, 30, WORLD_W - 30);
