@@ -1,3 +1,4 @@
+import { BIOME_LABEL } from 'src/features/world/constants/biome-label.constant';
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
 import { INK } from 'src/shared/design/constants/ink.constant';
 import { MAP_GRID_CELLS } from 'src/features/world/constants/map-grid.constant';
@@ -141,7 +142,7 @@ export class Hud {
         const clock = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
         const mon = game.world.monumentAt(game.player.x, game.player.y);
         const biome = game.world.biomeAt(game.player.x, game.player.y);
-        const place = mon ? mon.def.name : biome.charAt(0).toUpperCase() + biome.slice(1);
+        const place = mon ? mon.def.name : BIOME_LABEL[biome];
         const hot = mon ? game.world.radiationAt(game.player.x, game.player.y) > 0 : false;
 
         // Frame counter sits above everything, deliberately quiet.

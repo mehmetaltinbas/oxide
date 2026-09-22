@@ -1,4 +1,5 @@
 import { BARRELS } from 'src/features/world/constants/barrels.constant';
+import { SNOW_SMOOTHING } from 'src/features/world/constants/snow-smoothing.constant';
 import { regrowthSeconds } from 'src/features/world/utils/regrowth-seconds.util';
 import { REGROWTH } from 'src/features/world/constants/regrowth.constant';
 import { ITEMS } from 'src/features/items/constants/items.constant';
@@ -181,14 +182,90 @@ export class World {
             }
         }
 
-        // Sand where the temperate land meets the sea. Snow runs straight into
-        // the water and desert is already sand, so neither grows a beach; the
-        // grass and forest coasts get one, and that is where people wash up.
+        // Close up the snowfield. The snow test is on noise, so here and there
+        // a tile in the cold north fails it and comes out as grass: a green
+        // square in the middle of the snow. A tile of grass or forest that is
+        // mostly surrounded by snow is snow. A few passes, so a small green
+        // island shrinks from its edges until it is gone.
+        for (let pass = 0; pass < SNOW_SMOOTHING.passes; pass++) {
+            const was = this.biomes.slice();
+            for (let y = 1; y < BIOME_H - 1; y++) {
+                for (let x = 1; x < BIOME_W - 1; x++) {
+                    const here = was[y * BIOME_W + x];
+                    if (here !== 'grass' && here !== 'forest') continue;
+                    let snowy = 0;
+                    for (let oy = -1; oy <= 1; oy++) {
+                        for (let ox = -1; ox <= 1; ox++) {
+                            if ((ox || oy) && was[(y + oy) * BIOME_W + x + ox] === 'snow') snowy++;
+                        }
+                    }
+                    if (snowy >= SNOW_SMOOTHING.neighbours) this.biomes[y * BIOME_W + x] = 'snow';
+                }
+            }
+        }
+
+        // Then whatever green is still cut off inside the snow: a patch of
+        // grass or forest, however it got there, whose edge is mostly snow and
+        // which is small enough to be a pocket rather than the temperate land
+        // itself. Counting neighbours reaches only a patch's rim; this takes
+        // the whole thing.
+        {
+            const seen = new Uint8Array(BIOME_W * BIOME_H);
+            const stack: number[] = [];
+            const patch: number[] = [];
+            for (let start = 0; start < seen.length; start++) {
+                const b0 = this.biomes[start];
+                if (seen[start] || (b0 !== 'grass' && b0 !== 'forest')) continue;
+                patch.length = 0;
+                let snowEdge = 0;
+                let otherEdge = 0;
+                stack.push(start);
+                seen[start] = 1;
+                while (stack.length) {
+                    const i2 = stack.pop()!;
+                    patch.push(i2);
+                    const x = i2 % BIOME_W;
+                    const y = (i2 - x) / BIOME_W;
+                    for (const [dx, dy] of [
+                        [1, 0],
+                        [-1, 0],
+                        [0, 1],
+                        [0, -1],
+                    ] as const) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx < 0 || ny < 0 || nx >= BIOME_W || ny >= BIOME_H) continue;
+                        const j = ny * BIOME_W + nx;
+                        const nb = this.biomes[j];
+                        if (nb === 'grass' || nb === 'forest') {
+                            if (!seen[j]) {
+                                seen[j] = 1;
+                                stack.push(j);
+                            }
+                        } else if (nb === 'snow') snowEdge++;
+                        else if (nb !== 'water') otherEdge++;
+                    }
+                }
+                const edge = snowEdge + otherEdge;
+                if (
+                    patch.length <= SNOW_SMOOTHING.pocketTiles &&
+                    edge > 0 &&
+                    snowEdge / edge >= SNOW_SMOOTHING.pocketSnowShare
+                ) {
+                    for (const k of patch) this.biomes[k] = 'snow';
+                }
+            }
+        }
+
+        // Sand where the land meets the sea. Desert is already sand, so it grows
+        // no beach. The temperate coasts get one, which is where people wash
+        // up; a snow coast gets one too, but under snow, and nobody wakes up
+        // there.
         const base = this.biomes.slice();
         for (let y = 0; y < BIOME_H; y++) {
             for (let x = 0; x < BIOME_W; x++) {
                 const here = base[y * BIOME_W + x];
-                if (here !== 'grass' && here !== 'forest') continue;
+                if (here !== 'grass' && here !== 'forest' && here !== 'snow') continue;
                 let coastal = false;
                 for (let oy = -BEACH_WIDTH; oy <= BEACH_WIDTH && !coastal; oy++) {
                     for (let ox = -BEACH_WIDTH; ox <= BEACH_WIDTH; ox++) {
@@ -201,7 +278,8 @@ export class World {
                         }
                     }
                 }
-                if (coastal) this.biomes[y * BIOME_W + x] = 'beach';
+                if (coastal)
+                    this.biomes[y * BIOME_W + x] = here === 'snow' ? 'snow_beach' : 'beach';
             }
         }
 
@@ -378,7 +456,7 @@ export class World {
                 [0, edge],
             ] as const) {
                 const b = this.biomeAt(x + dx, y + dy);
-                if (b === 'road' || b === 'beach') return false;
+                if (b === 'road' || b === 'beach' || b === 'snow_beach') return false;
             }
             for (const m of this.monuments) {
                 if (dist(x, y, m.x, m.y) < m.radius + 40) return false;

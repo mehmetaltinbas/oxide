@@ -14,6 +14,8 @@ export const BIOME_COLOR: Record<Biome, string> = {
     grass: '#6c9c3b',
     forest: '#508a31',
     beach: '#e8cf96',
+    // Sand under snow: the snow's white, warmed a touch by what is beneath.
+    snow_beach: '#ece9dd',
     desert: '#d8b762',
     snow: '#dde9f2',
     road: '#726d62',

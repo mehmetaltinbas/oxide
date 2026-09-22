@@ -1,1 +1,2 @@
-export type Biome = 'grass' | 'forest' | 'beach' | 'desert' | 'snow' | 'road' | 'water';
+export type Biome =
+    'grass' | 'forest' | 'beach' | 'snow_beach' | 'desert' | 'snow' | 'road' | 'water';
