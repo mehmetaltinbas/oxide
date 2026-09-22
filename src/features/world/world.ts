@@ -493,19 +493,39 @@ export class World {
             if (!free(x, y, 52)) continue;
             push('nettle', x, y);
         }
-        // Barrels, on the roads and only there: the one thing a road has that
-        // the wilds do not. Every road tile gets a chance at one, kept apart
-        // so a stretch of road reads as a few barrels, not a wall of them.
-        for (let ty = 0; ty < BIOME_H; ty++) {
-            for (let tx = 0; tx < BIOME_W; tx++) {
+        // Barrels, along the edges of the roads: pushed to the verge the way
+        // things end up at a roadside, not left in the middle of the lane. A
+        // tile qualifies if it is road with open land beside it, and the barrel
+        // sits against that side. Kept apart so a stretch of road reads as a
+        // few barrels, not a wall of them.
+        for (let ty = 1; ty < BIOME_H - 1; ty++) {
+            for (let tx = 1; tx < BIOME_W - 1; tx++) {
                 if (this.biomes[ty * BIOME_W + tx] !== 'road') continue;
+                const sides: [number, number][] = [];
+                for (const [dx, dy] of [
+                    [1, 0],
+                    [-1, 0],
+                    [0, 1],
+                    [0, -1],
+                ] as const) {
+                    const b = this.biomes[(ty + dy) * BIOME_W + tx + dx];
+                    if (b !== 'road' && b !== 'water') sides.push([dx, dy]);
+                }
+                if (sides.length === 0) continue;
                 if (rng() > BARRELS.chancePerTile) continue;
-                const x = (tx + 0.2 + rng() * 0.6) * BIOME_TILE;
-                const y = (ty + 0.2 + rng() * 0.6) * BIOME_TILE;
+                const [dx, dy] = sides[Math.floor(rng() * sides.length)];
+                const inset = BIOME_TILE / 2 - BARRELS.verge;
+                const along = (rng() - 0.5) * BIOME_TILE * 0.6;
+                const x = (tx + 0.5) * BIOME_TILE + dx * inset + (dy !== 0 ? along : 0);
+                const y = (ty + 0.5) * BIOME_TILE + dy * inset + (dx !== 0 ? along : 0);
+                // Spaced from other barrels, and clear of anything it would
+                // overlap; the trees along the verge are fine to stand beside.
                 let crowded = false;
                 const m2 = BARRELS.spacing * BARRELS.spacing;
+                const c2 = BARRELS.clearance * BARRELS.clearance;
                 for (const n of this.nodeHash.query(x, y, BARRELS.spacing, this.scratch)) {
-                    if (dist2(x, y, n.x, n.y) < m2) {
+                    const d2 = dist2(x, y, n.x, n.y);
+                    if ((n.kind === 'barrel' && d2 < m2) || d2 < c2) {
                         crowded = true;
                         break;
                     }

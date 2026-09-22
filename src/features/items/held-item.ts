@@ -218,7 +218,8 @@ export class HeldItemSystem {
         if (!def.loot || node.hp <= 0) return;
         node.hp -= damage;
         node.shake = 0.16;
-        this.audio.hitMetal();
+        // A barrel can be shot from far off; it rings from where it stands.
+        this.audio.from(node.x, node.y, () => this.audio.hitMetal());
         this.particles.burst(node.x, node.y - 4, 5, def.color, {
             speed: 120,
             life: 0.35,

@@ -1,3 +1,4 @@
+import { SOUND_HEARING } from 'src/shared/constants/sound-hearing.constant';
 import { BuildSystem } from 'src/features/building/building';
 import { DECAY_PER_HOUR } from 'src/features/building/constants/decay-per-hour.constant';
 import { TIER_DEFS } from 'src/features/building/constants/tier-defs.constant';
@@ -100,7 +101,7 @@ export class StructureSystem {
         weapon: ItemId | null,
     ): void {
         this.particles.burst(x, y, 18, WORLD.blood, { speed: 180, life: 0.8, size: 3.4 });
-        this.audio.enemyDie();
+        this.audio.from(x, y, () => this.audio.enemyDie());
         for (const [id, [lo, hi]] of Object.entries(loot) as [ItemId, [number, number]][]) {
             const n = Math.round(randRange(Math.random, lo, hi));
             if (n > 0) this.hooks.interaction().dropStack({ id, count: n }, x, y);
@@ -131,9 +132,11 @@ export class StructureSystem {
         if (dealt < amount * 0.5) this.particles.text(c.x, c.y - 18, 'hard side', '#c9c0a0');
         // Twig and wood thud; stone and sheet metal ring.
         const tier = 'tier' in target ? (target as Structure).tier : 'wood';
-        if (tier === 'metal') this.audio.hitStructureMetal();
-        else if (tier === 'stone') this.audio.hitStone();
-        else this.audio.hitStructureWood();
+        this.audio.from(c.x, c.y, () => {
+            if (tier === 'metal') this.audio.hitStructureMetal();
+            else if (tier === 'stone') this.audio.hitStone();
+            else this.audio.hitStructureWood();
+        });
         if (target.hp <= 0) {
             if ('tier' in target) this.destroyStructure(target as Structure);
             else this.destroyDeployable(target as Deployable);
@@ -150,7 +153,7 @@ export class StructureSystem {
             size: 3.6,
             gravity: 140,
         });
-        this.audio.treeFall();
+        this.audio.from(c.x, c.y, () => this.audio.treeFall());
         this.camera.shake(5, 0.25);
     }
 
@@ -166,7 +169,7 @@ export class StructureSystem {
             this.hooks.closeContainer();
         }
         this.particles.burst(d.x, d.y, 18, WORLD.timber, { speed: 170, life: 0.8, size: 3.4 });
-        this.audio.treeFall();
+        this.audio.from(d.x, d.y, () => this.audio.treeFall());
     }
 
     /**
@@ -188,7 +191,8 @@ export class StructureSystem {
         this.particles.burst(x, y, 46, WORLD.fire, { speed: 300, life: 1, size: 5 });
         this.particles.burst(x, y, 24, WORLD.emberHot, { speed: 200, life: 0.7, size: 3.6 });
         this.camera.shake(14, 0.5);
-        this.audio.roar();
+        // A blast carries further than anything else.
+        this.audio.from(x, y, () => this.audio.roar(), SOUND_HEARING.range * 2);
 
         if (stuckTo !== null) {
             const target = this.build.inBlast(x, y, radius).find((t) => t.id === stuckTo);

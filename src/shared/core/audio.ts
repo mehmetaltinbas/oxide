@@ -1,5 +1,6 @@
 import { AUDIO_DEFAULT_LEVEL } from 'src/shared/design/constants/audio-default-level.constant';
 import { GunSound } from 'src/shared/types/gun-sound.interface';
+import { SOUND_HEARING } from 'src/shared/constants/sound-hearing.constant';
 /** Tiny procedural sound bank, no asset files, everything is synthesized on the fly. */
 export class Audio {
     private ctx: AudioContext | null = null;
@@ -14,6 +15,33 @@ export class Audio {
      * to survive being changed before then.
      */
     private level = AUDIO_DEFAULT_LEVEL;
+
+    /** Where the ears are: the player. Set each frame. */
+    private listenerX = 0;
+    private listenerY = 0;
+    /** Loudness for the sound being played right now, from how far away it is. */
+    private scale = 1;
+
+    listenAt(x: number, y: number): void {
+        this.listenerX = x;
+        this.listenerY = y;
+    }
+
+    /**
+     * Play a sound as if it happened at (x, y): full volume on top of you,
+     * fading with distance, and not at all out of earshot. Everything that
+     * happens somewhere in the world goes through here; only what is yours
+     * (your own hands, the interface) plays flat.
+     */
+    from(x: number, y: number, play: () => void, range: number = SOUND_HEARING.range): void {
+        const d = Math.hypot(x - this.listenerX, y - this.listenerY);
+        const near = 1 - d / range;
+        if (near <= 0.02) return;
+        const was = this.scale;
+        this.scale = Math.pow(near, SOUND_HEARING.falloff);
+        play();
+        this.scale = was;
+    }
 
     /** Browsers block audio until a user gesture, so this is called on first input. */
     unlock(): void {
@@ -50,8 +78,9 @@ export class Audio {
         if (this.master) this.master.gain.value = this.enabled ? this.level : 0;
     }
 
-    private env(dur: number, peak: number, at = 0): GainNode | null {
+    private env(dur: number, peak0: number, at = 0): GainNode | null {
         if (!this.ctx || !this.master || !this.enabled) return null;
+        const peak = Math.max(0.0002, peak0 * this.scale);
         const g = this.ctx.createGain();
         const t = this.ctx.currentTime + at;
         g.gain.setValueAtTime(0.0001, t);

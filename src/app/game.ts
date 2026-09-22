@@ -198,15 +198,15 @@ export class Game {
                     WORLD.hostileTracer,
                     clan ?? 0,
                 );
-                // They carry rifles, so they sound like one, and quieter the
-                // further off they are.
-                const d = Math.hypot(x - this.player.x, y - this.player.y);
-                const near = Math.max(0, 1 - d / GUNFIRE_HEARING.range);
+                // They carry rifles, so they sound like one, from where they
+                // stand: out of earshot, not at all.
                 const rifle = GUN_SOUNDS.rifle;
                 if (rifle)
-                    this.audio.gunshot(
-                        rifle,
-                        GUNFIRE_HEARING.nearLoudness * Math.pow(near, GUNFIRE_HEARING.falloff),
+                    this.audio.from(
+                        x,
+                        y,
+                        () => this.audio.gunshot(rifle, GUNFIRE_HEARING.nearLoudness),
+                        GUNFIRE_HEARING.range,
                     );
             },
             attackStructure: (id, dmg, fx, fy) =>
@@ -224,7 +224,7 @@ export class Game {
                     'hostile',
                 );
                 this.particles.text(npc.x, npc.y - 26, 'charge planted', WORLD.hostileTracer);
-                this.audio.build();
+                this.audio.from(npc.x, npc.y, () => this.audio.build());
             },
             scheduleRegrowth: (kind) =>
                 this.wildlifeRegrowth.push({ kind, seconds: regrowthSeconds() }),
@@ -675,6 +675,8 @@ export class Game {
     }
 
     update(dt: number, firstStep = true): void {
+        // Sounds out in the world are heard from where you are standing.
+        this.audio.listenAt(this.player.x, this.player.y);
         // Where everything is before this step is where the next frame blends
         // from.
         this.renderLerp.capture(this.lerpables());
