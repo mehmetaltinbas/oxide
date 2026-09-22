@@ -10,6 +10,8 @@ import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.
 import { ItemId } from 'src/features/items/types/item-id.type';
 import { TREE_COVER } from 'src/features/render/constants/tree-cover.constant';
 import { NODE_LINE_SCALE } from 'src/features/render/constants/node-line-scale.constant';
+import { SNOW } from 'src/features/render/constants/snow.constant';
+import { seeded } from 'src/shared/utils/seeded.util';
 import { TRACER } from 'src/features/combat/constants/tracer.constant';
 import { HEALTH_BAR } from 'src/shared/design/constants/health-bar.constant';
 import { ThrownExplosive } from 'src/features/combat/types/thrown-explosive.interface';
@@ -311,6 +313,114 @@ export class Renderer {
         }
         ctx.stroke();
         ctx.restore();
+    }
+
+    /** Whether this spot is in the snow biome. */
+    private snowyAt(x: number, y: number): boolean {
+        if (!this.biomes) return false;
+        const bx = Math.floor(x / BIOME_TILE);
+        const by = Math.floor(y / BIOME_TILE);
+        if (bx < 0 || by < 0 || bx >= BIOME_W || by >= BIOME_H) return false;
+        return this.biomes[by * BIOME_W + bx] === 'snow';
+    }
+
+    /**
+     * Snow lying on one tier of a conifer: a cap over the top of the tier
+     * with a scalloped lower edge, the way snow hangs on branches. Filled, so
+     * the pen gives it its outline like any other shape.
+     */
+    private snowTier(y: number, r: number, variant: number, shelf: number | null): void {
+        const ctx = this.ctx;
+        const apexY = y - r;
+        const baseY = y + r * 0.5;
+        ctx.save();
+        // Keep the snow on this tier.
+        ctx.beginPath();
+        ctx.moveTo(0, apexY);
+        ctx.lineTo(-r, baseY);
+        ctx.lineTo(r, baseY);
+        ctx.closePath();
+        ctx.clip();
+        // A cap on the crown; on a lower tier, a band under the tier above.
+        const top = shelf === null ? apexY - 1 : shelf - 2;
+        const bottom =
+            shelf === null
+                ? apexY + (baseY - apexY) * SNOW.tierDepth
+                : shelf + (baseY - shelf) * SNOW.shelfDepth;
+        ctx.fillStyle = SNOW.color;
+        ctx.beginPath();
+        ctx.moveTo(-r, top);
+        ctx.lineTo(r, top);
+        ctx.lineTo(r, bottom);
+        const scallops = shelf === null ? 3 : 5;
+        for (let k = scallops; k > 0; k--) {
+            const x0 = -r + ((2 * r) / scallops) * k;
+            const x1 = -r + ((2 * r) / scallops) * (k - 1);
+            const sag = r * (0.1 + ((variant + k) % 3) * 0.03);
+            ctx.quadraticCurveTo((x0 + x1) / 2, bottom + sag, x1, bottom);
+        }
+        ctx.closePath();
+        ctx.fill();
+        // Clumps caught on the branches lower down, a few per tier, placed by
+        // the tree's seed so each tree carries its snow differently.
+        const clumps = 2 + Math.floor(seeded(variant, 20) * 3);
+        for (let k = 0; k < clumps; k++) {
+            const t = 0.45 + seeded(variant, 21 + k) * 0.5;
+            const cy = apexY + (baseY - apexY) * t;
+            const half = r * t * 0.85;
+            const cx = (seeded(variant, 31 + k) * 2 - 1) * half;
+            const w = r * (0.12 + seeded(variant, 41 + k) * 0.12);
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, w, w * 0.45, 0, 0, TAU);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    /**
+     * A drift of snow across the top of a boulder, clipped to its outline,
+     * with the rock's own outline drawn back over the edge so the drift sits
+     * inside it.
+     */
+    private snowStone(outline: Path2D, n: ResourceNode): void {
+        const ctx = this.ctx;
+        const r = n.radius;
+        ctx.save();
+        ctx.clip(outline);
+        ctx.fillStyle = SNOW.color;
+        // The drift on top: how far down it comes differs rock to rock.
+        const line = -r * (0.35 - seeded(n.seed, 1) * 0.4);
+        ctx.beginPath();
+        ctx.moveTo(-r * 1.3, -r * 1.3);
+        ctx.lineTo(r * 1.3, -r * 1.3);
+        ctx.lineTo(r * 1.3, line);
+        const waves = 4;
+        for (let k = waves; k > 0; k--) {
+            const x0 = -r * 1.3 + ((2.6 * r) / waves) * k;
+            const x1 = -r * 1.3 + ((2.6 * r) / waves) * (k - 1);
+            const dip = r * (0.12 + seeded(n.seed, 2 + k) * 0.18);
+            ctx.quadraticCurveTo((x0 + x1) / 2, line + dip, x1, line);
+        }
+        ctx.closePath();
+        ctx.fill();
+        // Patches lying in the hollows and ledges lower down.
+        const patches = 2 + Math.floor(seeded(n.seed, 10) * 3);
+        for (let k = 0; k < patches; k++) {
+            const px = (seeded(n.seed, 11 + k) * 2 - 1) * r * 0.7;
+            const py = r * (0.05 + seeded(n.seed, 21 + k) * 0.55);
+            const w = r * (0.14 + seeded(n.seed, 31 + k) * 0.14);
+            ctx.beginPath();
+            ctx.ellipse(px, py, w, w * 0.5, (seeded(n.seed, 41 + k) - 0.5) * 0.8, 0, TAU);
+            ctx.fill();
+        }
+        ctx.restore();
+        // The rock's edge again, over the drift's.
+        this.ink.suspend(() => {
+            ctx.strokeStyle = INK.line;
+            ctx.lineWidth = this.ink.penWidth();
+            ctx.lineJoin = 'round';
+            ctx.stroke(outline);
+        });
     }
 
     /**
@@ -980,32 +1090,71 @@ export class Renderer {
         ctx.ellipse(4, 5, n.radius, n.radius * 0.45, 0, 0, TAU);
         ctx.fill();
 
+        // Up in the snow, the snow settles on everything.
+        const snowy = this.snowyAt(n.x, n.y);
+
         if (n.kind === 'tree') {
+            // No two trees alike: each one's own seed sets how wide and tall
+            // its tiers are, which way it leans, and how thick its trunk is.
+            // Kept inside TREE_COVER's box so the see-through test still fits.
+            const v = (k: number): number => seeded(n.seed, k);
+            const wide = 0.88 + v(1) * 0.2;
+            const tall = 0.9 + v(2) * 0.18;
+            const lean = (v(3) - 0.5) * n.radius * 0.16;
+            const trunk = 0.8 + v(4) * 0.4;
             ctx.fillStyle = '#7b4a26';
-            ctx.fillRect(-n.radius * 0.22, -n.radius * 0.5, n.radius * 0.44, n.radius);
+            ctx.fillRect(
+                -n.radius * 0.22 * trunk,
+                -n.radius * 0.5,
+                n.radius * 0.44 * trunk,
+                n.radius,
+            );
             const tiers = [
-                { y: -n.radius * 2.0, r: n.radius * 1.0 },
-                { y: -n.radius * 1.35, r: n.radius * 1.3 },
-                { y: -n.radius * 0.65, r: n.radius * 1.55 },
+                {
+                    y: -n.radius * 2.0 * tall,
+                    r: n.radius * 1.0 * wide * (0.92 + v(5) * 0.16),
+                    dx: lean * 2,
+                },
+                {
+                    y: -n.radius * 1.35 * tall,
+                    r: n.radius * 1.3 * wide * (0.92 + v(6) * 0.16),
+                    dx: lean,
+                },
+                {
+                    y: -n.radius * 0.65 * tall,
+                    r: n.radius * 1.55 * wide * (0.94 + v(7) * 0.1),
+                    dx: 0,
+                },
             ];
             // Grain up the trunk, so it is timber rather than a brown bar.
             this.lines(ctx, (d) => {
-                d.moveTo(-n.radius * 0.08, -n.radius * 0.42);
-                d.lineTo(-n.radius * 0.08, n.radius * 0.42);
-                d.moveTo(n.radius * 0.1, -n.radius * 0.3);
-                d.lineTo(n.radius * 0.1, n.radius * 0.36);
+                d.moveTo(-n.radius * 0.08 * trunk, -n.radius * 0.42);
+                d.lineTo(-n.radius * 0.08 * trunk, n.radius * 0.42);
+                d.moveTo(n.radius * 0.1 * trunk, -n.radius * 0.3);
+                d.lineTo(n.radius * 0.1 * trunk, n.radius * 0.36);
             });
             // Bottom tier first, crown last: a conifer's top sits in front of
             // the skirt below it, and painting downward buried every crown.
             for (let i = tiers.length - 1; i >= 0; i--) {
+                const t = tiers[i];
+                ctx.save();
+                ctx.translate(t.dx, 0);
                 ctx.fillStyle = i % 2 === 0 ? def.color : '#5cc063';
                 ctx.beginPath();
-                ctx.moveTo(0, tiers[i].y - tiers[i].r);
-                ctx.lineTo(-tiers[i].r, tiers[i].y + tiers[i].r * 0.5);
-                ctx.lineTo(tiers[i].r, tiers[i].y + tiers[i].r * 0.5);
+                ctx.moveTo(0, t.y - t.r);
+                ctx.lineTo(-t.r, t.y + t.r * 0.5);
+                ctx.lineTo(t.r, t.y + t.r * 0.5);
                 ctx.closePath();
                 ctx.fill();
-                this.markTier(ctx, tiers[i].y, tiers[i].r, n.seed + i);
+                this.markTier(ctx, t.y, t.r, n.seed + i);
+                if (snowy) {
+                    // The crown gets a cap; a lower tier's top is under the
+                    // tier above, so its snow lies on the shelf that shows.
+                    const up = i > 0 ? tiers[i - 1] : null;
+                    const above = up ? up.y + up.r * 0.5 : null;
+                    this.snowTier(t.y, t.r, n.seed + i, above);
+                }
+                ctx.restore();
             }
         } else if (n.kind === 'nettle') {
             this.drawNettle(n, def.color);
@@ -1028,6 +1177,7 @@ export class Renderer {
             ctx.fillStyle = def.color;
             ctx.fill(outline);
             this.markStone(outline, pts, n);
+            if (snowy) this.snowStone(outline, n);
         }
 
         if (n.hp < n.maxHp) this.hpBar(-16, n.radius * 0.9, 32, n.hp / n.maxHp);
