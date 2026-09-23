@@ -1,3 +1,4 @@
+import { Biome } from 'src/features/world/types/biome.type';
 import { ItemId } from 'src/features/items/types/item-id.type';
 
 export interface MonumentDef {
@@ -16,4 +17,9 @@ export interface MonumentDef {
      * only place a lighthouse makes sense; absent puts it anywhere dry.
      */
     place?: 'coast';
+    /**
+     * The only biomes it may stand in. Absent is anywhere dry: cabins belong
+     * among trees and snow, not out on the sand.
+     */
+    biomes?: Biome[];
 }

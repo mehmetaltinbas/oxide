@@ -490,6 +490,7 @@ export class World {
                     const y = randRange(rng, def.radius + 160, WORLD_H - def.radius - 160);
                     if (this.biomeAt(x, y) === 'water') continue;
                     if (def.place === 'coast' && !this.onCoast(x, y)) continue;
+                    if (def.biomes && !def.biomes.includes(this.biomeAt(x, y))) continue;
                     let clash = false;
                     for (const m of this.monuments) {
                         if (dist(x, y, m.x, m.y) < m.radius + def.radius + 900) clash = true;
