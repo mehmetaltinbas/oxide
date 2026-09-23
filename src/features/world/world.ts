@@ -1,4 +1,5 @@
 import { BARRELS } from 'src/features/world/constants/barrels.constant';
+import { BIOME_SEPARATION } from 'src/features/world/constants/biome-separation.constant';
 import { COAST_REACH } from 'src/features/world/constants/coast-reach.constant';
 import { ORES } from 'src/features/world/constants/ores.constant';
 import { TREES } from 'src/features/world/constants/trees.constant';
@@ -257,6 +258,30 @@ export class World {
                     snowEdge / edge >= SNOW_SMOOTHING.pocketSnowShare
                 ) {
                     for (const k of patch) this.biomes[k] = 'snow';
+                }
+            }
+        }
+
+        // Keep the forest and the desert apart. They are the two extremes of
+        // this island and the noise happily puts them side by side, which reads
+        // as pine trees growing out of dunes. A belt of grass between them is
+        // what the ground would actually do, so any forest tile touching desert
+        // becomes grass, twice over for a belt you can walk along.
+        for (let pass = 0; pass < BIOME_SEPARATION.passes; pass++) {
+            const was = this.biomes.slice();
+            for (let y = 1; y < BIOME_H - 1; y++) {
+                for (let x = 1; x < BIOME_W - 1; x++) {
+                    if (was[y * BIOME_W + x] !== 'forest') continue;
+                    let touchesDesert = false;
+                    for (let oy = -1; oy <= 1 && !touchesDesert; oy++) {
+                        for (let ox = -1; ox <= 1; ox++) {
+                            if (was[(y + oy) * BIOME_W + x + ox] === 'desert') {
+                                touchesDesert = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (touchesDesert) this.biomes[y * BIOME_W + x] = 'grass';
                 }
             }
         }
@@ -669,11 +694,10 @@ export class World {
         // server running a bigger or smaller island gets the same feel: as much
         // in the snow as in the desert, and half that across the green. Each
         // region leans to one ore, 45 / 30 / 25, with stone as the filler.
-        const scale = (WORLD_W * WORLD_H) / ORES.referenceArea;
-        const x = ORES.perRegion * scale;
+        const oreScale = (WORLD_W * WORLD_H) / ORES.referenceArea;
         for (const region of ORES.regions) {
             const [a, b2, c] = region.mix;
-            place(tilesOf(region.biomes), Math.round(x * region.share), ORES.spacing, () => {
+            place(tilesOf(region.biomes), Math.round(region.count * oreScale), ORES.spacing, () => {
                 const roll = rng();
                 return roll < a.share ? a.kind : roll < a.share + b2.share ? b2.kind : c.kind;
             });

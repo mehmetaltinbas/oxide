@@ -85,6 +85,7 @@ export const MONUMENTS: MonumentDef[] = [
         radius: 400,
         rads: 6,
         scientists: 9,
+        guard: 'soldier',
         crates: 9,
         loot: {
             scrap: [40, 100],

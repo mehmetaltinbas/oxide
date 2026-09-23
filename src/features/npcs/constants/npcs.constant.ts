@@ -62,4 +62,30 @@ export const NPCS: Record<NpcKind, NpcDef> = {
         gun: { damage: 19, range: 470, cooldown: 1.15, speed: 900, spread: 0.07 },
         loot: { scrap: [8, 20], pistol_ammo: [4, 12], metal: [10, 30], medkit: [0, 1] },
     },
+    /**
+     * The military base's own: better trained than the scientists at the other
+     * monuments, in the field green of an army rather than a lab coat, and
+     * carrying what an army carries.
+     */
+    soldier: {
+        kind: 'soldier',
+        name: 'Soldier',
+        hp: 170,
+        speed: 126,
+        radius: 12,
+        damage: 18,
+        attackRange: 30,
+        attackCooldown: 0.9,
+        hostile: true,
+        color: '#6f7a52',
+        dark: '#454d31',
+        gun: { damage: 24, range: 520, cooldown: 1.0, speed: 950, spread: 0.06 },
+        loot: {
+            scrap: [12, 28],
+            rifle_ammo: [6, 16],
+            metal: [20, 50],
+            medkit: [0, 2],
+            ak47: [0, 1],
+        },
+    },
 };

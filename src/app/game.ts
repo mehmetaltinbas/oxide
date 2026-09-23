@@ -450,6 +450,7 @@ export class Game {
         this.wildlifeRegrowth = [];
     }
 
+    /** The guards each monument keeps: scientists, or soldiers at the base. */
     private spawnScientists(): void {
         for (const m of this.world.monuments) {
             const def = MONUMENTS.find((d) => d.id === m.defId);
@@ -457,10 +458,15 @@ export class Game {
             for (let i = 0; i < def.scientists; i++) {
                 const a = (i / def.scientists) * TAU + Math.random();
                 const r = randRange(Math.random, def.radius * 0.25, def.radius * 0.8);
-                this.npcs.spawn('scientist', m.x + Math.cos(a) * r, m.y + Math.sin(a) * r, {
-                    home: { x: m.x, y: m.y },
-                    leash: def.radius,
-                });
+                this.npcs.spawn(
+                    def.guard ?? 'scientist',
+                    m.x + Math.cos(a) * r,
+                    m.y + Math.sin(a) * r,
+                    {
+                        home: { x: m.x, y: m.y },
+                        leash: def.radius,
+                    },
+                );
             }
         }
     }

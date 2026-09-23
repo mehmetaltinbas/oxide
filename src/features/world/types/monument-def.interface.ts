@@ -1,3 +1,4 @@
+import { NpcKind } from 'src/features/npcs/types/npc-kind.type';
 import { Biome } from 'src/features/world/types/biome.type';
 import { ItemId } from 'src/features/items/types/item-id.type';
 
@@ -7,7 +8,9 @@ export interface MonumentDef {
     radius: number;
     /** Radiation per second at the centre, falling off to the edge. */
     rads: number;
+    /** How many guards hold it, and what they are. */
     scientists: number;
+    guard?: NpcKind;
     crates: number;
     /** Loot table weight by item. */
     loot: Partial<Record<ItemId, [number, number]>>;

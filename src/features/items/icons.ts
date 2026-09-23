@@ -281,23 +281,52 @@ const GLYPHS: Partial<Record<ItemId, Glyph>> = {
         circle(ctx, 0.24, -0.18, 0.09, '#eee7d2');
         circle(ctx, 0.16, -0.25, 0.08, '#eee7d2');
     },
+    // Scrap: torn, rusted plate, two pieces of it, one lying over the other.
+    // Rust orange rather than the old grey-beige, which read as cardboard.
     scrap: (ctx) => {
-        // Bent, riveted plate.
+        // The piece underneath, darker and further gone.
         poly(
             ctx,
             [
-                [-0.3, -0.06],
-                [-0.05, -0.24],
-                [0.3, -0.1],
-                [0.22, 0.2],
-                [-0.16, 0.26],
+                [-0.34, 0.02],
+                [-0.12, -0.16],
+                [0.1, -0.06],
+                [0.04, 0.22],
+                [-0.26, 0.28],
             ],
-            '#9a8c72',
-            '#6a5f4b',
+            '#7d4426',
+            '#4a2617',
         );
-        circle(ctx, -0.14, -0.02, 0.035, '#6a5f4b');
-        circle(ctx, 0.12, 0.06, 0.035, '#6a5f4b');
+        // The piece on top, bent along its middle: one face catches the light.
+        poly(
+            ctx,
+            [
+                [-0.06, -0.28],
+                [0.3, -0.18],
+                [0.34, 0.06],
+                [0.06, 0.16],
+            ],
+            '#b4643a',
+            '#5e3220',
+        );
+        poly(
+            ctx,
+            [
+                [-0.06, -0.28],
+                [0.14, -0.23],
+                [0.2, 0.11],
+                [0.06, 0.16],
+            ],
+            '#cc8452',
+        );
+        // Rivet holes along the fold, and the pitting of the rust.
+        circle(ctx, 0.11, -0.12, 0.035, '#4a2617');
+        circle(ctx, 0.16, 0.03, 0.035, '#4a2617');
+        circle(ctx, -0.2, 0.06, 0.03, '#4a2617');
+        circle(ctx, -0.14, 0.17, 0.022, '#4a2617');
+        circle(ctx, 0.26, -0.04, 0.022, '#5e3220');
     },
+
     gunpowder: (ctx) => {
         // Pouch of powder.
         poly(

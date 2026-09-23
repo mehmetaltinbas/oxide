@@ -1394,7 +1394,7 @@ export class Renderer {
     private drawNpc(n: Npc): void {
         const ctx = this.ctx;
         const def = NPCS[n.kind];
-        const humanoid = n.kind === 'scientist';
+        const humanoid = n.kind === 'scientist' || n.kind === 'soldier';
         const gait = Math.sin(n.animPhase) * 2.5;
         const body = n.flash > 0 ? '#ffdede' : def.color;
         const dark = n.flash > 0 ? '#ffb0b0' : def.dark;
@@ -1421,6 +1421,7 @@ export class Renderer {
                 // Anyone armed carries a rifle, in the right hand like anyone else.
                 held: def.gun ? (c) => drawHeldItem(c, 'rifle') : undefined,
                 // A scientist is sealed in a suit.
+                // A scientist is sealed in a suit; a soldier wears a helmet.
                 hood: n.kind === 'scientist' ? def.color : null,
                 hurt: n.flash > 0 ? '#ffdede' : null,
             });
