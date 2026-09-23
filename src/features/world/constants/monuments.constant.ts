@@ -34,6 +34,8 @@ export const MONUMENTS: MonumentDef[] = [
             bandage: [1, 3],
         },
         color: '#8a8f96',
+        // A lighthouse stands on the shore, never inland.
+        place: 'coast',
     },
     {
         id: 'airfield',

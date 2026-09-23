@@ -1,4 +1,5 @@
 import { BARRELS } from 'src/features/world/constants/barrels.constant';
+import { COAST_REACH } from 'src/features/world/constants/coast-reach.constant';
 import { ORES } from 'src/features/world/constants/ores.constant';
 import { TREES } from 'src/features/world/constants/trees.constant';
 import { NETTLES } from 'src/features/world/constants/nettles.constant';
@@ -410,6 +411,31 @@ export class World {
         return best;
     }
 
+    /**
+     * Whether a point is on the coast: dry land with open sea within a short
+     * walk. A lake's bank does not count, or a lighthouse ends up beside a
+     * pond in the middle of the island.
+     */
+    private onCoast(x: number, y: number): boolean {
+        const sea = this.sea ?? (this.sea = this.seaMask());
+        const steps = Math.ceil(COAST_REACH / BIOME_TILE);
+        const bx = Math.floor(x / BIOME_TILE);
+        const by = Math.floor(y / BIOME_TILE);
+        for (let oy = -steps; oy <= steps; oy++) {
+            for (let ox = -steps; ox <= steps; ox++) {
+                const tx = bx + ox;
+                const ty = by + oy;
+                if (tx < 0 || ty < 0 || tx >= BIOME_W || ty >= BIOME_H) continue;
+                const i = ty * BIOME_W + tx;
+                if (this.biomes[i] === 'water' && sea[i]) return true;
+            }
+        }
+        return false;
+    }
+
+    /** The sea, worked out once per island and kept for whoever asks next. */
+    private sea: Uint8Array | null = null;
+
     /** Which water tiles join up with the open sea, by a flood in from the rim. */
     private seaMask(): Uint8Array {
         const sea = new Uint8Array(BIOME_W * BIOME_H);
@@ -463,6 +489,7 @@ export class World {
                     const x = randRange(rng, def.radius + 160, WORLD_W - def.radius - 160);
                     const y = randRange(rng, def.radius + 160, WORLD_H - def.radius - 160);
                     if (this.biomeAt(x, y) === 'water') continue;
+                    if (def.place === 'coast' && !this.onCoast(x, y)) continue;
                     let clash = false;
                     for (const m of this.monuments) {
                         if (dist(x, y, m.x, m.y) < m.radius + def.radius + 900) clash = true;

@@ -11,4 +11,9 @@ export interface MonumentDef {
     /** Loot table weight by item. */
     loot: Partial<Record<ItemId, [number, number]>>;
     color: string;
+    /**
+     * Where this one belongs. 'coast' keeps it on the shoreline, which is the
+     * only place a lighthouse makes sense; absent puts it anywhere dry.
+     */
+    place?: 'coast';
 }
