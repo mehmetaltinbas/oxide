@@ -1,20 +1,22 @@
 #include "sim/rng.hpp"
 
-#include <cmath>
-
 namespace sim {
 
-std::uint64_t Rng::next() {
-    // xorshift64*, small and fast, and the same everywhere.
-    state_ ^= state_ >> 12;
-    state_ ^= state_ << 25;
-    state_ ^= state_ >> 27;
-    return state_ * 0x2545f4914f6cdd1dULL;
+namespace {
+
+/** JavaScript's Math.imul: the low 32 bits of the product, signed. */
+inline std::uint32_t imul(std::uint32_t a, std::uint32_t b) {
+    return static_cast<std::uint32_t>(static_cast<std::int32_t>(a) * static_cast<std::int32_t>(b));
 }
 
+}  // namespace
+
 double Rng::unit() {
-    // The top 53 bits, which is exactly what a double can hold without rounding.
-    return static_cast<double>(next() >> 11) / 9007199254740992.0;
+    state_ += 0x6d2b79f5u;
+    std::uint32_t t = state_;
+    t = imul(t ^ (t >> 15), t | 1u);
+    t ^= t + imul(t ^ (t >> 7), t | 61u);
+    return static_cast<double>((t ^ (t >> 14))) / 4294967296.0;
 }
 
 double Rng::range(double lo, double hi) { return lo + unit() * (hi - lo); }

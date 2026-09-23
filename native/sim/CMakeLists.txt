@@ -3,5 +3,9 @@
 add_library(oxide_sim STATIC
     src/rng.cpp
     src/world_size.cpp
+    src/world.cpp
+    src/node.cpp
+    src/nodes.cpp
+    src/player.cpp
 )
 target_include_directories(oxide_sim PUBLIC include)
