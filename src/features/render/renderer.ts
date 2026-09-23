@@ -1973,13 +1973,30 @@ export class Renderer {
         ctx.lineWidth = 2;
         ctx.strokeRect(x, y, mapW, mapH);
 
+        // The monuments, named. They are where the loot is, and a dot you have
+        // to guess at is no use for deciding where to go next; the ones that
+        // are hot are drawn and written in the hazard green.
+        ctx.font = `600 10px ${TYPE.body}`;
+        ctx.textAlign = 'center';
+        ctx.lineJoin = 'round';
         for (const m of game.world.monuments) {
             const def = MONUMENTS.find((d) => d.id === m.defId);
-            ctx.fillStyle = def && def.rads > 0 ? 'rgba(180,230,90,0.8)' : 'rgba(220,220,200,0.8)';
+            const hot = !!def && def.rads > 0;
+            const mx = x + m.x * scale;
+            const my = y + m.y * scale;
+            ctx.fillStyle = hot ? WORLD.hazard : '#efeadd';
             ctx.beginPath();
-            ctx.arc(x + m.x * scale, y + m.y * scale, 4, 0, TAU);
+            ctx.arc(mx, my, 4, 0, TAU);
             ctx.fill();
+            ctx.strokeStyle = INK.line;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            if (!def) continue;
+            ctx.lineWidth = 2.5;
+            ctx.strokeText(def.name, mx, my + 7);
+            ctx.fillText(def.name, mx, my + 7);
         }
+        ctx.textAlign = 'left';
         for (const d of game.build.deployables) {
             if (d.owner !== 0) continue;
             ctx.fillStyle = WORLD.lamp;
