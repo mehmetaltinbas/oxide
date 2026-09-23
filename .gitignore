@@ -1,2 +1,5 @@
 node_modules
 dist
+
+# The C++ build tree: fetched libraries and compiled output.
+native/build/

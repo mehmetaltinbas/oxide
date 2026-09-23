@@ -1,0 +1,52 @@
+# Builds the C++ game on Mac and Windows for every push.
+#
+# Mehmet works on a Mac, so without this there is no way to know the Windows
+# build still compiles, let alone to test it. Each run leaves a downloadable
+# binary for both platforms.
+name: native
+
+on:
+  push:
+    paths:
+      - 'native/**'
+      - '.github/workflows/native.yml'
+  pull_request:
+    paths:
+      - 'native/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: mac
+          - os: windows-latest
+            name: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # SDL is built from source, which is minutes. Keeping it between runs
+      # turns most builds into seconds.
+      - name: Cache the fetched libraries
+        uses: actions/cache@v4
+        with:
+          path: native/build/_deps
+          key: deps-${{ matrix.name }}-${{ hashFiles('native/CMakeLists.txt') }}
+
+      - name: Configure
+        run: cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build native/build --config Release --parallel
+
+      - name: Collect the binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: oxide-${{ matrix.name }}
+          path: |
+            native/build/bin/*
+            !native/build/bin/*.dSYM
