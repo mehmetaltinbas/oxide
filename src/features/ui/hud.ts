@@ -357,6 +357,18 @@ export class Hud {
         }
         const dep = game.held.deployPreview();
         if (!hint && dep) hint = dep.valid ? `click  place ${ITEMS[dep.id].name}` : dep.reason;
+        // Teaming up, which is two keys and only online. Above the bow's
+        // hint, below anything you could press E on.
+        if (!hint && game.mode === 'online') {
+            const invite = game.net.invite;
+            if (invite) {
+                const left = Math.max(0, Math.ceil((invite.expires - Date.now()) / 1000));
+                hint = `${invite.name} wants to team up  ·  y accept  ·  n refuse  (${left}s)`;
+            } else {
+                const near = game.playerToInvite();
+                if (near) hint = `t  ask ${near.name} to team up`;
+            }
+        }
         // The bow is the one weapon with two buttons, so it says how. After
         // the interact prompt, which always wins: see docs/systems/ui.md.
         if (!hint && game.heldItem()?.id === 'bow') {

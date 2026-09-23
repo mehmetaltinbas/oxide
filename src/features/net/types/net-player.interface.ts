@@ -11,4 +11,11 @@ export interface NetPlayer {
     alive: boolean;
     /** Last input sequence number this position accounts for. */
     ack: number;
+    /**
+     * Which team this player is on: 0 for nobody, otherwise a team id shared
+     * with everyone on it. Teammates see each other in the world and on the
+     * map; nothing else about them changes, and they can still shoot each
+     * other.
+     */
+    team: number;
 }

@@ -1,3 +1,4 @@
+import { TEAM_INVITE_SECONDS } from 'src/features/net/constants/team-invite-seconds.constant';
 import PLAYER_NUMBERS from 'shared/player.json';
 import {
     CLOCK_CATCHUP,
@@ -74,6 +75,10 @@ export class NetClient {
     predictedY = 0;
 
     onChat: ((from: string, text: string) => void) | null = null;
+    /** Somebody has asked you to team up: their id, their name, and when it lapses. */
+    invite: { from: string; name: string; expires: number } | null = null;
+    /** Your own team id, 0 when you are on nobody's. */
+    myTeam = 0;
     /**
      * Push a circle out of the room's building, the same rule the server runs.
      * Set by the game, because the net client does not know what a wall is.
@@ -177,6 +182,23 @@ export class NetClient {
 
     reportBuild(kind: string, gx: number, gy: number, side?: 'n' | 'w'): void {
         this.send({ t: 'build', kind, gx, gy, side });
+    }
+
+    /** Ask the player you are standing next to to team up. */
+    invitePlayer(id: string): void {
+        this.send({ t: 'invite', to: id });
+    }
+
+    /** Answer the ask you were given, if it has not lapsed. */
+    answerInvite(accept: boolean): void {
+        if (!this.invite) return;
+        this.send({ t: 'inviteReply', from: this.invite.from, accept });
+        this.invite = null;
+    }
+
+    leaveTeam(): void {
+        this.myTeam = 0;
+        this.send({ t: 'leaveTeam' });
     }
 
     reportDoor(id: number, open: boolean): void {
@@ -353,6 +375,7 @@ export class NetClient {
                         this.serverY = p.y;
                         this.predictedX = p.x;
                         this.predictedY = p.y;
+                        this.myTeam = p.team ?? 0;
                     } else this.others.set(p.id, p);
                 }
                 this.structures.clear();
@@ -379,8 +402,10 @@ export class NetClient {
                 const seen = new Set<string>();
                 for (const p of msg.players) {
                     seen.add(p.id);
-                    if (p.id === this.youId) this.reconcile(p);
-                    else this.others.set(p.id, p);
+                    if (p.id === this.youId) {
+                        this.myTeam = p.team ?? 0;
+                        this.reconcile(p);
+                    } else this.others.set(p.id, p);
                 }
                 for (const id of [...this.others.keys()]) {
                     if (!seen.has(id)) this.others.delete(id);
@@ -417,6 +442,17 @@ export class NetClient {
             }
             case 'chat':
                 this.onChat?.(msg.from, msg.text);
+                break;
+            case 'invited':
+                this.invite = {
+                    from: msg.from,
+                    name: msg.fromName,
+                    expires: Date.now() + TEAM_INVITE_SECONDS * 1000,
+                };
+                this.onChat?.('team', `${msg.fromName} wants to team up.`);
+                break;
+            case 'teamed':
+                this.onChat?.('team', msg.message);
                 break;
             case 'pong':
                 this.ping = Date.now() - msg.at;

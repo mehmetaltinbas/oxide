@@ -13,7 +13,7 @@ import PLAYER_NUMBERS from '../shared/player.json' with { type: 'json' };
 import WORLD_NUMBERS from '../shared/world.json' with { type: 'json' };
 
 const PORT = Number(process.env.PORT ?? 8787);
-const PROTOCOL_VERSION = 1;
+const PROTOCOL_VERSION = 2;
 const TICK_HZ = 30;
 const TICK_MS = 1000 / TICK_HZ;
 
@@ -99,6 +99,9 @@ class Room {
             held: null,
             alive: true,
             ack: 0,
+            // 0 is nobody. Teaming up puts two players on the same id; it only
+            // decides who can see whom, never who can hurt whom.
+            team: 0,
             input: { up: false, down: false, left: false, right: false, run: false },
         };
         this.players.set(client.id, player);
@@ -136,6 +139,22 @@ class Room {
     }
 }
 
+/**
+ * How close you must be to ask someone to team up, in world units. Kept in
+ * step with TEAM_INVITE_RANGE on the client by hand, like the movement
+ * numbers: if they drift, the client offers an invitation the server refuses.
+ */
+const INVITE_RANGE = 120;
+
+/** Team ids climb, so a new team never inherits an old one's members. */
+let nextTeam = 1;
+
+/** The socket a player id is on, or null if they have gone. */
+function wsById(id) {
+    for (const [ws, c] of clients) if (c.id === id) return ws;
+    return null;
+}
+
 function clamp(v, lo, hi) {
     return v < lo ? lo : v > hi ? hi : v;
 }
@@ -158,6 +177,7 @@ function netPlayer(p) {
         held: p.held,
         alive: p.alive,
         ack: p.ack,
+        team: p.team ?? 0,
     };
 }
 
@@ -554,6 +574,58 @@ function handle(ws, client, msg) {
             if (!room) return;
             const text = String(msg.text ?? '').slice(0, 200);
             if (text) broadcast(room, { t: 'chat', from: client.name, text });
+            break;
+        }
+        case 'invite': {
+            const room = client.room;
+            if (!room) return;
+            const me = room.players.get(client.id);
+            const them = room.players.get(String(msg.to ?? ''));
+            if (!me || !them || them === me) return;
+            // Close enough to speak to: an invite is something you offer the
+            // person in front of you, not a message across the island.
+            if (Math.hypot(me.x - them.x, me.y - them.y) > INVITE_RANGE) {
+                send(ws, { t: 'teamed', message: 'Too far away to ask.' });
+                return;
+            }
+            const theirWs = wsById(them.id);
+            if (theirWs) send(theirWs, { t: 'invited', from: me.id, fromName: me.name });
+            send(ws, { t: 'teamed', message: `Asked ${them.name} to team up.` });
+            break;
+        }
+        case 'inviteReply': {
+            const room = client.room;
+            if (!room) return;
+            const me = room.players.get(client.id);
+            const them = room.players.get(String(msg.from ?? ''));
+            if (!me || !them) return;
+            const theirWs = wsById(them.id);
+            if (!msg.accept) {
+                if (theirWs) send(theirWs, { t: 'teamed', message: `${me.name} said no.` });
+                break;
+            }
+            // Join whichever team already exists, or start a new one.
+            const team = them.team || me.team || nextTeam++;
+            them.team = team;
+            me.team = team;
+            const names = [...room.players.values()]
+                .filter((p) => p.team === team)
+                .map((p) => p.name)
+                .join(', ');
+            for (const p of room.players.values()) {
+                if (p.team !== team) continue;
+                const w = wsById(p.id);
+                if (w) send(w, { t: 'teamed', message: `Team: ${names}.` });
+            }
+            break;
+        }
+        case 'leaveTeam': {
+            const room = client.room;
+            if (!room) return;
+            const me = room.players.get(client.id);
+            if (!me || !me.team) return;
+            me.team = 0;
+            send(ws, { t: 'teamed', message: 'You left the team.' });
             break;
         }
         case 'ping': {

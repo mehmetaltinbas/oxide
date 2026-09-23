@@ -36,6 +36,8 @@ export const CONTROLS_REFERENCE: { group: string; rows: [string, string][] }[] =
         group: 'The island',
         rows: [
             ['M', 'Open the map'],
+            ['T', 'Ask a nearby player to team up'],
+            ['Y / N', 'Accept or refuse an invitation'],
             ['H', 'How the island works'],
             ['Esc', 'Settings, or back out'],
         ],

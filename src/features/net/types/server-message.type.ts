@@ -36,4 +36,7 @@ export type ServerMessage =
     | { t: 'destroyed'; id: number }
     | { t: 'door'; id: number; open: boolean }
     | { t: 'chat'; from: string; text: string }
+    /** Someone has asked you to team up. It lapses on its own. */
+    | { t: 'invited'; from: string; fromName: string }
+    | { t: 'teamed'; message: string }
     | { t: 'pong'; at: number };

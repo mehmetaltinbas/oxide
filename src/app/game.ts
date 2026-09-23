@@ -1,3 +1,5 @@
+import { TEAM_INVITE_RANGE } from 'src/features/net/constants/team-invite-range.constant';
+import { NetPlayer } from 'src/features/net/types/net-player.interface';
 import { GUNFIRE_HEARING } from 'src/features/combat/constants/gunfire-hearing.constant';
 import { GUN_SOUNDS } from 'src/features/items/constants/gun-sounds.constant';
 import { BOW_DRAW_SECONDS } from 'src/features/items/constants/bow-draw-seconds.constant';
@@ -749,6 +751,18 @@ export class Game {
         }
         if (i.justPressed('KeyQ') && this.heldItem()?.id === 'building_plan') this.cycleBuildKind();
         if (i.justPressed('KeyE')) this.interaction.interact();
+        // Teaming up: T asks whoever you are standing next to, and while you
+        // are being asked, Y accepts and N refuses.
+        if (this.mode === 'online') {
+            if (this.net.invite && Date.now() > this.net.invite.expires) this.net.invite = null;
+            if (i.justPressed('KeyY') && this.net.invite) this.net.answerInvite(true);
+            else if (i.justPressed('KeyN') && this.net.invite) this.net.answerInvite(false);
+            else if (i.justPressed('KeyT')) {
+                const near = this.playerToInvite();
+                if (near) this.net.invitePlayer(near.id);
+                else this.notify('Nobody close enough to ask.');
+            }
+        }
         if (i.justPressed('KeyR')) this.survival.reloadHeld();
         if (i.justPressed('KeyG')) this.interaction.dropHeld();
         // M opens the whole island.
@@ -1041,6 +1055,31 @@ export class Game {
     // -------------------------------------------------------------- building
 
     // ------------------------------------------------------------- interact
+
+    /**
+     * The nearest other player close enough to ask onto your team, if any.
+     * Teammates are skipped: you are already together.
+     */
+    playerToInvite(): NetPlayer | null {
+        if (this.mode !== 'online') return null;
+        let best: NetPlayer | null = null;
+        let bestD = TEAM_INVITE_RANGE;
+        for (const other of this.net.others.values()) {
+            if (!other.alive) continue;
+            if (other.team !== 0 && other.team === this.net.myTeam) continue;
+            const d = Math.hypot(other.x - this.player.x, other.y - this.player.y);
+            if (d < bestD) {
+                bestD = d;
+                best = other;
+            }
+        }
+        return best;
+    }
+
+    /** Whether someone else is on your team. */
+    isTeammate(other: NetPlayer): boolean {
+        return this.net.myTeam !== 0 && other.team === this.net.myTeam;
+    }
 
     /**
      * Whether the player may reach something. You cannot open a box through a

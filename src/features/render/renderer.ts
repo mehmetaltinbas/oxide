@@ -17,6 +17,7 @@ import { SNOW } from 'src/features/render/constants/snow.constant';
 import { BROADLEAF } from 'src/features/render/constants/broadleaf.constant';
 import { seeded } from 'src/shared/utils/seeded.util';
 import { TRACER } from 'src/features/combat/constants/tracer.constant';
+import { TEAM } from 'src/shared/design/constants/team.constant';
 import { HEALTH_BAR } from 'src/shared/design/constants/health-bar.constant';
 import { ThrownExplosive } from 'src/features/combat/types/thrown-explosive.interface';
 import { PLAYER } from 'src/features/survival/constants/player.constant';
@@ -1507,16 +1508,42 @@ export class Renderer {
             });
             ctx.restore();
 
+            // A teammate is marked: a green arrow over their head, and their
+            // name in the same green. Everyone else is left plain.
+            const mate = game.isTeammate(other);
+            if (mate) this.teamMarker(other.x, other.y - 34);
+
             ctx.font = `11px ${TYPE.body}`;
             ctx.textAlign = 'center';
             ctx.fillStyle = WORLD.nameTagShadow;
             ctx.fillText(other.name, other.x + 1, other.y - 25);
-            ctx.fillStyle = '#e8e2d4';
+            ctx.fillStyle = mate ? TEAM.color : '#e8e2d4';
             ctx.fillText(other.name, other.x, other.y - 26);
             ctx.textAlign = 'left';
 
             if (other.health < 100) this.hpBar(other.x - 16, other.y - 20, 32, other.health / 100);
         }
+    }
+
+    /**
+     * The mark over a teammate: a green arrow pointing down at them, inked
+     * like everything else in the world so it reads over any ground.
+     */
+    private teamMarker(x: number, y: number): void {
+        const ctx = this.ctx;
+        const w = TEAM.markerWidth;
+        const h = TEAM.markerHeight;
+        ctx.fillStyle = TEAM.color;
+        ctx.beginPath();
+        ctx.moveTo(x, y + h);
+        ctx.lineTo(x - w, y);
+        ctx.lineTo(x - w * 0.4, y);
+        ctx.lineTo(x - w * 0.4, y - h * 0.5);
+        ctx.lineTo(x + w * 0.4, y - h * 0.5);
+        ctx.lineTo(x + w * 0.4, y);
+        ctx.lineTo(x + w, y);
+        ctx.closePath();
+        ctx.fill();
     }
 
     private lastSwing = 0;
@@ -1957,6 +1984,29 @@ export class Renderer {
             if (d.owner !== 0) continue;
             ctx.fillStyle = WORLD.lamp;
             ctx.fillRect(x + d.x * scale - 2, y + d.y * scale - 2, 4, 4);
+        }
+        // Teammates, on the map: a green dot with their name. Nobody else is
+        // shown; finding the rest is still the game.
+        if (game.mode === 'online') {
+            ctx.font = `600 9px ${TYPE.body}`;
+            ctx.textAlign = 'center';
+            for (const other of game.net.others.values()) {
+                if (!other.alive || !game.isTeammate(other)) continue;
+                const ox = x + other.x * scale;
+                const oy = y + other.y * scale;
+                ctx.fillStyle = TEAM.color;
+                ctx.beginPath();
+                ctx.arc(ox, oy, 3.5, 0, TAU);
+                ctx.fill();
+                ctx.strokeStyle = INK.line;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.lineWidth = 2.5;
+                ctx.lineJoin = 'round';
+                ctx.strokeText(other.name, ox, oy - 12);
+                ctx.fillText(other.name, ox, oy - 12);
+            }
+            ctx.textAlign = 'left';
         }
         if (game.player.alive) {
             // You are an arrow, not a dot: the point shows which way you are facing,

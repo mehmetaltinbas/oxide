@@ -24,4 +24,8 @@ export type ClientMessage =
     | { t: 'door'; id: number; open: boolean }
     | { t: 'damage'; id: number; amount: number }
     | { t: 'chat'; text: string }
+    /** Ask another player in the room to team up, and answer an ask. */
+    | { t: 'invite'; to: string }
+    | { t: 'inviteReply'; from: string; accept: boolean }
+    | { t: 'leaveTeam' }
     | { t: 'ping'; at: number };
