@@ -15,6 +15,7 @@ import { BIOME_TILE } from 'src/features/world/constants/biome-tile.constant';
 import { BIOME_W } from 'src/features/world/constants/biome-w.constant';
 import { MONUMENT_COUNTS } from 'src/features/world/constants/monument-counts.constant';
 import { MONUMENTS } from 'src/features/world/constants/monuments.constant';
+import { MONUMENT_SPREAD } from 'src/features/world/constants/monument-spread.constant';
 import { NODES } from 'src/features/world/constants/nodes.constant';
 import { WORLD_H } from 'src/features/world/constants/world-h.constant';
 import { WORLD_W } from 'src/features/world/constants/world-w.constant';
@@ -507,29 +508,47 @@ export class World {
 
     private placeMonuments(rng: () => number): void {
         let serial = 0;
-        for (const def of MONUMENTS) {
+        // The landmarks go down first and far apart, then everything else fills
+        // in round them. Placed the other way round, the small stuff takes the
+        // room the big places need and they end up in each other's pockets.
+        const order = [...MONUMENTS].sort((a, b) => Number(!!b.major) - Number(!!a.major));
+        for (const def of order) {
             const wanted = MONUMENT_COUNTS[def.id] ?? 1;
             for (let n = 0; n < wanted; n++) {
-                for (let attempt = 0; attempt < 400; attempt++) {
-                    const x = randRange(rng, def.radius + 160, WORLD_W - def.radius - 160);
-                    const y = randRange(rng, def.radius + 160, WORLD_H - def.radius - 160);
-                    if (this.biomeAt(x, y) === 'water') continue;
-                    if (def.place === 'coast' && !this.onCoast(x, y)) continue;
-                    if (def.biomes && !def.biomes.includes(this.biomeAt(x, y))) continue;
-                    let clash = false;
-                    for (const m of this.monuments) {
-                        if (dist(x, y, m.x, m.y) < m.radius + def.radius + 900) clash = true;
+                let apart = MONUMENT_SPREAD.apart;
+                let placed = false;
+                for (let round = 0; round < MONUMENT_SPREAD.rounds && !placed; round++) {
+                    for (let attempt = 0; attempt < 400; attempt++) {
+                        const x = randRange(rng, def.radius + 160, WORLD_W - def.radius - 160);
+                        const y = randRange(rng, def.radius + 160, WORLD_H - def.radius - 160);
+                        if (this.biomeAt(x, y) === 'water') continue;
+                        if (def.place === 'coast' && !this.onCoast(x, y)) continue;
+                        if (def.biomes && !def.biomes.includes(this.biomeAt(x, y))) continue;
+                        let clash = false;
+                        for (const m of this.monuments) {
+                            const other = MONUMENTS.find((d) => d.id === m.defId);
+                            const need =
+                                def.major && other?.major ? apart : m.radius + def.radius + 900;
+                            if (dist(x, y, m.x, m.y) < need) {
+                                clash = true;
+                                break;
+                            }
+                        }
+                        if (clash) continue;
+                        this.monuments.push({
+                            id: `${def.id}#${serial++}`,
+                            defId: def.id,
+                            x,
+                            y,
+                            radius: def.radius,
+                        });
+                        this.spawnCrates(def, x, y, rng);
+                        placed = true;
+                        break;
                     }
-                    if (clash) continue;
-                    this.monuments.push({
-                        id: `${def.id}#${serial++}`,
-                        defId: def.id,
-                        x,
-                        y,
-                        radius: def.radius,
-                    });
-                    this.spawnCrates(def, x, y, rng);
-                    break;
+                    // Nowhere that far from the others on this island: ask for
+                    // a little less and go round again, rather than dropping it.
+                    apart *= MONUMENT_SPREAD.relax;
                 }
             }
         }

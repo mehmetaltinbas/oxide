@@ -21,6 +21,12 @@ export interface MonumentDef {
      */
     place?: 'coast';
     /**
+     * A landmark: one of the few big places worth crossing the island for.
+     * These are kept well apart from one another, so they are spread over the
+     * map rather than clustered in one corner.
+     */
+    major?: boolean;
+    /**
      * The only biomes it may stand in. Absent is anywhere dry: cabins belong
      * among trees and snow, not out on the sand.
      */

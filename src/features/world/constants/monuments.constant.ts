@@ -56,6 +56,7 @@ export const MONUMENTS: MonumentDef[] = [
             gunpowder: [10, 40],
         },
         color: '#6f6f68',
+        major: true,
     },
     {
         id: 'powerplant',
@@ -78,6 +79,7 @@ export const MONUMENTS: MonumentDef[] = [
             gunpowder: [30, 90],
         },
         color: '#5f6663',
+        major: true,
     },
     {
         id: 'military',
@@ -98,6 +100,7 @@ export const MONUMENTS: MonumentDef[] = [
             ak47: [0, 1],
         },
         color: '#5a5f4a',
+        major: true,
     },
     {
         id: 'town',
