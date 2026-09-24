@@ -464,10 +464,155 @@ void BuildSystem::applyDecay(double hours) {
 void BuildSystem::update(double dt) {
     for (Structure& piece : pieces_) {
         if (piece.flash > 0) piece.flash -= dt;
+        // A door swung open or shut changes what is sealed.
+        if (piece.kind == BuildKind::Door && piece.open != wasOpen_[piece.id]) {
+            wasOpen_[piece.id] = piece.open;
+            enclosureDirty_ = true;
+        }
     }
 }
 
+namespace {
+
+/** Whether you can step from one cell to its neighbour, or a wall is between. */
+struct Step {
+    int gx;
+    int gy;
+    EdgeSide side;
+};
+
+Step between(int cx, int cy, int nx, int ny) {
+    if (cx == nx) return Step{cx, std::max(cy, ny), EdgeSide::North};
+    return Step{std::max(cx, nx), cy, EdgeSide::West};
+}
+
+}  // namespace
+
+void BuildSystem::rebuildEnclosure() const {
+    enclosure_.clear();
+    enclosureOwner_.clear();
+    enclosureDirty_ = false;
+    if (pieces_.empty()) return;
+
+    // One box round everything built, with two cells of pad so the border ring
+    // is open ground: that ring is where the flood from outside starts.
+    int minX = 1 << 30;
+    int minY = 1 << 30;
+    int maxX = -(1 << 30);
+    int maxY = -(1 << 30);
+    for (const Structure& piece : pieces_) {
+        minX = std::min(minX, piece.gx - 2);
+        minY = std::min(minY, piece.gy - 2);
+        maxX = std::max(maxX, piece.gx + 2);
+        maxY = std::max(maxY, piece.gy + 2);
+    }
+    const int w = maxX - minX + 1;
+    const int h = maxY - minY + 1;
+    if (w <= 0 || h <= 0 || static_cast<long>(w) * h > 4000000) return;
+
+    const auto open = [&](int cx, int cy, int nx, int ny) {
+        const Step step = between(cx, cy, nx, ny);
+        const Structure* blocker = edgeAt(step.gx, step.gy, step.side);
+        if (!blocker) return true;
+        // A doorway is a hole, and so is a door standing open.
+        return blocker->kind == BuildKind::Doorway ||
+               (blocker->kind == BuildKind::Door && blocker->open);
+    };
+    const auto at = [&](int gx, int gy) { return (gy - minY) * w + (gx - minX); };
+
+    // Pass one: everything the open air can walk to. However much wall is
+    // about, if you can stroll in from outside it is not a room.
+    std::vector<std::uint8_t> outside(static_cast<std::size_t>(w) * h, 0);
+    std::vector<int> stack;
+    const auto push = [&](int gx, int gy) {
+        if (gx < minX || gx > maxX || gy < minY || gy > maxY) return;
+        const int i = at(gx, gy);
+        if (outside[i]) return;
+        outside[i] = 1;
+        stack.push_back(gx);
+        stack.push_back(gy);
+    };
+    for (int gx = minX; gx <= maxX; ++gx) {
+        push(gx, minY);
+        push(gx, maxY);
+    }
+    for (int gy = minY; gy <= maxY; ++gy) {
+        push(minX, gy);
+        push(maxX, gy);
+    }
+    while (!stack.empty()) {
+        const int cy = stack.back();
+        stack.pop_back();
+        const int cx = stack.back();
+        stack.pop_back();
+        if (open(cx, cy, cx, cy - 1)) push(cx, cy - 1);
+        if (open(cx, cy, cx, cy + 1)) push(cx, cy + 1);
+        if (open(cx, cy, cx - 1, cy)) push(cx - 1, cy);
+        if (open(cx, cy, cx + 1, cy)) push(cx + 1, cy);
+    }
+
+    // Pass two: what is left is sealed. Grouped into rooms, so a room is one
+    // region however many cells it spans and a hole anywhere opens all of it.
+    int region = 1;
+    std::vector<std::uint8_t> grouped(static_cast<std::size_t>(w) * h, 0);
+    for (int gy = minY; gy <= maxY; ++gy) {
+        for (int gx = minX; gx <= maxX; ++gx) {
+            const int seed = at(gx, gy);
+            if (outside[seed] || grouped[seed]) continue;
+            grouped[seed] = 1;
+            std::vector<int> room{gx, gy};
+            std::vector<std::uint64_t> cells;
+            int owner = -1;
+            while (!room.empty()) {
+                const int cy = room.back();
+                room.pop_back();
+                const int cx = room.back();
+                room.pop_back();
+                cells.push_back(cellKey(cx, cy));
+                if (const Structure* floor = foundationAt(cx, cy)) {
+                    if (owner == -1) owner = floor->owner;
+                }
+                const int steps[4][2] = {{cx, cy - 1}, {cx, cy + 1}, {cx - 1, cy}, {cx + 1, cy}};
+                for (const auto& step : steps) {
+                    const int nx = step[0];
+                    const int ny = step[1];
+                    if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;
+                    const int ni = at(nx, ny);
+                    if (grouped[ni] || outside[ni]) continue;
+                    if (!open(cx, cy, nx, ny)) continue;
+                    grouped[ni] = 1;
+                    room.push_back(nx);
+                    room.push_back(ny);
+                }
+            }
+            for (const std::uint64_t key : cells) enclosure_[key] = region;
+            enclosureOwner_[region] = owner;
+            ++region;
+        }
+    }
+}
+
+int BuildSystem::regionAt(double x, double y) const {
+    if (enclosureDirty_) rebuildEnclosure();
+    const auto it = enclosure_.find(cellKey(static_cast<int>(std::floor(x / kBuildCell)),
+                                            static_cast<int>(std::floor(y / kBuildCell))));
+    return it == enclosure_.end() ? 0 : it->second;
+}
+
+int BuildSystem::regionOwner(int region) const {
+    if (enclosureDirty_) rebuildEnclosure();
+    const auto it = enclosureOwner_.find(region);
+    return it == enclosureOwner_.end() ? -1 : it->second;
+}
+
+const std::unordered_map<std::uint64_t, int>& BuildSystem::enclosedCells() const {
+    if (enclosureDirty_) rebuildEnclosure();
+    return enclosure_;
+}
+
 void BuildSystem::reindex() {
+    // What is sealed changes with every piece, and with every door swung.
+    enclosureDirty_ = true;
     byCell_.clear();
     byEdge_.clear();
     for (int i = 0; i < static_cast<int>(pieces_.size()); ++i) {

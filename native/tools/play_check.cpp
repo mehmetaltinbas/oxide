@@ -3,6 +3,7 @@
 // up in the pack. A quick check that the rules still hold after a change.
 #include <cmath>
 #include <cstdio>
+#include <string>
 #include <vector>
 
 #include "sim/action.hpp"
@@ -10,6 +11,7 @@
 #include "sim/build.hpp"
 #include "sim/survival.hpp"
 #include "sim/craft.hpp"
+#include "sim/save.hpp"
 #include "sim/projectile.hpp"
 
 int main() {
@@ -65,6 +67,19 @@ int main() {
             if (blow.swung) ++blows;
             if (blow.broke) felled = true;
         }
+    }
+
+    // Every item has a row of its own: eight of them once drifted out of step
+    // with their ids, and a rock stopped being able to fell a tree.
+    {
+        int nameless = 0;
+        for (int i = 1; i < sim::kItemCount; ++i) {
+            const sim::ItemDef& def = sim::itemDef(static_cast<sim::ItemId>(i));
+            if (def.name[0] == '\0') ++nameless;
+        }
+        std::printf("items: %d of %d have a definition\n", sim::kItemCount - 1 - nameless,
+                    sim::kItemCount - 1);
+        if (nameless > 0) return 1;
     }
 
     // A day of standing still: what hunger, thirst and the cold do on their own.
@@ -297,6 +312,26 @@ int main() {
     std::printf("hunt: %s %s after %d hits, leather %d, meat %d, health %d\n", preyName,
                 killed ? "killed" : "got away", hits, inventory.count(sim::ItemId::Leather),
                 inventory.count(sim::ItemId::MeatRaw), static_cast<int>(player.health));
+
+    // Written down and read back: the same island, and everything that has
+    // happened to it.
+    {
+        sim::Session out{12345, 1234.5, player, inventory};
+        const std::string path = "/tmp/oxide-save-check";
+        const bool wrote = sim::saveSession(path, out, world, build);
+        sim::World back;
+        sim::BuildSystem backBuild;
+        sim::Session in;
+        const bool readBack = sim::loadSession(path, in, back, backBuild);
+        int felled = 0;
+        for (const sim::ResourceNode& node : back.nodes()) {
+            if (node.hp < node.maxHp || node.respawn > 0) ++felled;
+        }
+        std::printf("save: %s, %s, wood %d, pieces %zu, deployables %zu, worked nodes %d\n",
+                    wrote ? "wrote" : "could not write", readBack ? "read back" : "would not read",
+                    in.inventory.count(sim::ItemId::Wood), backBuild.list().size(),
+                    backBuild.deployables().size(), felled);
+    }
 
     std::printf("tree at %.0f, %.0f: %s after %d blows, wood %d, stone %d, drops %zu\n", target->x,
                 target->y, felled ? "felled" : "still standing", blows,

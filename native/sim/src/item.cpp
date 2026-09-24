@@ -10,8 +10,8 @@ constexpr Food kNoFood{0, 0, 0, 0};
 constexpr Wear kNoWear{0, 0, 0};
 constexpr Boom kNoBoom{0, 0, 0};
 
-/** The table, in the order of ItemId. */
-constexpr ItemDef kItems[kItemCount] = {
+/** Every item there is. The order here does not matter; the ids do. */
+constexpr ItemDef kItems[] = {
     {ItemId::None, "", ItemCategory::Resource, 0, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
     {ItemId::Wood, "Wood", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
     {ItemId::Stone, "Stones", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
@@ -76,10 +76,51 @@ constexpr ItemDef kItems[kItemCount] = {
     // the recoil is spent as spread: it wins close and loses long.
     {ItemId::Ak47, "Assault Rifle", ItemCategory::Weapon, 1, kNone,
      {78, 0.145, 1250, 950, 0.06, ItemId::RifleAmmo, 30, 4.4, 1}},
+    // Raiding.
+    {ItemId::Satchel, "Satchel Charge", ItemCategory::Explosive, 10, kNone, kNoGun, kNoFood,
+     kNoWear, {475, 90, 3.2}},
+    {ItemId::C4, "Timed Explosive", ItemCategory::Explosive, 5, kNone, kNoGun, kNoFood, kNoWear,
+     {550, 120, 4.5}},
+    // Raiding from range, Rust's way: one in the tube and a long reload.
+    {ItemId::RocketLauncher, "Rocket Launcher", ItemCategory::Weapon, 1, kNone,
+     {0, 1.0, 560, 900, 0.02, ItemId::Rocket, 1, 6.0, 1}, kNoFood, kNoWear, {275, 100, 0}},
+    {ItemId::Rocket, "Rocket", ItemCategory::Ammo, 3, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
+    // Goes on a door, and keeps everyone else the other side of it.
+    {ItemId::Lock, "Code Lock", ItemCategory::Tool, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
+    // The benches. What you can make is what you are standing next to.
+    {ItemId::Workbench1, "Workbench I", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood,
+     kNoWear, kNoBoom},
+    {ItemId::Workbench2, "Workbench II", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood,
+     kNoWear, kNoBoom},
+    {ItemId::Workbench3, "Workbench III", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood,
+     kNoWear, kNoBoom},
 };
+
+/**
+ * Looked up by the id on each row rather than by where the row happens to sit.
+ *
+ * Written out in order once, they drifted: eight items were added to the enum
+ * and to the table in different places, and every id past that point read as a
+ * different item, which is how a rock stopped being able to fell a tree.
+ */
+const ItemDef* byId() {
+    static ItemDef table[kItemCount];
+    static bool filled = false;
+    if (!filled) {
+        for (int i = 0; i < kItemCount; ++i) {
+            table[i] = ItemDef{static_cast<ItemId>(i), "", ItemCategory::Resource, 1,
+                               kNone, kNoGun, kNoFood, kNoWear, kNoBoom};
+        }
+        for (const ItemDef& def : kItems) {
+            table[static_cast<int>(def.id)] = def;
+        }
+        filled = true;
+    }
+    return table;
+}
 
 }  // namespace
 
-const ItemDef& itemDef(ItemId id) { return kItems[static_cast<int>(id)]; }
+const ItemDef& itemDef(ItemId id) { return byId()[static_cast<int>(id)]; }
 
 }  // namespace sim

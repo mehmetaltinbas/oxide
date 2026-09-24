@@ -23,6 +23,7 @@
 #include "sim/blast.hpp"
 #include "sim/build.hpp"
 #include "sim/craft.hpp"
+#include "sim/save.hpp"
 #include "sim/daylight.hpp"
 #include "sim/deployable.hpp"
 #include "sim/survival.hpp"
@@ -105,6 +106,8 @@ int main(int argc, char** argv) {
     bool showMap = false;
     /** Dropped in at midnight, for a look at the dark. */
     bool startAtNight = false;
+    /** Nothing to worry about and everything to hand, for trying things out. */
+    bool sandbox = false;
     /** Where to play: nowhere is this machine, a host is somebody's island. */
     std::string connectTo;
     std::string playerName = "survivor";
@@ -126,6 +129,8 @@ int main(int argc, char** argv) {
             connectTo = argv[++i];
         } else if (SDL_strcmp(argv[i], "--name") == 0 && i + 1 < argc) {
             playerName = argv[++i];
+        } else if (SDL_strcmp(argv[i], "--sandbox") == 0) {
+            sandbox = true;
         } else if (SDL_strcmp(argv[i], "--night") == 0) {
             startAtNight = true;
         } else if (SDL_strcmp(argv[i], "--map") == 0) {
@@ -169,12 +174,18 @@ int main(int argc, char** argv) {
         std::printf("Joined %s as %u on island %u\n", connectTo.c_str(), net.id(), seed);
     }
 
+    // Where a single-player island is kept between sittings.
+    const char* home = SDL_getenv("HOME");
+    const std::string savePath =
+        std::string(home ? home : ".") + "/.oxide-save";
+
     sim::World world;
     const std::uint64_t built = SDL_GetTicks();
     world.generate(seed);
     std::printf("Oxide: island %u built in %llu ms, %zu things standing on it\n", seed,
                 static_cast<unsigned long long>(SDL_GetTicks() - built), world.nodes().size());
 
+    sim::BuildSystem build;
     sim::Player player;
     dropIn(world, player, seed);
     if (online) {
@@ -190,15 +201,45 @@ int main(int argc, char** argv) {
         player.y = startY;
     }
 
-    sim::BuildSystem build;
     sim::NpcSystem npcs;
     npcs.populate(world, seed);
     npcs.garrison(world, seed);
 
     sim::Inventory inventory;
+    // Noon when you arrive, so the first thing you see is the place rather
+    // than the dark; a save brings its own hour with it.
+    double startClock = sim::kDaySeconds * 0.5;
+
+    // Picking up where the last sitting left off, unless this is an island
+    // somebody else is running.
+    bool loaded = false;
+    if (!online && !sandbox) {
+        sim::Session session;
+        if (sim::loadSession(savePath, session, world, build) && session.seed == seed) {
+            player = session.player;
+            inventory = session.inventory;
+            startClock = session.clock;
+            loaded = true;
+            std::printf("Carried on from %s\n", savePath.c_str());
+        }
+    }
+
     if (poseSwing >= 0) {
         inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
         inventory.selectSlot(1);
+    }
+    if (sandbox) {
+        // Every bench to hand and a bag of everything, so the whole game can
+        // be looked at without playing through it first.
+        inventory.add(sim::ItemId::Workbench3, 1);
+        inventory.add(sim::ItemId::BuildingPlan, 1);
+        inventory.add(sim::ItemId::Hatchet, 1);
+        inventory.add(sim::ItemId::Wood, 5000);
+        inventory.add(sim::ItemId::Stone, 5000);
+        inventory.add(sim::ItemId::Metal, 5000);
+        inventory.add(sim::ItemId::Scrap, 2000);
+        inventory.add(sim::ItemId::Cloth, 1000);
+        inventory.add(sim::ItemId::Gunpowder, 2000);
     }
     if (armed) {
         inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
@@ -214,9 +255,10 @@ int main(int argc, char** argv) {
         inventory.selectSlot(3);
     }
     if (showBase) {
-        // Two by two, walled in, with a doorway at the front and a door in it.
-        const int gx = static_cast<int>(player.x / sim::kBuildCell);
-        const int gy = static_cast<int>(player.y / sim::kBuildCell);
+        // Two by two, walled in, with a doorway at the front and a door in it,
+        // put up a few cells away so you can see it from outside.
+        const int gx = static_cast<int>(player.x / sim::kBuildCell) + 3;
+        const int gy = static_cast<int>(player.y / sim::kBuildCell) + 2;
         for (int oy = 0; oy < 2; ++oy) {
             for (int ox = 0; ox < 2; ++ox) {
                 build.placeFoundation(gx + ox, gy + oy, 0, sim::BuildTier::Wood);
@@ -262,6 +304,7 @@ int main(int argc, char** argv) {
     client::Particles specks;
     client::Panel panel;
     client::MapScreen map(renderer);
+    if (loaded) hud.notify("Carried on where you left off.");
     if (showMap) map.toggle();
     // What the building plan would put down, cycled with B.
     sim::BuildKind buildKind = sim::BuildKind::Foundation;
@@ -296,12 +339,12 @@ int main(int argc, char** argv) {
     bool dead = false;
     bool wantsRespawn = false;
 
-    // The island's own clock. Noon when you arrive, so the first thing you see
-    // is the place rather than the dark.
+    // The island's own clock, carried over from the last sitting.
     std::uint32_t inputSeq = 0;
+    double sinceSave = 0;
     std::size_t chatSeen = 0;
 
-    double clock = sim::kDaySeconds * 0.5;
+    double clock = startClock;
     if (startAtNight) clock = 0;
 
     double zoom = 1.0;
@@ -518,6 +561,14 @@ int main(int argc, char** argv) {
         // Nothing warms you yet: the campfire arrives with the deployables.
         build.updateDeployables(dt);
         specks.update(dt);
+        if (!online && !sandbox) {
+            sinceSave += dt;
+            if (sinceSave > 20) {
+                sinceSave = 0;
+                sim::Session session{seed, clock, player, inventory};
+                sim::saveSession(savePath, session, world, build);
+            }
+        }
         // Embers off anything burning, so a fire looks alight from across a field.
         for (const sim::Deployable& thing : build.deployables()) {
             if (!thing.lit) continue;
@@ -527,6 +578,17 @@ int main(int argc, char** argv) {
         const double dark = sim::darkness(clock);
         sim::updateSurvival(world, player, inventory, dt, sim::nightness(clock),
                             build.warmthAt(player.x, player.y));
+        if (sandbox) {
+            // Topped up every tick, so the bars read normally and nothing else
+            // in the game has to know this mode exists.
+            player.health = sim::PlayerVitals::kMaxHealth;
+            player.calories = sim::PlayerVitals::kMaxCalories;
+            player.hydration = sim::PlayerVitals::kMaxHydration;
+            player.temperature = sim::PlayerVitals::kComfortTemp;
+            player.radiation = 0;
+            player.bleeding = 0;
+            player.alive = true;
+        }
         sim::updateUse(player, inventory, dt, player.sprinting);
 
         if (!player.alive && !dead) {
@@ -957,6 +1019,29 @@ int main(int argc, char** argv) {
             client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale));
         }
 
+        // A roof over every sealed room but the one you are in: a base is a
+        // thing you cannot see into, which is most of what makes one worth
+        // building.
+        const int myRegion = build.regionAt(player.x, player.y);
+        for (const auto& [key, region] : build.enclosedCells()) {
+            if (region == myRegion) continue;
+            const int gx = static_cast<int>(static_cast<std::int32_t>(key >> 32));
+            const int gy = static_cast<int>(static_cast<std::uint32_t>(key));
+            const float rx = static_cast<float>((gx * sim::kBuildCell - camX) * scale) +
+                             width * 0.5f;
+            const float ry = static_cast<float>((gy * sim::kBuildCell - camY) * scale) +
+                             height * 0.5f;
+            const float size = static_cast<float>(sim::kBuildCell * scale) + 1;
+            if (rx < -size || ry < -size || rx > width || ry > height) continue;
+            paint.fillRect(rx, ry, size, size, client::rgb(0x2b2721));
+            // Shingle hatching, so it reads as a roof rather than a hole.
+            for (int i = 1; i < 4; ++i) {
+                const float t = i / 4.0f;
+                paint.line(rx, ry + size * t, rx + size, ry + size * t, client::kInkFine,
+                           client::Color{0, 0, 0, 56});
+            }
+        }
+
         for (const sim::Structure& piece : build.list()) {
             if (piece.kind == sim::BuildKind::Foundation) continue;
             client::drawBuilt(paint, piece, camX, camY, scale, width, height);
@@ -1126,7 +1211,7 @@ int main(int argc, char** argv) {
         }
 
         map.draw(paint, world, build, player, width, height, static_cast<float>(density));
-        panel.setBench(build.benchTierAt(player.x, player.y, 0));
+        panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
         if (typing) {
             const float size = 1.8f * static_cast<float>(density);
@@ -1231,6 +1316,12 @@ int main(int argc, char** argv) {
         }
 
         SDL_RenderPresent(renderer);
+    }
+
+    if (!online && !sandbox && benchFrames <= 0 && !shotPath) {
+        // On the way out, so quitting never costs you the last twenty seconds.
+        sim::Session session{seed, clock, player, inventory};
+        sim::saveSession(savePath, session, world, build);
     }
 
     SDL_DestroyRenderer(renderer);

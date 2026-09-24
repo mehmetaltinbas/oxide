@@ -119,6 +119,19 @@ public:
      */
     bool claimed(double x, double y, int owner) const;
 
+    /**
+     * Which sealed room a point is in, or nought for open ground.
+     *
+     * A room is a set of cells the open air cannot walk into: that is what
+     * makes a base a base rather than a fence. Rebuilt whenever anything is
+     * built, broken or swung open, because a hole anywhere opens all of it.
+     */
+    int regionAt(double x, double y) const;
+    /** Whose room that is, or minus one when nobody owns the floor under it. */
+    int regionOwner(int region) const;
+    /** Every sealed cell and the room it belongs to, for putting a roof on. */
+    const std::unordered_map<std::uint64_t, int>& enclosedCells() const;
+
     /** The best workbench within reach of a point, and nought for none. */
     int benchTierAt(double x, double y, int owner) const;
 
@@ -171,6 +184,14 @@ private:
     std::unordered_map<std::uint64_t, int> byEdge_;
 
     void reindex();
+    /** Works out what is sealed off from the open air. */
+    void rebuildEnclosure() const;
+
+    mutable std::unordered_map<std::uint64_t, int> enclosure_;
+    mutable std::unordered_map<int, int> enclosureOwner_;
+    mutable bool enclosureDirty_ = true;
+    /** Which doors were open last tick, so swinging one re-floods the base. */
+    std::unordered_map<int, bool> wasOpen_;
 };
 
 }  // namespace sim
