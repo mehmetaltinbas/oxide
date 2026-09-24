@@ -46,6 +46,14 @@ public:
     void nodesInRect(double x0, double y0, double x1, double y1,
                      std::vector<const ResourceNode*>& out) const;
 
+    /**
+     * A free spot of sand on the coast: where you wake up, with nothing.
+     *
+     * `roll` is any changing number, so two deaths in a row do not put you back
+     * on the same grain of sand.
+     */
+    void beachSpawn(std::uint32_t roll, double& x, double& y) const;
+
     /** The one with this id, or nothing if it has been taken. */
     ResourceNode* nodeById(int id);
 

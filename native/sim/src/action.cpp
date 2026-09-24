@@ -47,7 +47,7 @@ bool fistsCanWork(NodeKind kind) { return kind == NodeKind::Tree || kind == Node
 
 }  // namespace
 
-SwingResult swing(World& world, Player& player, Inventory& inventory) {
+SwingResult swing(World& world, NpcSystem& npcs, Player& player, Inventory& inventory) {
     SwingResult out;
     if (player.attackTimer > 0 || player.swimming) return out;
 
@@ -68,6 +68,23 @@ SwingResult swing(World& world, Player& player, Inventory& inventory) {
     // Where the head of it lands, for the puff of dust when it hits nothing.
     out.x = player.x + std::cos(player.aim) * melee.reach * 0.75;
     out.y = player.y + std::sin(player.aim) * melee.reach * 0.75;
+
+    out.damage = melee.damage;
+
+    // Living things first: a swing that could hit either takes the animal.
+    if (Npc* animal = npcs.nearest(player.x, player.y, melee.reach)) {
+        if (inCone(player, animal->x, animal->y)) {
+            const bool died = animal->hp - static_cast<int>(melee.damage) <= 0;
+            npcs.hurt(world, *animal, melee.damage, player.x, player.y);
+            out.killed = died;
+            out.landed = true;
+            out.hitNpc = true;
+            out.npcKind = animal->kind;
+            out.x = animal->x;
+            out.y = animal->y;
+            return out;
+        }
+    }
 
     static thread_local std::vector<const ResourceNode*> near;
     const double look = melee.reach + 40;

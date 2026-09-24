@@ -7,6 +7,7 @@ add_executable(oxide_client
     src/terrain.cpp
     src/sprites.cpp
     src/human.cpp
+    src/animal.cpp
     src/held.cpp
     src/melee.cpp
     src/hud.cpp

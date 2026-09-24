@@ -19,6 +19,10 @@ constexpr ItemDef kItems[kItemCount] = {
     {ItemId::Scrap, "Scrap", ItemCategory::Resource, 1000, kNone},
     {ItemId::LowGrade, "Low Grade Fuel", ItemCategory::Resource, 1000, kNone},
     {ItemId::PistolAmmo, "Pistol Ammo", ItemCategory::Ammo, 128, kNone},
+    {ItemId::MeatRaw, "Raw Meat", ItemCategory::Resource, 1000, kNone},
+    {ItemId::Leather, "Leather", ItemCategory::Resource, 1000, kNone},
+    {ItemId::Bone, "Bone", ItemCategory::Resource, 1000, kNone},
+    {ItemId::AnimalFat, "Animal Fat", ItemCategory::Resource, 1000, kNone},
     // What you start with. Slow at everything.
     {ItemId::Rock, "Rock", ItemCategory::Tool, 1, {12, 1, 0.62, 30}},
     {ItemId::Hatchet, "Hatchet", ItemCategory::Tool, 1, {22, 3, 0.5, 34}},

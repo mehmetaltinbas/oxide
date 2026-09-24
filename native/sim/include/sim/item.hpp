@@ -18,6 +18,10 @@ enum class ItemId : std::uint8_t {
     Scrap,
     LowGrade,
     PistolAmmo,
+    MeatRaw,
+    Leather,
+    Bone,
+    AnimalFat,
     // Tools.
     Rock,
     Hatchet,
@@ -25,7 +29,7 @@ enum class ItemId : std::uint8_t {
     Hammer,
 };
 
-inline constexpr int kItemCount = 15;
+inline constexpr int kItemCount = 19;
 
 enum class ItemCategory : std::uint8_t { Resource, Tool, Ammo };
 

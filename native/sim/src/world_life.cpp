@@ -18,6 +18,22 @@ constexpr double kRegrowthSpread = 0.08;
 
 }  // namespace
 
+void World::beachSpawn(std::uint32_t roll, double& x, double& y) const {
+    Rng rng(roll * 2654435761u + 1u);
+    // Sand, and not the frozen sort: you start somewhere you can stand about.
+    for (int tries = 0; tries < 4000; ++tries) {
+        const int col = static_cast<int>(rng.unit() * kBiomeCols);
+        const int row = static_cast<int>(rng.unit() * kBiomeRows);
+        if (biomes_[row * kBiomeCols + col] != Biome::Beach) continue;
+        x = (col + 0.5) * kBiomeTile;
+        y = (row + 0.5) * kBiomeTile;
+        return;
+    }
+    // An island with no sand at all: the middle will do.
+    x = kWorldWidth * 0.5;
+    y = kWorldHeight * 0.5;
+}
+
 ResourceNode* World::nodeById(int id) {
     if (id <= 0 || id > static_cast<int>(nodes_.size())) return nullptr;
     ResourceNode& node = nodes_[id - 1];
