@@ -63,6 +63,44 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
         return true;
     }
 
+    // A slot, moved between the pack and whatever is open.
+    if (container_) {
+        const auto slotHit = [&](float ox, float oy, int count, int cols) {
+            for (int i = 0; i < count; ++i) {
+                const float sx = ox + (i % cols) * (l.slot + 4 * uiScale);
+                const float sy = oy + (i / cols) * (l.slot + 4 * uiScale);
+                if (x >= sx && x <= sx + l.slot && y >= sy && y <= sy + l.slot) return i;
+            }
+            return -1;
+        };
+        const int packSlot = slotHit(l.packX, l.packY, sim::kPackSlots, kPackCols);
+        const float beltY = l.packY + 4 * (l.slot + 4 * uiScale) + 22 * uiScale;
+        const int beltSlot = slotHit(l.packX, beltY, sim::kHotbarSlots, sim::kHotbarSlots);
+        const int inSlot = slotHit(l.listX, l.listY,
+                                   static_cast<int>(container_->container.slots.size()), 4);
+        // A click sends a stack the other way: into the box, or out of it.
+        if (packSlot >= 0 || beltSlot >= 0) {
+            sim::ItemStack& stack =
+                packSlot >= 0 ? inventory.pack()[packSlot] : inventory.hotbar()[beltSlot];
+            if (stack.id != sim::ItemId::None) {
+                const int left = container_->container.add(stack.id, stack.count);
+                stack.count = left;
+                if (left <= 0) stack = sim::ItemStack{};
+            }
+            return true;
+        }
+        if (inSlot >= 0) {
+            sim::ItemStack& stack = container_->container.slots[inSlot];
+            if (stack.id != sim::ItemId::None) {
+                const int left = inventory.add(stack.id, stack.count);
+                stack.count = left;
+                if (left <= 0) stack = sim::ItemStack{};
+            }
+            return true;
+        }
+        return true;
+    }
+
     // A recipe, queued.
     if (!right && x >= l.listX && x <= l.listX + l.rowW) {
         const int row = static_cast<int>((y - l.listY) / l.rowH);
@@ -88,7 +126,8 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
     paint.fillRect(l.x, l.y, l.w, l.h, kPlate);
 
     text(renderer, l.packX, l.y + 24 * uiScale, 2.0f * uiScale, kText, "PACK");
-    text(renderer, l.listX, l.y + 24 * uiScale, 2.0f * uiScale, kText, "CRAFT");
+    text(renderer, l.listX, l.y + 24 * uiScale, 2.0f * uiScale, kText,
+         container_ ? sim::itemDef(sim::itemOf(container_->kind)).name : "CRAFT");
 
     // The pack, and the belt under it.
     const auto slotAt = [&](float x, float y, const sim::ItemStack& stack) {
@@ -109,11 +148,29 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         const float sy = l.packY + (i / kPackCols) * (l.slot + 4 * uiScale);
         slotAt(sx, sy, inventory.pack()[i]);
     }
-    const float beltY = l.packY + 4 * (l.slot + 4 * uiScale) + 16 * uiScale;
-    text(renderer, l.packX, beltY - 10 * uiScale, 1.4f * uiScale, kDim, "BELT");
+    const float beltY = l.packY + 4 * (l.slot + 4 * uiScale) + 22 * uiScale;
+    text(renderer, l.packX, beltY - 16 * uiScale, 1.4f * uiScale, kDim, "BELT");
     for (int i = 0; i < sim::kHotbarSlots; ++i) {
         const float sx = l.packX + i * (l.slot + 4 * uiScale);
-        slotAt(sx, beltY + 6 * uiScale, inventory.hotbar()[i]);
+        slotAt(sx, beltY, inventory.hotbar()[i]);
+    }
+
+    if (container_) {
+        // What is inside it, four across, and what it is doing if it is lit.
+        const auto& slots = container_->container.slots;
+        for (std::size_t i = 0; i < slots.size(); ++i) {
+            const float sx = l.listX + (i % 4) * (l.slot + 4 * uiScale);
+            const float sy = l.listY + (i / 4) * (l.slot + 4 * uiScale);
+            slotAt(sx, sy, slots[i]);
+        }
+        const float statusY = l.listY + 3 * (l.slot + 4 * uiScale);
+        char line[96];
+        SDL_snprintf(line, sizeof(line), "%s   %s", container_->lit ? "Lit" : "Out",
+                     container_->lit ? "burning wood" : "E to light it");
+        text(renderer, l.listX, statusY, 1.4f * uiScale, kDim, line);
+        text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim,
+             "click a slot to move it   TAB to close");
+        return;
     }
 
     // What can be made, with what it costs beside it.

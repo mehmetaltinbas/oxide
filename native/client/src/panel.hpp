@@ -4,6 +4,7 @@
 
 #include "paint.hpp"
 #include "sim/craft.hpp"
+#include "sim/deployable.hpp"
 #include "sim/inventory.hpp"
 
 namespace client {
@@ -18,8 +19,21 @@ namespace client {
 class Panel {
 public:
     bool open() const { return open_; }
-    void toggle() { open_ = !open_; }
-    void close() { open_ = false; }
+    void toggle() {
+        open_ = !open_;
+        if (!open_) container_ = nullptr;
+    }
+    void close() {
+        open_ = false;
+        container_ = nullptr;
+    }
+
+    /** Opens onto something's insides rather than onto the recipes. */
+    void openContainer(sim::Deployable* deployable) {
+        open_ = true;
+        container_ = deployable;
+    }
+    const sim::Deployable* container() const { return container_; }
 
     /**
      * A click at a point on the screen. Left queues what is under it, right
@@ -33,6 +47,8 @@ public:
 
 private:
     bool open_ = false;
+    /** What is being looked into, or nothing when it is the bench. */
+    sim::Deployable* container_ = nullptr;
 
     /** Where everything is, worked out once and used by both drawing and clicks. */
     struct Layout {

@@ -8,6 +8,7 @@
 
 #include "animal.hpp"
 #include "built.hpp"
+#include "deploy_draw.hpp"
 #include "held.hpp"
 #include "hud.hpp"
 #include "panel.hpp"
@@ -17,6 +18,7 @@
 #include "sim/action.hpp"
 #include "sim/build.hpp"
 #include "sim/craft.hpp"
+#include "sim/deployable.hpp"
 #include "sim/survival.hpp"
 #include "sim/inventory.hpp"
 #include "sim/npcs.hpp"
@@ -174,6 +176,21 @@ int main(int argc, char** argv) {
                                                   sim::BuildKind::Doorway, 0, sim::BuildTier::Wood);
         doorway.kind = sim::BuildKind::Door;
         inventory.add(sim::ItemId::BuildingPlan, 1);
+        // Something of everything, to see how it all sits together.
+        const int fireId = build.deploy(sim::DeployKind::Campfire, gx, gy + 1, 0);
+        const int furnaceId = build.deploy(sim::DeployKind::Furnace, gx + 1, gy + 1, 0);
+        build.deploy(sim::DeployKind::WoodenBox, gx, gy, 0);
+        build.deploy(sim::DeployKind::ToolCupboard, gx + 1, gy, 0);
+        build.deploy(sim::DeployKind::SleepingBag, gx + 2, gy, 0);
+        sim::Deployable& fire = *build.deployableById(fireId);
+        fire.lit = true;
+        fire.container.add(sim::ItemId::Wood, 20);
+        fire.container.add(sim::ItemId::MeatRaw, 3);
+        sim::Deployable& furnace = *build.deployableById(furnaceId);
+        furnace.lit = true;
+        furnace.container.add(sim::ItemId::Wood, 20);
+        furnace.container.add(sim::ItemId::MetalOre, 10);
+        inventory.add(sim::ItemId::Campfire, 2);
     }
 
     sim::Projectiles projectiles;
@@ -247,7 +264,20 @@ int main(int argc, char** argv) {
                 sim::reload(player, inventory);
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_E && !event.key.repeat) {
-                if (sim::drink(world, player)) {
+                if (sim::Deployable* thing =
+                        build.deployableNear(player.x, player.y, sim::PlayerVitals::kInteract)) {
+                    if (thing->kind == sim::DeployKind::Campfire ||
+                        thing->kind == sim::DeployKind::Furnace) {
+                        thing->lit = !thing->lit;
+                        hud.say(thing->lit ? "Lit" : "Out", thing->x, thing->y - 20,
+                                client::rgb(0xffd98a));
+                    }
+                    if (!thing->container.slots.empty()) {
+                        panel.openContainer(thing);
+                    } else if (thing->kind == sim::DeployKind::SleepingBag) {
+                        hud.say("Your bag", thing->x, thing->y - 20, client::rgb(0xefeadd));
+                    }
+                } else if (sim::drink(world, player)) {
                     hud.say("drank", player.x, player.y - 26, client::rgb(0x5aa8d8));
                 }
                 if (sim::Structure* door = build.nearest(player.x, player.y, sim::kBuildCell * 0.9)) {
@@ -307,16 +337,25 @@ int main(int argc, char** argv) {
         hud.update(dt);
         const sim::NpcEvents animals = npcs.update(world, dt, player);
         // Nothing warms you yet: the campfire arrives with the deployables.
-        sim::updateSurvival(world, player, inventory, dt, 0, 0);
+        build.updateDeployables(dt);
+        sim::updateSurvival(world, player, inventory, dt, 0, build.warmthAt(player.x, player.y));
         sim::updateUse(player, inventory, dt, player.sprinting);
 
         if (!player.alive) {
-            // Dead: you wake on a beach with a rock, and everything you were
-            // carrying is gone, exactly as the other game had it.
+            // Dead: everything you were carrying is gone, and you wake in your
+            // own bag if you put one down and on a beach if you did not.
+            const sim::Deployable* bag = nullptr;
+            for (const sim::Deployable& thing : build.deployables()) {
+                if (thing.kind == sim::DeployKind::SleepingBag && thing.owner == 0) bag = &thing;
+            }
             dropIn(world, player, static_cast<std::uint32_t>(SDL_GetTicks()));
+            if (bag) {
+                player.x = bag->x;
+                player.y = bag->y;
+            }
             inventory = sim::Inventory();
-            hud.say("Woke up on the beach with nothing.", player.x, player.y - 30,
-                    client::rgb(0xd8483a));
+            hud.say(bag ? "Woke up in your bag." : "Woke up on the beach with nothing.", player.x,
+                    player.y - 30, client::rgb(0xd8483a));
         }
         if (animals.playerDamage > 0) {
             sim::hurtPlayer(player, inventory, animals.playerDamage);
@@ -358,6 +397,8 @@ int main(int argc, char** argv) {
             }
         }
         const sim::ItemId inHand = inventory.held();
+        sim::DeployKind deployKind = sim::DeployKind::Campfire;
+        const bool deploying = sim::deployableOf(inHand, deployKind);
         const bool planning = inHand == sim::ItemId::BuildingPlan;
         client::BuildTarget target = client::targetAt(cursorX, cursorY, buildKind);
         const char* refusal = nullptr;
@@ -375,6 +416,26 @@ int main(int argc, char** argv) {
             const sim::TierDef& twig = sim::tierDef(sim::BuildTier::Twig);
             if (!refusal && inventory.count(twig.cost.id) < twig.cost.count) {
                 refusal = "Not enough wood";
+            }
+        }
+
+        const int deployGx = static_cast<int>(SDL_floor(cursorX / sim::kBuildCell));
+        const int deployGy = static_cast<int>(SDL_floor(cursorY / sim::kBuildCell));
+        const char* deployRefusal = nullptr;
+        if (deploying) {
+            deployRefusal = build.refuseDeploy(world, deployGx, deployGy, deployKind, 0);
+            if (!deployRefusal &&
+                SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
+                         (cursorY - player.y) * (cursorY - player.y)) > sim::kBuildCell * 1.8) {
+                deployRefusal = "Too far away";
+            }
+            if ((buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
+                if (deployRefusal) {
+                    hud.say(deployRefusal, player.x, player.y - 26, client::rgb(0xd8483a));
+                } else if (inventory.take(inHand, 1) > 0) {
+                    build.deploy(deployKind, deployGx, deployGy, 0);
+                }
+                player.attackTimer = 0.4;
             }
         }
 
@@ -484,6 +545,13 @@ int main(int argc, char** argv) {
             client::drawBuilt(paint, piece, player.x, player.y, scale, width, height);
         }
 
+        for (const sim::Deployable& thing : build.deployables()) {
+            if (thing.kind != sim::DeployKind::SleepingBag) continue;
+            const float sx = static_cast<float>((thing.x - player.x) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((thing.y - player.y) * scale) + height * 0.5f;
+            client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale));
+        }
+
         static std::vector<const sim::Npc*> animalsNear;
         npcs.inRect(player.x - halfW - margin, player.y - halfH - margin, player.x + halfW + margin,
                     player.y + halfH + margin, animalsNear);
@@ -547,6 +615,13 @@ int main(int argc, char** argv) {
         drawAnimalsUpTo(1e9);
         if (!playerDrawn) drawPlayer();
 
+        for (const sim::Deployable& thing : build.deployables()) {
+            if (thing.kind == sim::DeployKind::SleepingBag) continue;
+            const float sx = static_cast<float>((thing.x - player.x) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((thing.y - player.y) * scale) + height * 0.5f;
+            client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale));
+        }
+
         for (const sim::Structure& piece : build.list()) {
             if (piece.kind == sim::BuildKind::Foundation) continue;
             client::drawBuilt(paint, piece, player.x, player.y, scale, width, height);
@@ -554,6 +629,18 @@ int main(int argc, char** argv) {
         if (planning) {
             client::drawGhost(paint, target, sim::BuildTier::Twig, refusal == nullptr, player.x,
                               player.y, scale, width, height);
+        }
+        if (deploying) {
+            // The cell it would sit on, rather than a ghost of the thing: what
+            // matters is which square it takes.
+            const float gx = static_cast<float>((deployGx * sim::kBuildCell - player.x) * scale) +
+                             width * 0.5f;
+            const float gy = static_cast<float>((deployGy * sim::kBuildCell - player.y) * scale) +
+                             height * 0.5f;
+            const float size = static_cast<float>(sim::kBuildCell * scale);
+            paint.fillRect(gx, gy, size, size,
+                           deployRefusal ? client::Color{224, 80, 60, 90}
+                                         : client::Color{124, 200, 255, 90});
         }
 
         for (const sim::Bullet& bullet : projectiles.list()) {
@@ -582,7 +669,10 @@ int main(int argc, char** argv) {
 
         // What the key under your finger would do, if anything.
         char prompt[96] = {0};
-        if (planning) {
+        if (deploying) {
+            SDL_snprintf(prompt, sizeof(prompt), "%s   %s", sim::itemDef(inHand).name,
+                         deployRefusal ? deployRefusal : "click to put it down");
+        } else if (planning) {
             static const char* kNames[4] = {"Foundation", "Wall", "Doorway", "Door"};
             SDL_snprintf(prompt, sizeof(prompt), "%s   %s   (B to change)",
                          kNames[static_cast<int>(buildKind)], refusal ? refusal : "click to place");
@@ -606,6 +696,13 @@ int main(int argc, char** argv) {
                     if (node->kind != sim::NodeKind::Nettle || node->hp <= 0) continue;
                     SDL_snprintf(prompt, sizeof(prompt), "E   Pick nettle");
                     break;
+                }
+            }
+            if (!prompt[0]) {
+                if (const sim::Deployable* thing =
+                        build.deployableNear(player.x, player.y, sim::PlayerVitals::kInteract)) {
+                    SDL_snprintf(prompt, sizeof(prompt), "E   %s",
+                                 sim::itemDef(sim::itemOf(thing->kind)).name);
                 }
             }
             // Fresh water is the last thing offered, being the one you are

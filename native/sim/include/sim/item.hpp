@@ -31,6 +31,12 @@ enum class ItemId : std::uint8_t {
     Medkit,
     Clothing,
     Hazmat,
+    // What you put down rather than carry.
+    Campfire,
+    Furnace,
+    ToolCupboard,
+    WoodenBox,
+    SleepingBag,
     // Ammunition.
     Arrow,
     ShotgunShell,
@@ -51,9 +57,17 @@ enum class ItemId : std::uint8_t {
     Ak47,
 };
 
-inline constexpr int kItemCount = 38;
+inline constexpr int kItemCount = 43;
 
-enum class ItemCategory : std::uint8_t { Resource, Tool, Ammo, Weapon, Consumable, Clothing };
+enum class ItemCategory : std::uint8_t {
+    Resource,
+    Tool,
+    Ammo,
+    Weapon,
+    Consumable,
+    Clothing,
+    Deployable,
+};
 
 /** What a tool does when it lands. */
 struct Melee {

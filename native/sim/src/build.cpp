@@ -1,5 +1,7 @@
 #include "sim/build.hpp"
 
+#include "sim/survival.hpp"
+
 #include <algorithm>
 #include <cmath>
 
@@ -224,6 +226,18 @@ void BuildSystem::resolve(double& x, double& y, double radius) const {
                 x += (x - hx) * push;
                 y += (y - hy) * push;
             }
+            for (const Deployable& d : deployables_) {
+                if (d.kind == DeployKind::SleepingBag) continue;
+                if (static_cast<int>(d.x / kBuildCell) != gx) continue;
+                if (static_cast<int>(d.y / kBuildCell) != gy) continue;
+                const double nx = std::clamp(x, d.x - kDeployHalf, d.x + kDeployHalf);
+                const double ny = std::clamp(y, d.y - kDeployHalf, d.y + kDeployHalf);
+                const double dd = std::hypot(x - nx, y - ny);
+                if (dd >= radius || dd <= 0.0001) continue;
+                const double push = (radius - dd) / dd;
+                x += (x - nx) * push;
+                y += (y - ny) * push;
+            }
         }
     }
 }
@@ -281,6 +295,135 @@ Structure* BuildSystem::nearest(double x, double y, double within) {
         bestD = d;
     }
     return best;
+}
+
+Deployable* BuildSystem::deployableAt(int gx, int gy) {
+    for (Deployable& d : deployables_) {
+        if (static_cast<int>(d.x / kBuildCell) == gx && static_cast<int>(d.y / kBuildCell) == gy) {
+            return &d;
+        }
+    }
+    return nullptr;
+}
+
+Deployable* BuildSystem::deployableNear(double x, double y, double within) {
+    Deployable* best = nullptr;
+    double bestD = within;
+    for (Deployable& d : deployables_) {
+        const double dd = std::hypot(d.x - x, d.y - y);
+        if (dd > bestD) continue;
+        best = &d;
+        bestD = dd;
+    }
+    return best;
+}
+
+bool BuildSystem::claimed(double x, double y, int owner) const {
+    const Deployable* best = nullptr;
+    double bestD = kToolCupboardRadius;
+    for (const Deployable& d : deployables_) {
+        if (d.kind != DeployKind::ToolCupboard) continue;
+        const double dd = std::hypot(d.x - x, d.y - y);
+        if (dd >= bestD) continue;
+        best = &d;
+        bestD = dd;
+    }
+    return best != nullptr && best->owner != owner;
+}
+
+const char* BuildSystem::refuseDeploy(const World& world, int gx, int gy, DeployKind kind,
+                                      int owner) const {
+    const double cx = (gx + 0.5) * kBuildCell;
+    const double cy = (gy + 0.5) * kBuildCell;
+    for (const Deployable& d : deployables_) {
+        if (static_cast<int>(d.x / kBuildCell) == gx && static_cast<int>(d.y / kBuildCell) == gy) {
+            return "Something is already here";
+        }
+    }
+    if (world.biomeAt(cx, cy) == Biome::Water) return "Not in the water";
+    if (kind == DeployKind::SleepingBag) {
+        // Anyone's bag, not only yours: a spot has room for one.
+        for (const Deployable& d : deployables_) {
+            if (d.kind != DeployKind::SleepingBag) continue;
+            if (std::hypot(d.x - cx, d.y - cy) < kSleepingBagSpacing) {
+                return "Too close to another sleeping bag";
+            }
+        }
+    }
+    if (claimed(cx, cy, owner)) return "Blocked by a tool cupboard";
+    if (naturalCover(world, cx, cy, kBuildCell * 0.4)) return "Something is in the way";
+    return nullptr;
+}
+
+Deployable* BuildSystem::deployableById(int id) {
+    for (Deployable& d : deployables_) {
+        if (d.id == id) return &d;
+    }
+    return nullptr;
+}
+
+int BuildSystem::deploy(DeployKind kind, int gx, int gy, int owner) {
+    Deployable d{};
+    d.id = nextDeployId_++;
+    d.kind = kind;
+    d.x = (gx + 0.5) * kBuildCell;
+    d.y = (gy + 0.5) * kBuildCell;
+    d.hp = kDeployableHp;
+    d.maxHp = kDeployableHp;
+    d.owner = owner;
+    d.container.slots.assign(containerSlots(kind), ItemStack{});
+    deployables_.push_back(d);
+    return d.id;
+}
+
+void BuildSystem::removeDeployable(int id) {
+    deployables_.erase(std::remove_if(deployables_.begin(), deployables_.end(),
+                                      [id](const Deployable& d) { return d.id == id; }),
+                       deployables_.end());
+}
+
+double BuildSystem::warmthAt(double x, double y) const {
+    double warmth = 0;
+    for (const Deployable& d : deployables_) {
+        if (!d.lit) continue;
+        const double dd = std::hypot(d.x - x, d.y - y);
+        if (dd < kFireWarmthRadius) warmth += kFireWarmth * (1 - dd / kFireWarmthRadius);
+    }
+    return warmth;
+}
+
+void BuildSystem::updateDeployables(double dt) {
+    for (Deployable& d : deployables_) {
+        if (d.flash > 0) d.flash -= dt;
+        if (!d.lit || d.container.slots.empty()) continue;
+
+        // Wood first: a fire that runs out of it goes out.
+        if (d.fuel <= 0) {
+            if (d.container.take(ItemId::Wood, 1) > 0) {
+                d.fuel = kWoodBurnSeconds;
+            } else {
+                d.lit = false;
+                continue;
+            }
+        }
+        d.fuel -= dt;
+        d.progress += dt;
+
+        if (d.kind == DeployKind::Furnace && d.progress >= kSmeltSeconds) {
+            d.progress = 0;
+            if (d.container.take(ItemId::MetalOre, 1) > 0) {
+                d.container.add(ItemId::Metal, 1);
+            } else if (d.container.take(ItemId::SulfurOre, 1) > 0) {
+                d.container.add(ItemId::Sulfur, 1);
+            }
+            Rng rng(smeltRolls_ += 0x9e3779b9u);
+            if (rng.unit() < kCharcoalChance) d.container.add(ItemId::Charcoal, 1);
+        }
+        if (d.kind == DeployKind::Campfire && d.progress >= kCookSeconds) {
+            d.progress = 0;
+            if (d.container.take(ItemId::MeatRaw, 1) > 0) d.container.add(ItemId::MeatCooked, 1);
+        }
+    }
 }
 
 void BuildSystem::update(double dt) {

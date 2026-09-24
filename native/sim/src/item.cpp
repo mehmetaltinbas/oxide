@@ -40,6 +40,13 @@ constexpr ItemDef kItems[kItemCount] = {
     // The only way to loot a hot monument and walk out.
     {ItemId::Hazmat, "Hazmat Suit", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
      {8, 0.2, 0.9}},
+    {ItemId::Campfire, "Campfire", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood, kNoWear},
+    {ItemId::Furnace, "Furnace", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood, kNoWear},
+    {ItemId::ToolCupboard, "Tool Cupboard", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood,
+     kNoWear},
+    {ItemId::WoodenBox, "Wooden Box", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood, kNoWear},
+    {ItemId::SleepingBag, "Sleeping Bag", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood,
+     kNoWear},
     {ItemId::Arrow, "Arrow", ItemCategory::Ammo, 128, kNone, kNoGun, kNoFood, kNoWear},
     {ItemId::ShotgunShell, "Shotgun Shell", ItemCategory::Ammo, 128, kNone, kNoGun, kNoFood, kNoWear},
     {ItemId::RifleAmmo, "Rifle Ammo", ItemCategory::Ammo, 128, kNone, kNoGun, kNoFood, kNoWear},

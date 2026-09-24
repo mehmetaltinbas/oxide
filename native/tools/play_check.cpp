@@ -80,6 +80,31 @@ int main() {
                     idle.health);
     }
 
+    // A fire with meat on it and a furnace with ore in it: both left to burn.
+    {
+        const int fireId = build.deploy(sim::DeployKind::Campfire, 2, 2, 0);
+        const int furnaceId = build.deploy(sim::DeployKind::Furnace, 4, 2, 0);
+        {
+            sim::Deployable& fire = *build.deployableById(fireId);
+            fire.lit = true;
+            fire.container.add(sim::ItemId::Wood, 30);
+            fire.container.add(sim::ItemId::MeatRaw, 4);
+            sim::Deployable& furnace = *build.deployableById(furnaceId);
+            furnace.lit = true;
+            furnace.container.add(sim::ItemId::Wood, 30);
+            furnace.container.add(sim::ItemId::MetalOre, 6);
+        }
+        for (int i = 0; i < 60 * 40; ++i) build.updateDeployables(dt);
+        const sim::Deployable& fire = *build.deployableById(fireId);
+        const sim::Deployable& furnace = *build.deployableById(furnaceId);
+        std::printf("fire: %d cooked, %d raw left; furnace: %d metal, %d charcoal, %d ore left\n",
+                    fire.container.count(sim::ItemId::MeatCooked),
+                    fire.container.count(sim::ItemId::MeatRaw),
+                    furnace.container.count(sim::ItemId::Metal),
+                    furnace.container.count(sim::ItemId::Charcoal),
+                    furnace.container.count(sim::ItemId::MetalOre));
+    }
+
     // A foundation and a wall, and a shoulder against the wall: what is built
     // has to stop you walking through it, or none of it means anything.
     {

@@ -13,6 +13,7 @@ add_executable(oxide_client
     src/hud.cpp
     src/panel.cpp
     src/built.cpp
+    src/deploy_draw.cpp
 )
 target_link_libraries(oxide_client PRIVATE oxide_sim SDL3::SDL3)
 set_target_properties(oxide_client PROPERTIES OUTPUT_NAME oxide)

@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "sim/deployable.hpp"
 #include "sim/inventory.hpp"
 #include "sim/item.hpp"
 #include "sim/world.hpp"
@@ -84,6 +85,42 @@ public:
 
     /** The next tier up from what a piece is, if there is one. */
     bool nextTier(const Structure& piece, BuildTier& out) const;
+    // ------------------------------------------------------- deployables
+
+    const std::vector<Deployable>& deployables() const { return deployables_; }
+    std::vector<Deployable>& deployables() { return deployables_; }
+
+    Deployable* deployableAt(int gx, int gy);
+    /** The one nearest a point, for a hand on a fire or a box. */
+    Deployable* deployableNear(double x, double y, double within);
+
+    /** Why one may not go on this cell, or nothing if it may. */
+    const char* refuseDeploy(const World& world, int gx, int gy, DeployKind kind, int owner) const;
+    /**
+     * Puts one down and gives back its id.
+     *
+     * An id rather than a reference on purpose: the next thing put down may
+     * move the whole list in memory, and a reference held across that is a
+     * pointer into nothing.
+     */
+    int deploy(DeployKind kind, int gx, int gy, int owner);
+    Deployable* deployableById(int id);
+    void removeDeployable(int id);
+
+    /**
+     * Whose ground this is, by the nearest tool cupboard, or nobody's.
+     *
+     * A cupboard claims a circle around itself, and inside it only its owner
+     * builds. It is the whole of why a base is yours rather than everybody's.
+     */
+    bool claimed(double x, double y, int owner) const;
+
+    /** How warm any lit fire nearby makes a point. */
+    double warmthAt(double x, double y) const;
+
+    /** Fires burn, meat cooks, ore smelts. */
+    void updateDeployables(double dt);
+
     /** Puts a piece up a tier, if the pack holds what that costs. */
     bool upgrade(Structure& piece, Inventory& inventory);
 
@@ -108,7 +145,11 @@ public:
 
 private:
     std::vector<Structure> pieces_;
+    std::vector<Deployable> deployables_;
     int nextId_ = 1;
+    int nextDeployId_ = 1;
+    /** Rolls the charcoal a furnace throws off. */
+    mutable std::uint32_t smeltRolls_ = 1;
     /** Cell and edge lookups, rebuilt whenever a piece comes or goes. */
     std::unordered_map<std::uint64_t, int> byCell_;
     std::unordered_map<std::uint64_t, int> byEdge_;
