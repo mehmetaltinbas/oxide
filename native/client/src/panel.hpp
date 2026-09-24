@@ -21,19 +21,30 @@ public:
     bool open() const { return open_; }
     void toggle() {
         open_ = !open_;
-        if (!open_) container_ = nullptr;
+        if (!open_) {
+            container_ = nullptr;
+            fire_ = nullptr;
+        }
     }
     void close() {
         open_ = false;
         container_ = nullptr;
+        fire_ = nullptr;
     }
 
-    /** Opens onto something's insides rather than onto the recipes. */
-    void openContainer(sim::Deployable* deployable) {
+    /**
+     * Opens onto something's insides rather than onto the recipes: a box, a
+     * fire, a crate at a monument. `fire` is the thing burning, when the thing
+     * being looked into is one that burns.
+     */
+    void openContainer(sim::Container* container, const char* title,
+                       const sim::Deployable* fire = nullptr) {
         open_ = true;
-        container_ = deployable;
+        container_ = container;
+        title_ = title;
+        fire_ = fire;
     }
-    const sim::Deployable* container() const { return container_; }
+    const sim::Container* container() const { return container_; }
 
     /**
      * A click at a point on the screen. Left queues what is under it, right
@@ -48,7 +59,9 @@ public:
 private:
     bool open_ = false;
     /** What is being looked into, or nothing when it is the bench. */
-    sim::Deployable* container_ = nullptr;
+    sim::Container* container_ = nullptr;
+    const char* title_ = "";
+    const sim::Deployable* fire_ = nullptr;
 
     /** Where everything is, worked out once and used by both drawing and clicks. */
     struct Layout {

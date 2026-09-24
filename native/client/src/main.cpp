@@ -9,6 +9,7 @@
 #include "animal.hpp"
 #include "built.hpp"
 #include "deploy_draw.hpp"
+#include "monument_draw.hpp"
 #include "held.hpp"
 #include "hud.hpp"
 #include "panel.hpp"
@@ -97,12 +98,16 @@ int main(int argc, char** argv) {
     bool showPanel = false;
     /** A small base put up where you stand, for a look at what one looks like. */
     bool showBase = false;
+    /** Dropped in at the nth looting place, for a look at one. */
+    int atMonument = -1;
     for (int i = 1; i < argc; ++i) {
         if (SDL_strcmp(argv[i], "--shot") == 0 && i + 1 < argc) {
             shotPath = argv[++i];
         } else if (SDL_strcmp(argv[i], "--at") == 0 && i + 2 < argc) {
             startX = SDL_atof(argv[++i]);
             startY = SDL_atof(argv[++i]);
+        } else if (SDL_strcmp(argv[i], "--monument") == 0 && i + 1 < argc) {
+            atMonument = SDL_atoi(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--base") == 0) {
             showBase = true;
         } else if (SDL_strcmp(argv[i], "--panel") == 0) {
@@ -127,6 +132,10 @@ int main(int argc, char** argv) {
 
     sim::Player player;
     dropIn(world, player, seed);
+    if (atMonument >= 0 && atMonument < static_cast<int>(world.monuments().size())) {
+        player.x = world.monuments()[atMonument].x;
+        player.y = world.monuments()[atMonument].y;
+    }
     if (startX >= 0) {
         player.x = startX;
         player.y = startY;
@@ -264,7 +273,20 @@ int main(int argc, char** argv) {
                 sim::reload(player, inventory);
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_E && !event.key.repeat) {
-                if (sim::Deployable* thing =
+                // A crate at a monument first: it is the thing you came for.
+                sim::LootCrate* crate = nullptr;
+                double crateD = sim::PlayerVitals::kInteract;
+                for (sim::LootCrate& c : world.crates()) {
+                    if (c.looted) continue;
+                    const double d = SDL_sqrt((c.x - player.x) * (c.x - player.x) +
+                                              (c.y - player.y) * (c.y - player.y));
+                    if (d > crateD) continue;
+                    crate = &c;
+                    crateD = d;
+                }
+                if (crate) {
+                    panel.openContainer(&crate->container, "Crate");
+                } else if (sim::Deployable* thing =
                         build.deployableNear(player.x, player.y, sim::PlayerVitals::kInteract)) {
                     if (thing->kind == sim::DeployKind::Campfire ||
                         thing->kind == sim::DeployKind::Furnace) {
@@ -273,7 +295,8 @@ int main(int argc, char** argv) {
                                 client::rgb(0xffd98a));
                     }
                     if (!thing->container.slots.empty()) {
-                        panel.openContainer(thing);
+                        panel.openContainer(&thing->container,
+                                            sim::itemDef(sim::itemOf(thing->kind)).name, thing);
                     } else if (thing->kind == sim::DeployKind::SleepingBag) {
                         hud.say("Your bag", thing->x, thing->y - 20, client::rgb(0xefeadd));
                     }
@@ -521,6 +544,15 @@ int main(int argc, char** argv) {
         SDL_RenderClear(renderer);
         terrain.draw(world, player.x, player.y, scale, width, height);
 
+        // The looting places are ground: they go down before anything stands
+        // on them.
+        for (const sim::Monument& monument : world.monuments()) {
+            if (SDL_fabs(monument.x - player.x) > width / (2 * scale) + monument.radius) continue;
+            if (SDL_fabs(monument.y - player.y) > height / (2 * scale) + monument.radius) continue;
+            client::drawMonument(paint, monument, player.x, player.y, scale, width, height,
+                                 static_cast<float>(density));
+        }
+
         // Everything standing, back to front, so what is nearer the camera is
         // painted over what is behind it.
         const double halfW = width / (2 * scale);
@@ -550,6 +582,14 @@ int main(int argc, char** argv) {
             const float sx = static_cast<float>((thing.x - player.x) * scale) + width * 0.5f;
             const float sy = static_cast<float>((thing.y - player.y) * scale) + height * 0.5f;
             client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale));
+        }
+
+        for (sim::LootCrate& crate : world.crates()) {
+            if (crate.looted) continue;
+            const float sx = static_cast<float>((crate.x - player.x) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((crate.y - player.y) * scale) + height * 0.5f;
+            if (sx < -60 || sy < -60 || sx > width + 60 || sy > height + 60) continue;
+            client::drawCrate(paint, crate, sx, sy, static_cast<float>(scale));
         }
 
         static std::vector<const sim::Npc*> animalsNear;
@@ -699,6 +739,18 @@ int main(int argc, char** argv) {
                 }
             }
             if (!prompt[0]) {
+                for (const sim::LootCrate& crate : world.crates()) {
+                    if (crate.looted) continue;
+                    if (SDL_sqrt((crate.x - player.x) * (crate.x - player.x) +
+                                 (crate.y - player.y) * (crate.y - player.y)) >
+                        sim::PlayerVitals::kInteract) {
+                        continue;
+                    }
+                    SDL_snprintf(prompt, sizeof(prompt), "E   Open crate");
+                    break;
+                }
+            }
+            if (!prompt[0]) {
                 if (const sim::Deployable* thing =
                         build.deployableNear(player.x, player.y, sim::PlayerVitals::kInteract)) {
                     SDL_snprintf(prompt, sizeof(prompt), "E   %s",
@@ -721,6 +773,19 @@ int main(int argc, char** argv) {
                     player.loaded == inventory.held() ? player.rounds : 0,
                     player.reloadTotal > 0 ? player.reloadLeft / player.reloadTotal : 0,
                     player.bowDraw / sim::kBowDrawSeconds);
+        // A crate emptied is a crate looted, and it fills again in its own time.
+        for (sim::LootCrate& crate : world.crates()) {
+            if (crate.looted) continue;
+            bool empty = true;
+            for (const sim::ItemStack& slot : crate.container.slots) {
+                if (slot.id != sim::ItemId::None) empty = false;
+            }
+            if (!empty) continue;
+            crate.looted = true;
+            crate.respawn = sim::kCrateRespawnSeconds;
+            if (panel.container() == &crate.container) panel.close();
+        }
+
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
         hud.draw(paint, inventory, static_cast<int>(std::lround(player.health)), width, height, panel.open() ? "" : prompt, static_cast<float>(density));
 

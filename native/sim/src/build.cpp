@@ -50,6 +50,14 @@ void edgeCells(int gx, int gy, EdgeSide side, int& ax, int& ay, int& bx, int& by
     by = gy;
 }
 
+/** Whether a spot belongs to a monument, and so to everybody. */
+bool onMonumentGround(const World& world, double x, double y) {
+    for (const Monument& m : world.monuments()) {
+        if (std::hypot(x - m.x, y - m.y) < m.radius + kMonumentNoBuildMargin) return true;
+    }
+    return false;
+}
+
 /** Whether anything is still standing where something is about to be built. */
 bool naturalCover(const World& world, double x, double y, double radius) {
     static thread_local std::vector<const ResourceNode*> near;
@@ -102,6 +110,7 @@ const char* BuildSystem::refuseFoundation(const World& world, int gx, int gy, in
         return "Outside the map";
     }
     if (foundationAt(gx, gy)) return "Already a foundation here";
+    if (onMonumentGround(world, cx, cy)) return "You cannot build at a monument";
     // Nothing is built on water, or on the road everybody uses.
     const Biome biome = world.biomeAt(cx, cy);
     if (biome == Biome::Water) return "You cannot build on water";
@@ -141,6 +150,7 @@ const char* BuildSystem::refuseEdge(const World& world, int gx, int gy, EdgeSide
     const Structure* b = foundationAt(bx, by);
     const bool supported = (a && a->owner == owner) || (b && b->owner == owner);
     if (!supported) return "Needs a foundation beside it";
+    if (onMonumentGround(world, cx, cy)) return "You cannot build at a monument";
     if (naturalCover(world, cx, cy, kBuildCell * 0.25)) return "Something is in the way";
     return nullptr;
 }
@@ -350,6 +360,7 @@ const char* BuildSystem::refuseDeploy(const World& world, int gx, int gy, Deploy
             }
         }
     }
+    if (onMonumentGround(world, cx, cy)) return "You cannot build at a monument";
     if (claimed(cx, cy, owner)) return "Blocked by a tool cupboard";
     if (naturalCover(world, cx, cy, kBuildCell * 0.4)) return "Something is in the way";
     return nullptr;

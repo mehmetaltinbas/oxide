@@ -5,6 +5,7 @@
 
 #include "sim/biome.hpp"
 #include "sim/drop.hpp"
+#include "sim/monument.hpp"
 #include "sim/node.hpp"
 #include "sim/rng.hpp"
 #include "sim/world_size.hpp"
@@ -34,6 +35,16 @@ public:
      * Nought everywhere until the monuments are placed: it is theirs to give.
      */
     double radiationAt(double x, double y) const;
+
+    const std::vector<Monument>& monuments() const { return monuments_; }
+    const std::vector<LootCrate>& crates() const { return crates_; }
+    std::vector<LootCrate>& crates() { return crates_; }
+
+    /** The monument covering a point, if one does, and how deep into it. */
+    const Monument* monumentAt(double x, double y, double& depth) const;
+
+    /** Fills a crate from its monument's table. */
+    void fillCrate(LootCrate& crate, std::uint32_t roll);
 
     /** Whether a point is in a lake, as opposed to the sea or dry land. */
     bool freshAt(double x, double y) const;
@@ -84,6 +95,11 @@ public:
 
 private:
     void generateBiomes(Rng& rng);
+    /** The looting places, the big ones first and far apart. */
+    void placeMonuments(Rng& rng);
+    void spawnCrates(const MonumentDef& def, MonumentKind kind, double x, double y, Rng& rng);
+    /** Whether a point has open sea within reach, for the lighthouses. */
+    bool onCoast(double x, double y) const;
     /** Grass and forest cut off inside the snow is snow; the noise leaves pockets. */
     void closeSnowfield();
     /** A belt of grass between the forest and the desert, which never meet. */
@@ -107,6 +123,8 @@ private:
     std::vector<Biome> biomes_;
     /** 1 where the water is a lake rather than the sea. */
     std::vector<std::uint8_t> fresh_;
+    std::vector<Monument> monuments_;
+    std::vector<LootCrate> crates_;
     std::vector<ResourceNode> nodes_;
     std::vector<Dropped> drops_;
     int nextDropId_ = 1;

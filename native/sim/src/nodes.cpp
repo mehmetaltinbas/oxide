@@ -110,6 +110,10 @@ void World::scatterNodes(Rng& rng) {
             const Biome b = biomeAt(x + p[0], y + p[1]);
             if (b == Biome::Road || b == Biome::Beach || b == Biome::SnowBeach) return false;
         }
+        // Monuments keep their ground clear, as they did in the other game.
+        for (const Monument& m : monuments_) {
+            if (std::hypot(x - m.x, y - m.y) < m.radius + 40) return false;
+        }
         const double m2 = min * min;
         const int reach = static_cast<int>(min / kBucket) + 1;
         const int bx = std::clamp(static_cast<int>(x / kBucket), 0, kBucketCols - 1);

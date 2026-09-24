@@ -59,6 +59,7 @@ void World::generate(std::uint32_t seed) {
     }
 
     markFreshWater();
+    placeMonuments(rng);
     scatterNodes(rng);
 }
 

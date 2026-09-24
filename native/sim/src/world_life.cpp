@@ -50,7 +50,15 @@ void World::beachSpawn(std::uint32_t roll, double& x, double& y) const {
     y = kWorldHeight * 0.5;
 }
 
-double World::radiationAt(double, double) const { return 0; }
+double World::radiationAt(double x, double y) const {
+    double depth = 0;
+    const Monument* m = monumentAt(x, y, depth);
+    if (!m) return 0;
+    const MonumentDef& def = monumentDef(m->kind);
+    if (def.rads <= 0) return 0;
+    // Hotter the further in you go, and at its worst well before the middle.
+    return def.rads * std::min(1.0, depth * 1.6);
+}
 
 ResourceNode* World::nodeById(int id) {
     if (id <= 0 || id > static_cast<int>(nodes_.size())) return nullptr;
@@ -96,6 +104,14 @@ void World::removeDrop(int id) {
 }
 
 void World::update(double dt) {
+    // An emptied crate fills again a while later, so a monument is worth
+    // walking back to rather than being used up.
+    for (LootCrate& crate : crates_) {
+        if (!crate.looted) continue;
+        crate.respawn -= dt;
+        if (crate.respawn > 0) continue;
+        fillCrate(crate, static_cast<std::uint32_t>(crate.id * 7919 + respawnSeed_++));
+    }
     for (ResourceNode& node : nodes_) {
         if (node.respawn <= 0) continue;
         node.respawn -= dt;

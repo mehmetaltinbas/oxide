@@ -76,21 +76,21 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
         const int packSlot = slotHit(l.packX, l.packY, sim::kPackSlots, kPackCols);
         const float beltY = l.packY + 4 * (l.slot + 4 * uiScale) + 22 * uiScale;
         const int beltSlot = slotHit(l.packX, beltY, sim::kHotbarSlots, sim::kHotbarSlots);
-        const int inSlot = slotHit(l.listX, l.listY,
-                                   static_cast<int>(container_->container.slots.size()), 4);
+        const int inSlot =
+            slotHit(l.listX, l.listY, static_cast<int>(container_->slots.size()), 4);
         // A click sends a stack the other way: into the box, or out of it.
         if (packSlot >= 0 || beltSlot >= 0) {
             sim::ItemStack& stack =
                 packSlot >= 0 ? inventory.pack()[packSlot] : inventory.hotbar()[beltSlot];
             if (stack.id != sim::ItemId::None) {
-                const int left = container_->container.add(stack.id, stack.count);
+                const int left = container_->add(stack.id, stack.count);
                 stack.count = left;
                 if (left <= 0) stack = sim::ItemStack{};
             }
             return true;
         }
         if (inSlot >= 0) {
-            sim::ItemStack& stack = container_->container.slots[inSlot];
+            sim::ItemStack& stack = container_->slots[inSlot];
             if (stack.id != sim::ItemId::None) {
                 const int left = inventory.add(stack.id, stack.count);
                 stack.count = left;
@@ -127,7 +127,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
 
     text(renderer, l.packX, l.y + 24 * uiScale, 2.0f * uiScale, kText, "PACK");
     text(renderer, l.listX, l.y + 24 * uiScale, 2.0f * uiScale, kText,
-         container_ ? sim::itemDef(sim::itemOf(container_->kind)).name : "CRAFT");
+         container_ ? title_ : "CRAFT");
 
     // The pack, and the belt under it.
     const auto slotAt = [&](float x, float y, const sim::ItemStack& stack) {
@@ -157,17 +157,19 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
 
     if (container_) {
         // What is inside it, four across, and what it is doing if it is lit.
-        const auto& slots = container_->container.slots;
+        const auto& slots = container_->slots;
         for (std::size_t i = 0; i < slots.size(); ++i) {
             const float sx = l.listX + (i % 4) * (l.slot + 4 * uiScale);
             const float sy = l.listY + (i / 4) * (l.slot + 4 * uiScale);
             slotAt(sx, sy, slots[i]);
         }
-        const float statusY = l.listY + 3 * (l.slot + 4 * uiScale);
-        char line[96];
-        SDL_snprintf(line, sizeof(line), "%s   %s", container_->lit ? "Lit" : "Out",
-                     container_->lit ? "burning wood" : "E to light it");
-        text(renderer, l.listX, statusY, 1.4f * uiScale, kDim, line);
+        if (fire_) {
+            const float statusY = l.listY + 3 * (l.slot + 4 * uiScale);
+            char line[96];
+            SDL_snprintf(line, sizeof(line), "%s   %s", fire_->lit ? "Lit" : "Out",
+                         fire_->lit ? "burning wood" : "E to light it");
+            text(renderer, l.listX, statusY, 1.4f * uiScale, kDim, line);
+        }
         text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim,
              "click a slot to move it   TAB to close");
         return;
