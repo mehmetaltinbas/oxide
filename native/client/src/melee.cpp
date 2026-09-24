@@ -56,26 +56,32 @@ float easeInOut(float u) { return u * u * (3 - 2 * u); }
  * How each is carried between blows: the hand low at the right hip, the head
  * of the tool out ahead and a little to the side, not pointed at the sky.
  */
-constexpr Key kCarry[2] = {
+constexpr Key kCarry[3] = {
     // Chop: upright at the hip, handle up out of the page, the head turned so
     // its two ends point ahead of you and behind you, as you carry an axe.
     {0.75f, 1.5707963f, 0.55f, 0, true, 12, -6},
     {0.4f, 0, 1, 0, true, 9.5f, -9},
+    // Thrust: a spear or a gun, held out ahead of you and pointed where you
+    // are looking.
+    {0.3f, 0, 1, 0, true, 7.5f, -12},
 };
 
 /** Where each blow starts and where it lands. */
-constexpr Key kWindup[2] = {
+constexpr Key kWindup[3] = {
     // Drawn back flat, out to the right, head pointing back past the hip.
     {1.6f, 1.9f, 1, 0.3f, false, 0, 0},
     // Cocked back beside the ear.
     {2.2f, 0, 1, 0.2f, true, 11, 2},
+    {0.3f, 0, 1, 0, true, 7.5f, -12},
 };
-constexpr Key kStrike[2] = {
+constexpr Key kStrike[3] = {
     // Landing side-on: hand in front, the tool lying across the front with its
     // head to the left, into the side of whatever is there.
     {0.15f, -1.4f, 1, -0.25f, true, 6, -12},
     // Driven forward into what is in front, across to the centre line.
     {-0.1f, 0, 1, -0.35f, true, 3.5f, -17},
+    // A spear goes straight out and straight back.
+    {0.3f, 0, 1, 0, true, 4.5f, -34},
 };
 
 }  // namespace

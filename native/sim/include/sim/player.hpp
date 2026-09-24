@@ -31,6 +31,15 @@ struct Player {
     double swingAnim = 0;
     /** How long the whole swing was, so the drawing knows where it is in it. */
     double swingLength = 0;
+
+    /** What is loaded, and how many rounds of it are in the gun. */
+    ItemId loaded = ItemId::None;
+    int rounds = 0;
+    /** Seconds left of a reload, and how long the whole reload is. */
+    double reloadLeft = 0;
+    double reloadTotal = 0;
+    /** How long a bow has been drawn back. */
+    double bowDraw = 0;
 };
 
 /** What a player is asking to do this frame. */

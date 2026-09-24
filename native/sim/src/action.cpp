@@ -15,21 +15,6 @@ constexpr double kFistSwingSeconds = 0.2;
 /** How wide a blow reaches to either side of where you are looking. */
 constexpr double kSwingCone = 0.9;
 
-/** What is in a barrel, and how often. */
-struct Loot {
-    ItemId id;
-    int low;
-    int high;
-    double chance;
-};
-
-constexpr Loot kBarrelLoot[4] = {
-    {ItemId::Scrap, 3, 6, 1.0},
-    {ItemId::Metal, 10, 25, 0.3},
-    {ItemId::LowGrade, 5, 12, 0.25},
-    {ItemId::PistolAmmo, 4, 8, 0.12},
-};
-
 bool inCone(const Player& p, double x, double y) {
     const double a = std::atan2(y - p.y, x - p.x);
     double d = a - p.aim;
@@ -116,21 +101,9 @@ SwingResult swing(World& world, NpcSystem& npcs, Player& player, Inventory& inve
     out.y = node->y;
 
     if (def.loot) {
-        // A barrel gives nothing until it goes, and then all of it at once.
+        // A barrel gives nothing until it goes, and then spills it all at once,
+        // which the world does for anything breakable that holds loot.
         out.broke = world.hurtNode(*node, melee.damage);
-        if (!out.broke) return out;
-        Rng rng(node->seed * 2654435761u + 17u);
-        for (const Loot& loot : kBarrelLoot) {
-            if (rng.unit() > loot.chance) continue;
-            const int amount = static_cast<int>(std::lround(rng.range(loot.low, loot.high)));
-            if (amount <= 0) continue;
-            // Spilled where it stood, scattered a little so the stacks do not
-            // sit in one pile.
-            const double a = rng.unit() * 6.28318530717959;
-            const double d = rng.range(4, 16);
-            world.dropStack(ItemStack{loot.id, amount}, node->x + std::cos(a) * d,
-                            node->y + std::sin(a) * d);
-        }
         return out;
     }
 
@@ -151,6 +124,109 @@ SwingResult swing(World& world, NpcSystem& npcs, Player& player, Inventory& inve
         if (i == 0) out.gained = ItemStack{def.yields[i].id, amount};
     }
     return out;
+}
+
+namespace {
+
+/** A gun holding no magazine at all - a bow - feeds straight from the pack. */
+bool feedsFromPack(const Gun& gun) { return gun.magazine <= 0; }
+
+}  // namespace
+
+FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, bool drawing,
+                double dt) {
+    FireResult out;
+    const ItemId held = inventory.held();
+    const Gun& gun = itemDef(held).gun;
+    if (gun.damage <= 0 || player.swimming) {
+        player.bowDraw = 0;
+        return out;
+    }
+
+    // A bow is drawn while the trigger is held and looses when it is let go,
+    // and only once the draw is full: Rust's hunting bow, and the reason a bow
+    // is punishing to aim.
+    if (feedsFromPack(gun)) {
+        if (drawing) {
+            player.bowDraw += dt;
+            return out;
+        }
+        if (player.bowDraw < kBowDrawSeconds) {
+            player.bowDraw = 0;
+            return out;
+        }
+        player.bowDraw = 0;
+        if (player.attackTimer > 0) return out;
+        if (inventory.take(gun.ammo, 1) < 1) {
+            out.empty = true;
+            return out;
+        }
+    } else {
+        if (!drawing || player.attackTimer > 0 || player.reloadLeft > 0) return out;
+        // A magazine belongs to the gun it is in: picking up another gun does
+        // not hand you the rounds you loaded into the last one.
+        if (player.loaded != held) {
+            player.loaded = held;
+            player.rounds = 0;
+        }
+        if (player.rounds <= 0) {
+            out.empty = true;
+            return out;
+        }
+        --player.rounds;
+    }
+
+    player.attackTimer = gun.cooldown;
+    out.fired = true;
+    out.gun = held;
+    out.x = player.x;
+    out.y = player.y;
+    out.angle = player.aim;
+
+    // The muzzle sits out in front of the chest, not in the middle of it.
+    const double muzzle = 18;
+    const double mx = player.x + std::cos(player.aim) * muzzle;
+    const double my = player.y + std::sin(player.aim) * muzzle;
+    const int pellets = std::max(1, gun.pellets);
+    Rng rng(static_cast<std::uint32_t>((player.x + player.y) * 131.0) + player.rounds + 1u);
+    for (int i = 0; i < pellets; ++i) {
+        const double off = (rng.unit() - 0.5) * 2 * gun.spread;
+        projectiles.spawn(mx, my, player.aim + off, gun, gun.damage, gun.ammo == ItemId::Arrow);
+    }
+    out.rounds = pellets;
+    return out;
+}
+
+void reload(Player& player, const Inventory& inventory) {
+    const ItemId held = inventory.held();
+    const Gun& gun = itemDef(held).gun;
+    if (gun.damage <= 0 || gun.magazine <= 0) return;
+    if (player.reloadLeft > 0) return;
+    if (player.loaded == held && player.rounds >= gun.magazine) return;
+    if (inventory.count(gun.ammo) <= 0) return;
+    player.reloadTotal = gun.reloadSeconds;
+    player.reloadLeft = gun.reloadSeconds;
+    player.loaded = held;
+}
+
+void tickReload(Player& player, Inventory& inventory, double dt) {
+    if (player.reloadLeft <= 0) return;
+    player.reloadLeft -= dt;
+    if (player.reloadLeft > 0) return;
+    player.reloadLeft = 0;
+    const Gun& gun = itemDef(player.loaded).gun;
+    if (gun.magazine <= 0) return;
+    // Topped up rather than swapped: what was left in the gun stays in it.
+    const int want = gun.magazine - player.rounds;
+    player.rounds += inventory.take(gun.ammo, want);
+}
+
+int roundsCarried(const Player& player, const Inventory& inventory) {
+    const ItemId held = inventory.held();
+    const Gun& gun = itemDef(held).gun;
+    if (gun.damage <= 0) return 0;
+    if (feedsFromPack(gun)) return inventory.count(gun.ammo);
+    return (player.loaded == held ? player.rounds : 0) + inventory.count(gun.ammo);
 }
 
 PickResult pickUp(World& world, const Player& player, Inventory& inventory) {

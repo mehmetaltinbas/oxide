@@ -47,6 +47,13 @@ MeleeStyle meleeStyleOf(sim::ItemId item) {
         case sim::ItemId::Hatchet:
         case sim::ItemId::Pickaxe:
         case sim::ItemId::Hammer: return MeleeStyle::Chop;
+        case sim::ItemId::Spear:
+        case sim::ItemId::Bow:
+        case sim::ItemId::Revolver:
+        case sim::ItemId::Waterpipe:
+        case sim::ItemId::PumpShotgun:
+        case sim::ItemId::Rifle:
+        case sim::ItemId::Ak47: return MeleeStyle::Thrust;
         default: return MeleeStyle::Smash;
     }
 }
@@ -80,6 +87,53 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
             handle(paint, tool, -3, 10, 1.1f);
             inked(paint, {tool.at(10, -4.5f), tool.at(15, -4.5f), tool.at(15, 4.5f), tool.at(10, 4.5f)},
                   kSteel);
+            break;
+        }
+        case sim::ItemId::Spear: {
+            handle(paint, tool, -8, 22, 1.0f);
+            inked(paint, {tool.at(22, -2), tool.at(30, 0), tool.at(22, 2)}, kSteelDark);
+            break;
+        }
+        case sim::ItemId::Bow: {
+            // The limbs curve away from you and the string runs between their
+            // tips, which is the whole shape of a bow from above.
+            std::vector<Point> limb;
+            for (int i = 0; i <= 10; ++i) {
+                const float u = i / 10.0f - 0.5f;
+                limb.push_back(tool.at(2 - u * u * 18, u * 26));
+            }
+            paint.outlinePoly(limb, 2.2f, rgb(0x8a5a2e), false);
+            paint.line(tool.at(-2.5f, -13).x, tool.at(-2.5f, -13).y, tool.at(-2.5f, 13).x,
+                       tool.at(-2.5f, 13).y, 1.2f, kInk);
+            break;
+        }
+        case sim::ItemId::Revolver: {
+            inked(paint, {tool.at(0, -2.4f), tool.at(9, -2.4f), tool.at(9, 2.4f), tool.at(0, 2.4f)},
+                  rgb(0x6b6f76));
+            inked(paint, {tool.at(-1, -3.4f), tool.at(2.5f, -3.4f), tool.at(2.5f, 3.4f),
+                          tool.at(-1, 3.4f)},
+                  rgb(0x3f434a));
+            break;
+        }
+        case sim::ItemId::Waterpipe:
+        case sim::ItemId::PumpShotgun:
+        case sim::ItemId::Rifle:
+        case sim::ItemId::Ak47: {
+            // A long gun, seen from above: a stock under the hand, a receiver,
+            // and the barrel running out ahead.
+            const bool wood = item == sim::ItemId::Waterpipe || item == sim::ItemId::PumpShotgun ||
+                              item == sim::ItemId::Ak47;
+            inked(paint, {tool.at(-9, -2.2f), tool.at(2, -2.2f), tool.at(2, 2.2f), tool.at(-9, 2.2f)},
+                  wood ? rgb(0x8a5a2e) : rgb(0x4d5159));
+            inked(paint, {tool.at(2, -2.8f), tool.at(12, -2.8f), tool.at(12, 2.8f), tool.at(2, 2.8f)},
+                  rgb(0x4d5159));
+            inked(paint, {tool.at(12, -1.4f), tool.at(24, -1.4f), tool.at(24, 1.4f), tool.at(12, 1.4f)},
+                  rgb(0x6b6f76));
+            // The magazine, hanging under the receiver.
+            if (item == sim::ItemId::Ak47 || item == sim::ItemId::Rifle) {
+                inked(paint, {tool.at(3, 2.8f), tool.at(8, 2.8f), tool.at(7, 7.5f), tool.at(4, 7.5f)},
+                      rgb(0x3f434a));
+            }
             break;
         }
         case sim::ItemId::Rock: {

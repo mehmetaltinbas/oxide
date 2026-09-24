@@ -43,8 +43,18 @@ public:
     void draw(Paint& paint, const sim::Inventory& inventory, int health, int width, int height,
               const char* prompt, float uiScale) const;
 
+    /**
+     * What is loaded and what is left, the reload's progress, and how far a
+     * bow is drawn. Rounds below zero means nothing is being aimed.
+     */
+    void setAmmo(int carried, int loaded, double reloading, double bowDraw);
+
 private:
     std::vector<Popup> popups_;
+    int carried_ = -1;
+    int loaded_ = 0;
+    double reloading_ = 0;
+    double bowDraw_ = 0;
 };
 
 }  // namespace client

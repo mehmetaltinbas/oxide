@@ -2,6 +2,7 @@
 
 #include "sim/inventory.hpp"
 #include "sim/npcs.hpp"
+#include "sim/projectile.hpp"
 #include "sim/player.hpp"
 #include "sim/world.hpp"
 
@@ -51,6 +52,36 @@ struct PickResult {
  * by hand rather than swung at.
  */
 PickResult pickUp(World& world, const Player& player, Inventory& inventory);
+
+/** What pulling the trigger did. */
+struct FireResult {
+    bool fired = false;
+    /** Nothing in the magazine: the click that tells you to reload. */
+    bool empty = false;
+    /** How many rounds went out, which is more than one for a shotgun. */
+    int rounds = 0;
+    double x = 0;
+    double y = 0;
+    double angle = 0;
+    ItemId gun = ItemId::None;
+};
+
+/**
+ * Pulling the trigger.
+ *
+ * A gun fires what is loaded and no more; a bow needs a full draw and takes
+ * its arrow straight out of the pack. `drawing` is whether the trigger is
+ * being held, which is the whole of how a bow works.
+ */
+FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, bool drawing,
+                double dt);
+
+/** Starting a reload, and the seconds of it passing. */
+void reload(Player& player, const Inventory& inventory);
+void tickReload(Player& player, Inventory& inventory, double dt);
+
+/** How many rounds are to hand for whatever is held, loaded and carried. */
+int roundsCarried(const Player& player, const Inventory& inventory);
 
 /** How far you can reach to pick something up. */
 inline constexpr double kPickReach = 46;

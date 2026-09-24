@@ -22,16 +22,28 @@ enum class ItemId : std::uint8_t {
     Leather,
     Bone,
     AnimalFat,
+    // Ammunition.
+    Arrow,
+    ShotgunShell,
+    RifleAmmo,
     // Tools.
     Rock,
     Hatchet,
     Pickaxe,
     Hammer,
+    // Weapons.
+    Spear,
+    Bow,
+    Revolver,
+    Waterpipe,
+    PumpShotgun,
+    Rifle,
+    Ak47,
 };
 
-inline constexpr int kItemCount = 19;
+inline constexpr int kItemCount = 29;
 
-enum class ItemCategory : std::uint8_t { Resource, Tool, Ammo };
+enum class ItemCategory : std::uint8_t { Resource, Tool, Ammo, Weapon };
 
 /** What a tool does when it lands. */
 struct Melee {
@@ -43,6 +55,23 @@ struct Melee {
     double reach;
 };
 
+/** What a gun does when it goes off. */
+struct Gun {
+    double damage;
+    double cooldown;
+    /** How fast the round travels, and how far before it is spent. */
+    double speed;
+    double range;
+    /** How far off true a shot can come out, in radians. */
+    double spread;
+    ItemId ammo;
+    /** How many rounds it holds, and how long it takes to fill again. */
+    int magazine;
+    double reloadSeconds;
+    /** More than one means a cone of them: a shotgun. */
+    int pellets;
+};
+
 struct ItemDef {
     ItemId id;
     const char* name;
@@ -50,6 +79,8 @@ struct ItemDef {
     int stack;
     /** Zero damage means it is not a thing you swing. */
     Melee melee;
+    /** Zero damage means it is not a thing you fire. */
+    Gun gun;
 };
 
 const ItemDef& itemDef(ItemId id);
@@ -68,7 +99,7 @@ struct ItemStack {
  */
 inline constexpr double kFistFraction = 0.5;
 
-/** What bare hands can work: a tree, and a plain stone. */
-bool fistsCanWork(ItemId nodeKindAsItem);
+/** How long a bow takes to draw: an arrow cannot be loosed before it is full. */
+inline constexpr double kBowDrawSeconds = 1.0;
 
 }  // namespace sim

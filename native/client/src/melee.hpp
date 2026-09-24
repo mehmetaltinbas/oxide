@@ -5,7 +5,7 @@
 namespace client {
 
 /** How a thing is swung: a side blow with a tool, or a rock driven forward. */
-enum class MeleeStyle { Chop, Smash };
+enum class MeleeStyle { Chop, Smash, Thrust };
 
 /** One frame of a swing: where the hand is and how the tool sits in it. */
 struct MeleePose {

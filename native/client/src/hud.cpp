@@ -24,6 +24,13 @@ void Hud::say(const std::string& text, double x, double y, Color color) {
     popups_.push_back(Popup{text, x, y, kPopupLife, color});
 }
 
+void Hud::setAmmo(int carried, int loaded, double reloading, double bowDraw) {
+    carried_ = carried;
+    loaded_ = loaded;
+    reloading_ = reloading;
+    bowDraw_ = bowDraw;
+}
+
 void Hud::update(double dt) {
     for (Popup& p : popups_) p.life -= dt;
     popups_.erase(std::remove_if(popups_.begin(), popups_.end(),
@@ -93,6 +100,29 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
     SDL_RenderDebugTextFormat(renderer, (bx + 8 * uiScale) / uiScale, (by + 5 * uiScale) / uiScale,
                               "%d", health);
     SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+
+    if (carried_ >= 0) {
+        // Over on the right, where the belt ends: what is in the gun and what
+        // is left in the pack for it.
+        const float ax = x0 + total + 20 * uiScale;
+        const float ay = y0 + slot * 0.5f - 10 * uiScale;
+        SDL_SetRenderScale(renderer, 2.0f * uiScale, 2.0f * uiScale);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDebugTextFormat(renderer, ax / (2.0f * uiScale), ay / (2.0f * uiScale), "%d / %d",
+                                  loaded_, carried_ - loaded_);
+        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    }
+    if (reloading_ > 0 || bowDraw_ > 0) {
+        // A sliver over the belt: the reload running down, or the draw coming
+        // up to full.
+        const float w = 200 * uiScale;
+        const float h = 8 * uiScale;
+        const float px = (width - w) * 0.5f;
+        const float py = y0 - 18 * uiScale;
+        const double progress = reloading_ > 0 ? 1 - reloading_ : std::min(1.0, bowDraw_);
+        paint.fillRect(px - 2, py - 2, w + 4, h + 4, kInk);
+        paint.fillRect(px, py, static_cast<float>(w * progress), h, rgb(0xe8c87a));
+    }
 
     if (prompt && prompt[0]) {
         // One line, over the belt: what the key under your finger would do.

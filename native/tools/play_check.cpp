@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "sim/action.hpp"
+#include "sim/projectile.hpp"
 
 int main() {
     sim::World world;
@@ -104,6 +105,40 @@ int main() {
             if (!sim::pickUp(world, player, inventory).picked) break;
         }
     }
+
+    // And a rifle, at something far enough off that a bullet has to fly.
+    sim::Projectiles projectiles;
+    inventory.hotbar()[2] = sim::ItemStack{sim::ItemId::Ak47, 1};
+    inventory.selectSlot(2);
+    inventory.add(sim::ItemId::RifleAmmo, 60);
+    sim::reload(player, inventory);
+    for (int i = 0; i < 400; ++i) sim::tickReload(player, inventory, dt);
+
+    const sim::Npc* mark = nullptr;
+    double markD = 1e9;
+    for (const sim::Npc& npc : npcs.list()) {
+        if (npc.hp <= 0) continue;
+        const double d = std::hypot(npc.x - player.x, npc.y - player.y);
+        if (d < markD) {
+            markD = d;
+            mark = &npc;
+        }
+    }
+    int shots = 0;
+    int landed = 0;
+    if (mark) {
+        player.aim = std::atan2(mark->y - player.y, mark->x - player.x);
+        for (int frame = 0; frame < 60 * 20; ++frame) {
+            player.attackTimer = std::max(0.0, player.attackTimer - dt);
+            const sim::FireResult shot = sim::fire(player, inventory, projectiles, true, dt);
+            if (shot.fired) ++shots;
+            for (const sim::BulletHit& hit : projectiles.update(world, npcs, dt)) {
+                if (hit.npc) ++landed;
+            }
+        }
+    }
+    std::printf("rifle: %d rounds out at %.0f away, %d into an animal, %d left in the gun\n", shots,
+                markD, landed, player.rounds);
 
     std::printf("hunt: %s %s after %d hits, leather %d, meat %d, health %d\n", preyName,
                 killed ? "killed" : "got away", hits, inventory.count(sim::ItemId::Leather),

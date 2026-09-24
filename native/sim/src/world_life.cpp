@@ -1,10 +1,26 @@
 #include <algorithm>
+#include <cmath>
 
 #include "sim/world.hpp"
 
 namespace sim {
 
 namespace {
+
+/** What is in a barrel, and how often. */
+struct Loot {
+    ItemId id;
+    int low;
+    int high;
+    double chance;
+};
+
+constexpr Loot kBarrelLoot[4] = {
+    {ItemId::Scrap, 3, 6, 1.0},
+    {ItemId::Metal, 10, 25, 0.3},
+    {ItemId::LowGrade, 5, 12, 0.25},
+    {ItemId::PistolAmmo, 4, 8, 0.12},
+};
 
 /**
  * How long anything harvested takes to come back: one full in-game day.
@@ -48,6 +64,21 @@ bool World::hurtNode(ResourceNode& node, double damage) {
     Rng rng(respawnSeed_ += 0x9e3779b9u);
     const double slack = kRegrowthSeconds * kRegrowthSpread;
     node.respawn = kRegrowthSeconds + rng.range(-slack, slack);
+
+    // What was inside spills where it stood, scattered a little so the stacks
+    // do not sit in one pile, for whoever gets there.
+    if (nodeDef(node.kind).loot) {
+        Rng loot(node.seed * 2654435761u + 17u);
+        for (const Loot& entry : kBarrelLoot) {
+            if (loot.unit() > entry.chance) continue;
+            const int amount = static_cast<int>(std::lround(loot.range(entry.low, entry.high)));
+            if (amount <= 0) continue;
+            const double a = loot.unit() * 6.28318530717959;
+            const double d = loot.range(4, 16);
+            dropStack(ItemStack{entry.id, amount}, node.x + std::cos(a) * d,
+                      node.y + std::sin(a) * d);
+        }
+    }
     return true;
 }
 

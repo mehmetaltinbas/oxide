@@ -15,6 +15,7 @@
 #include "sim/action.hpp"
 #include "sim/inventory.hpp"
 #include "sim/npcs.hpp"
+#include "sim/projectile.hpp"
 #include "sim/player.hpp"
 #include "sim/world.hpp"
 #include "sprites.hpp"
@@ -73,12 +74,16 @@ int main(int argc, char** argv) {
     int benchFrames = 0;
     // A swing frozen part way through, for checking how a blow is drawn.
     double poseSwing = -1;
+    /** Armed to the teeth, for trying the guns before crafting exists. */
+    bool armed = false;
     for (int i = 1; i < argc; ++i) {
         if (SDL_strcmp(argv[i], "--shot") == 0 && i + 1 < argc) {
             shotPath = argv[++i];
         } else if (SDL_strcmp(argv[i], "--at") == 0 && i + 2 < argc) {
             startX = SDL_atof(argv[++i]);
             startY = SDL_atof(argv[++i]);
+        } else if (SDL_strcmp(argv[i], "--armed") == 0) {
+            armed = true;
         } else if (SDL_strcmp(argv[i], "--swing") == 0 && i + 1 < argc) {
             poseSwing = SDL_atof(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--bench") == 0 && i + 1 < argc) {
@@ -110,6 +115,17 @@ int main(int argc, char** argv) {
         inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
         inventory.selectSlot(1);
     }
+    if (armed) {
+        inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
+        inventory.hotbar()[2] = sim::ItemStack{sim::ItemId::Bow, 1};
+        inventory.hotbar()[3] = sim::ItemStack{sim::ItemId::Ak47, 1};
+        inventory.hotbar()[4] = sim::ItemStack{sim::ItemId::PumpShotgun, 1};
+        inventory.add(sim::ItemId::Arrow, 40);
+        inventory.add(sim::ItemId::RifleAmmo, 120);
+        inventory.add(sim::ItemId::ShotgunShell, 40);
+        inventory.selectSlot(3);
+    }
+    sim::Projectiles projectiles;
     client::Hud hud;
 
     client::Terrain terrain(renderer);
@@ -142,6 +158,9 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
                 event.key.key <= SDLK_6) {
                 inventory.selectSlot(static_cast<int>(event.key.key - SDLK_1));
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R && !event.key.repeat) {
+                sim::reload(player, inventory);
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_E && !event.key.repeat) {
                 const sim::PickResult got = sim::pickUp(world, player, inventory);
@@ -210,9 +229,27 @@ int main(int argc, char** argv) {
             player.aim = 0;
         }
 
-        // Held down: a swing goes out whenever the last one has come round.
+        sim::tickReload(player, inventory, dt);
+
+        // Held down: a blow or a shot goes out whenever the last one has come
+        // round. A bow is the exception: it draws while held and looses when
+        // the button comes up.
         const SDL_MouseButtonFlags buttons = SDL_GetMouseState(nullptr, nullptr);
-        if ((buttons & SDL_BUTTON_LMASK) != 0) {
+        const bool trigger = (buttons & SDL_BUTTON_LMASK) != 0;
+        const bool gun = sim::itemDef(inventory.held()).gun.damage > 0;
+        if (gun) {
+            const sim::FireResult shot = sim::fire(player, inventory, projectiles, trigger, dt);
+            if (shot.empty && trigger) {
+                hud.say("Reload  (R)", player.x, player.y - 26, client::rgb(0xd8483a));
+            }
+        }
+        for (const sim::BulletHit& hit : projectiles.update(world, npcs, dt)) {
+            if (hit.npc && hit.killed) {
+                hud.say(std::string("Killed a ") + sim::npcDef(hit.npcKind).name, hit.x, hit.y - 22,
+                        client::rgb(0xefeadd));
+            }
+        }
+        if (!gun && trigger) {
             const sim::SwingResult blow = sim::swing(world, npcs, player, inventory);
             if (blow.landed && blow.gained.count > 0) {
                 hud.say(std::string("+") + std::to_string(blow.gained.count) + " " +
@@ -315,6 +352,28 @@ int main(int argc, char** argv) {
         drawAnimalsUpTo(1e9);
         if (!playerDrawn) drawPlayer();
 
+        for (const sim::Bullet& bullet : projectiles.list()) {
+            const float bx = static_cast<float>((bullet.x - player.x) * scale) + width * 0.5f;
+            const float by = static_cast<float>((bullet.y - player.y) * scale) + height * 0.5f;
+            const double speed = SDL_sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
+            // A streak behind the round, as long as it travels in a blink.
+            const float tail = static_cast<float>(speed * 0.02 * scale);
+            const float ux = static_cast<float>(bullet.vx / speed);
+            const float uy = static_cast<float>(bullet.vy / speed);
+            if (bullet.arrow) {
+                paint.line(bx - ux * tail, by - uy * tail, bx, by, 2.2f * static_cast<float>(scale),
+                           client::rgb(0x8a5a2e));
+            } else {
+                // Fading out at the back, so it reads as a thing in flight
+                // rather than a stick lying across the ground.
+                paint.line(bx - ux * tail, by - uy * tail, bx - ux * tail * 0.4f,
+                           by - uy * tail * 0.4f, 1.6f * static_cast<float>(scale),
+                           client::Color{255, 241, 168, 90});
+                paint.line(bx - ux * tail * 0.4f, by - uy * tail * 0.4f, bx, by,
+                           2.0f * static_cast<float>(scale), client::rgb(0xfff1a8));
+            }
+        }
+
         hud.drawPopups(renderer, player.x, player.y, scale, width, height);
 
         // What the key under your finger would do, if anything.
@@ -342,6 +401,12 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        hud.setAmmo(sim::itemDef(inventory.held()).gun.damage > 0
+                        ? sim::roundsCarried(player, inventory)
+                        : -1,
+                    player.loaded == inventory.held() ? player.rounds : 0,
+                    player.reloadTotal > 0 ? player.reloadLeft / player.reloadTotal : 0,
+                    player.bowDraw / sim::kBowDrawSeconds);
         hud.draw(paint, inventory, player.health, width, height, prompt, static_cast<float>(density));
 
         fpsClock += dt;
