@@ -14,6 +14,10 @@ namespace sim {
 struct Session {
     std::uint32_t seed = 0;
     double clock = 0;
+    /** When it was written, so what was away can rot while you were. */
+    std::int64_t savedAt = 0;
+    /** How long the island ran without you, filled in by the load. */
+    double hoursAway = 0;
     Player player;
     Inventory inventory;
 };

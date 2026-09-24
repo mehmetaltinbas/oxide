@@ -220,7 +220,8 @@ int main(int argc, char** argv) {
             inventory = session.inventory;
             startClock = session.clock;
             loaded = true;
-            std::printf("Carried on from %s\n", savePath.c_str());
+            std::printf("Carried on from %s, %.1f hours on\n", savePath.c_str(),
+                        session.hoursAway);
         }
     }
 
@@ -565,7 +566,11 @@ int main(int argc, char** argv) {
             sinceSave += dt;
             if (sinceSave > 20) {
                 sinceSave = 0;
-                sim::Session session{seed, clock, player, inventory};
+                sim::Session session;
+                session.seed = seed;
+                session.clock = clock;
+                session.player = player;
+                session.inventory = inventory;
                 sim::saveSession(savePath, session, world, build);
             }
         }
@@ -1320,7 +1325,11 @@ int main(int argc, char** argv) {
 
     if (!online && !sandbox && benchFrames <= 0 && !shotPath) {
         // On the way out, so quitting never costs you the last twenty seconds.
-        sim::Session session{seed, clock, player, inventory};
+        sim::Session session;
+        session.seed = seed;
+        session.clock = clock;
+        session.player = player;
+        session.inventory = inventory;
         sim::saveSession(savePath, session, world, build);
     }
 

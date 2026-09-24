@@ -1,8 +1,41 @@
 # Oxide
 
 A top-down 2D take on Rust: land on an island with a rock, work your way up to
-sheet metal and explosives, and hold what you built against three AI clans who
-will eventually come for it.
+sheet metal and explosives, and hold what you built.
+
+Being rewritten in **C++ with SDL3**, for a Steam release and a server that can
+hold a crowd. No engine, no art assets: the island, the items and everything
+drawn are made in code. The TypeScript version below still runs and is the
+reference the rewrite is measured against.
+
+## The C++ game
+
+```bash
+cd native && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
+```
+
+```bash
+./native/build/bin/oxide
+```
+
+`--sandbox` for creative, `--armed` for a bag of guns, `--map`, `--night`,
+`--seed`, `--connect host[:port]` to join a server, `--bench N` to time frames
+and `--shot file.bmp` to write one out. The server is
+`./native/build/bin/oxide_server --port 8787 --seed 12345`.
+
+`native/build/bin/play_check` and `net_check` are the regression checks: one
+plays a stretch of the game with nobody watching, the other runs two players
+against a server.
+
+### Controls
+
+WASD to move, shift to run. Left click uses what is in your hand, right click
+draws a bow. 1-6 pick a belt slot, R reloads, E uses whatever is in front of
+you, TAB opens the pack and the bench, M the map, B changes what the building
+plan puts down, T says something online, F asks the person in front of you to
+team up, H lists all of this.
+
+## The TypeScript version
 
 TypeScript + HTML5 canvas, no engine, no art or audio assets, terrain, items and
 sound are all generated. Vite for dev/build.

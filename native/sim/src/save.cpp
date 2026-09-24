@@ -1,6 +1,8 @@
 #include "sim/save.hpp"
 
+#include <chrono>
 #include <cstdio>
+#include <algorithm>
 #include <vector>
 
 #include "sim/net/protocol.hpp"
@@ -34,6 +36,10 @@ bool saveSession(const std::string& path, const Session& session, const World& w
     out.u32(kSaveVersion);
     out.u32(session.seed);
     out.f32(static_cast<float>(session.clock));
+    const std::int64_t now = std::chrono::duration_cast<std::chrono::seconds>(
+                                 std::chrono::system_clock::now().time_since_epoch())
+                                 .count();
+    out.u32(static_cast<std::uint32_t>(now));
 
     const Player& player = session.player;
     out.f32(static_cast<float>(player.x));
@@ -126,6 +132,11 @@ bool loadSession(const std::string& path, Session& session, World& world, BuildS
     if (in.u32() != kSaveVersion) return false;
     session.seed = in.u32();
     session.clock = in.f32();
+    session.savedAt = in.u32();
+    const std::int64_t now = std::chrono::duration_cast<std::chrono::seconds>(
+                                 std::chrono::system_clock::now().time_since_epoch())
+                                 .count();
+    session.hoursAway = std::max(0.0, static_cast<double>(now - session.savedAt) / 3600.0);
 
     // The island is rebuilt from its seed rather than read back: it is the same
     // island, and only what happened to it is written down.
@@ -221,6 +232,8 @@ bool loadSession(const std::string& path, Session& session, World& world, BuildS
         thing->container.slots.assign(slots, ItemStack{});
         for (ItemStack& stack : thing->container.slots) stack = readStack(in);
     }
+    // What was left standing rots while nobody is there to keep it up.
+    build.applyDecay(session.hoursAway);
     return in.ok();
 }
 

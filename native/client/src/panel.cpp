@@ -220,6 +220,47 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
     }
     text(renderer, l.packX, l.queueY - 14 * uiScale, 1.4f * uiScale, kDim,
          "QUEUE   right click to cancel");
+    // What the cursor is over, named along the bottom.
+    float mouseX = 0;
+    float mouseY = 0;
+    SDL_GetMouseState(&mouseX, &mouseY);
+    const float px = mouseX * uiScale;
+    const float py = mouseY * uiScale;
+    const auto overSlot = [&](float ox, float oy, int count, int cols, auto&& stackAt) {
+        for (int i = 0; i < count; ++i) {
+            const float sx = ox + (i % cols) * (l.slot + 4 * uiScale);
+            const float sy = oy + (i / cols) * (l.slot + 4 * uiScale);
+            if (px < sx || px > sx + l.slot || py < sy || py > sy + l.slot) continue;
+            return stackAt(i).id;
+        }
+        return sim::ItemId::None;
+    };
+    sim::ItemId over = overSlot(l.packX, l.packY, sim::kPackSlots, kPackCols,
+                                [&](int i) { return inventory.pack()[i]; });
+    if (over == sim::ItemId::None) {
+        over = overSlot(l.packX, beltY, sim::kHotbarSlots, sim::kHotbarSlots,
+                        [&](int i) { return inventory.hotbar()[i]; });
+    }
+    if (over != sim::ItemId::None) {
+        const sim::ItemDef& def = sim::itemDef(over);
+        char line[96];
+        if (def.gun.damage > 0) {
+            SDL_snprintf(line, sizeof(line), "%s   %.0f damage, %d in the magazine", def.name,
+                         def.gun.damage, def.gun.magazine);
+        } else if (def.melee.damage > 0) {
+            SDL_snprintf(line, sizeof(line), "%s   %.0f damage, reaches %.0f", def.name,
+                         def.melee.damage, def.melee.reach);
+        } else if (def.wear.warmth > 0) {
+            SDL_snprintf(line, sizeof(line), "%s   %.0f warmth, turns %.0f%% of a blow", def.name,
+                         def.wear.warmth, def.wear.armor * 100);
+        } else if (def.boom.damage > 0) {
+            SDL_snprintf(line, sizeof(line), "%s   %.0f damage, %.1fs fuse", def.name,
+                         def.boom.damage, def.boom.fuse);
+        } else {
+            SDL_snprintf(line, sizeof(line), "%s   stacks to %d", def.name, def.stack);
+        }
+        text(renderer, l.packX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kText, line);
+    }
     text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim, "TAB to close");
 }
 

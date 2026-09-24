@@ -316,7 +316,11 @@ int main() {
     // Written down and read back: the same island, and everything that has
     // happened to it.
     {
-        sim::Session out{12345, 1234.5, player, inventory};
+        sim::Session out;
+        out.seed = 12345;
+        out.clock = 1234.5;
+        out.player = player;
+        out.inventory = inventory;
         const std::string path = "/tmp/oxide-save-check";
         const bool wrote = sim::saveSession(path, out, world, build);
         sim::World back;
