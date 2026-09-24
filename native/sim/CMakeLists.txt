@@ -19,6 +19,7 @@ add_library(oxide_sim STATIC
     src/deployable.cpp
     src/monument.cpp
     src/monuments_place.cpp
+    src/blast.cpp
     src/world_life.cpp
 )
 target_include_directories(oxide_sim PUBLIC include)

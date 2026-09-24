@@ -37,6 +37,12 @@ enum class ItemId : std::uint8_t {
     ToolCupboard,
     WoodenBox,
     SleepingBag,
+    // Raiding.
+    Satchel,
+    C4,
+    RocketLauncher,
+    Rocket,
+    Lock,
     // Ammunition.
     Arrow,
     ShotgunShell,
@@ -57,7 +63,7 @@ enum class ItemId : std::uint8_t {
     Ak47,
 };
 
-inline constexpr int kItemCount = 43;
+inline constexpr int kItemCount = 48;
 
 enum class ItemCategory : std::uint8_t {
     Resource,
@@ -67,6 +73,7 @@ enum class ItemCategory : std::uint8_t {
     Consumable,
     Clothing,
     Deployable,
+    Explosive,
 };
 
 /** What a tool does when it lands. */
@@ -105,6 +112,14 @@ struct Food {
     double useSeconds;
 };
 
+/** What a charge does when it goes off. */
+struct Boom {
+    double damage;
+    double radius;
+    /** How long between throwing it and it going off. */
+    double fuse;
+};
+
 /** What wearing something does. */
 struct Wear {
     double warmth;
@@ -126,6 +141,8 @@ struct ItemDef {
     Food food;
     /** All zero means it is not a thing you wear. */
     Wear wear;
+    /** All zero means it is not a thing that goes off. */
+    Boom boom;
 };
 
 const ItemDef& itemDef(ItemId id);

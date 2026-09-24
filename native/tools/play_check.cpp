@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "sim/action.hpp"
+#include "sim/blast.hpp"
 #include "sim/build.hpp"
 #include "sim/survival.hpp"
 #include "sim/craft.hpp"
@@ -157,6 +158,45 @@ int main() {
         }
         std::printf("wall: walked %.0f into it, stopped %.0f short, through it: %s\n",
                     player.y - startY, wallY - player.y, player.y > wallY ? "yes" : "no");
+    }
+
+    // A raid: a wall of stone, and a rocket into it.
+    {
+        sim::Explosives explosives;
+        const int gx = 40;
+        const int gy = 40;
+        build.placeFoundation(gx, gy, 0, sim::BuildTier::Stone);
+        build.placeFoundation(gx + 1, gy, 0, sim::BuildTier::Stone);
+        const int wallA = build.placeEdge(gx, gy, sim::EdgeSide::North, sim::BuildKind::Wall, 0,
+                                          sim::BuildTier::Stone).id;
+        const int wallB = build.placeEdge(gx + 1, gy, sim::EdgeSide::North, sim::BuildKind::Wall, 0,
+                                          sim::BuildTier::Stone).id;
+        double x0 = 0;
+        double y0 = 0;
+        double x1 = 0;
+        double y1 = 0;
+        sim::edgeSegment(gx, gy, sim::EdgeSide::North, x0, y0, x1, y1);
+        sim::Player raider;
+        raider.x = (x0 + x1) * 0.5;
+        raider.y = y0 - 200;
+        sim::Inventory kit;
+        int rockets = 0;
+        bool downA = false;
+        while (!downA && rockets < 8) {
+            explosives.detonate(world, build, npcs, raider, kit, (x0 + x1) * 0.5, y0, 100, 275, wallA,
+                                true);
+            ++rockets;
+            downA = true;
+            for (const sim::Structure& piece : build.list()) {
+                if (piece.id == wallA) downA = false;
+            }
+        }
+        int neighbour = 0;
+        for (const sim::Structure& piece : build.list()) {
+            if (piece.id == wallB) neighbour = piece.hp;
+        }
+        std::printf("raid: %d rockets through a stone wall, the one beside it on %d\n", rockets,
+                    neighbour);
     }
 
     // What was chopped, turned into a hatchet: queued, waited out, and in the

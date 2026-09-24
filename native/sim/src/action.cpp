@@ -187,6 +187,12 @@ FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, 
     const double muzzle = 18;
     const double mx = player.x + std::cos(player.aim) * muzzle;
     const double my = player.y + std::sin(player.aim) * muzzle;
+    if (held == ItemId::RocketLauncher) {
+        projectiles.spawnRocket(mx, my, player.aim, gun, itemDef(held).boom);
+        out.rounds = 1;
+        return out;
+    }
+
     const int pellets = std::max(1, gun.pellets);
     Rng rng(static_cast<std::uint32_t>((player.x + player.y) * 131.0) + player.rounds + 1u);
     for (int i = 0; i < pellets; ++i) {

@@ -49,6 +49,8 @@ struct Structure {
     /** Whose it is. Nought is the player at the keyboard, for now. */
     int owner;
     bool open;
+    /** A locked door opens for its owner and for nobody else. */
+    bool locked;
     double flash;
 };
 
@@ -67,6 +69,8 @@ void edgeSegment(int gx, int gy, EdgeSide side, double& x0, double& y0, double& 
 class BuildSystem {
 public:
     const std::vector<Structure>& list() const { return pieces_; }
+    /** The same, to be changed: what a blast and a hammer work on. */
+    std::vector<Structure>& list2() { return pieces_; }
 
     Structure* foundationAt(int gx, int gy);
     Structure* edgeAt(int gx, int gy, EdgeSide side);
@@ -117,6 +121,15 @@ public:
 
     /** How warm any lit fire nearby makes a point. */
     double warmthAt(double x, double y) const;
+
+    /**
+     * What rots while nobody is here to keep it up.
+     *
+     * Rust's rule, kept simple: everything you own loses a slice of its full
+     * health for every hour the island ran without you, and what that finishes
+     * off is gone when you come back.
+     */
+    void applyDecay(double hours);
 
     /** Fires burn, meat cooks, ore smelts. */
     void updateDeployables(double dt);

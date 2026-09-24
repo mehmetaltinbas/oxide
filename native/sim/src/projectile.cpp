@@ -49,6 +49,14 @@ void Projectiles::spawn(double x, double y, double angle, const Gun& gun, double
     bullets_.push_back(bullet);
 }
 
+void Projectiles::spawnRocket(double x, double y, double angle, const Gun& gun, const Boom& boom) {
+    spawn(x, y, angle, gun, 0, false);
+    Bullet& rocket = bullets_.back();
+    rocket.rocket = true;
+    rocket.blastDamage = boom.damage;
+    rocket.blastRadius = boom.radius;
+}
+
 void Projectiles::spawnHostile(double x, double y, double angle, const Gun& gun, double damage) {
     spawn(x, y, angle, gun, damage, false);
     bullets_.back().fromPlayer = false;
@@ -130,7 +138,12 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
             hit.x = ax + (bx - ax) * wallAt;
             hit.y = ay + (by - ay) * wallAt;
             hit.built = true;
-            hit.brokeBuilt = build.damage(*wall, bullet.damage);
+            hit.rocket = bullet.rocket;
+            hit.blastDamage = bullet.blastDamage;
+            hit.blastRadius = bullet.blastRadius;
+            hit.builtId = wall->id;
+            // A rocket is spent on the blast, not on the wall it touched.
+            hit.brokeBuilt = bullet.rocket ? false : build.damage(*wall, bullet.damage);
             hits.push_back(hit);
             bullet.left = 0;
             continue;
@@ -141,6 +154,9 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
             hit.x = ax + (bx - ax) * bestAt;
             hit.y = ay + (by - ay) * bestAt;
             hit.npc = true;
+            hit.rocket = bullet.rocket;
+            hit.blastDamage = bullet.blastDamage;
+            hit.blastRadius = bullet.blastRadius;
             hit.npcKind = hitNpc->kind;
             hit.killed = hitNpc->hp - static_cast<int>(bullet.damage) <= 0;
             npcs.hurt(world, *hitNpc, bullet.damage, ax, ay);
@@ -153,6 +169,9 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
             hit.x = ax + (bx - ax) * bestAt;
             hit.y = ay + (by - ay) * bestAt;
             hit.node = true;
+            hit.rocket = bullet.rocket;
+            hit.blastDamage = bullet.blastDamage;
+            hit.blastRadius = bullet.blastRadius;
             hit.nodeKind = hitNode->kind;
             // A barrel is broken open by gunfire; a tree only stops the round.
             if (nodeDef(hitNode->kind).loot) {
@@ -168,6 +187,15 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
         bullet.x = bx;
         bullet.y = by;
         bullet.left -= step;
+        if (bullet.rocket && bullet.left <= 0) {
+            BulletHit hit{};
+            hit.x = bullet.x;
+            hit.y = bullet.y;
+            hit.rocket = true;
+            hit.blastDamage = bullet.blastDamage;
+            hit.blastRadius = bullet.blastRadius;
+            hits.push_back(hit);
+        }
         // Out over the sea, a round is gone: there is nothing for it to hit.
         if (bullet.x < 0 || bullet.y < 0 || bullet.x > kWorldWidth || bullet.y > kWorldHeight) {
             bullet.left = 0;

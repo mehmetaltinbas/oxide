@@ -33,6 +33,7 @@ const std::vector<Recipe>& table() {
         {ItemId::LowGrade, 4, {{ItemId::AnimalFat, 3}, {ItemId::Cloth, 1}}, 2, 0, 2},
 
         {ItemId::Arrow, 8, {{ItemId::Wood, 40}, {ItemId::Stone, 15}}, 2, 1, 3},
+        {ItemId::Lock, 1, {{ItemId::Metal, 100}}, 1, 1, 4},
         {ItemId::Gunpowder, 10, {{ItemId::Sulfur, 20}, {ItemId::Charcoal, 30}}, 2, 1, 3},
         {ItemId::Medkit, 1, {{ItemId::Cloth, 15}, {ItemId::LowGrade, 10}}, 2, 1, 4},
         {ItemId::Waterpipe, 1, {{ItemId::Wood, 150}, {ItemId::Metal, 75}}, 2, 1, 6},
@@ -46,6 +47,13 @@ const std::vector<Recipe>& table() {
         {ItemId::Rifle, 1, {{ItemId::Metal, 450}, {ItemId::Scrap, 300}}, 2, 3, 12},
         {ItemId::Ak47, 1,
          {{ItemId::Metal, 600}, {ItemId::Scrap, 450}, {ItemId::Wood, 200}}, 3, 3, 15},
+        {ItemId::Satchel, 1,
+         {{ItemId::Gunpowder, 80}, {ItemId::Metal, 30}, {ItemId::Cloth, 10}}, 3, 2, 8},
+        {ItemId::C4, 1,
+         {{ItemId::Gunpowder, 200}, {ItemId::Metal, 100}, {ItemId::Cloth, 30}}, 3, 3, 14},
+        {ItemId::RocketLauncher, 1, {{ItemId::Metal, 300}, {ItemId::Scrap, 150}}, 2, 3, 12},
+        {ItemId::Rocket, 1,
+         {{ItemId::Gunpowder, 100}, {ItemId::Metal, 50}, {ItemId::Cloth, 15}}, 3, 3, 8},
         {ItemId::RifleAmmo, 12, {{ItemId::Gunpowder, 20}, {ItemId::Metal, 15}}, 2, 3, 3},
     };
     return all;

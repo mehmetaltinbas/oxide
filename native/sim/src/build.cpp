@@ -158,7 +158,7 @@ const char* BuildSystem::refuseEdge(const World& world, int gx, int gy, EdgeSide
 Structure& BuildSystem::placeFoundation(int gx, int gy, int owner, BuildTier tier) {
     const int hp = static_cast<int>(std::lround(tierDef(tier).hp * kFoundationHpMul));
     pieces_.push_back(Structure{nextId_++, BuildKind::Foundation, tier, gx, gy, EdgeSide::North, hp,
-                                hp, owner, false, 0});
+                                hp, owner, false, false, 0});
     reindex();
     return pieces_.back();
 }
@@ -167,7 +167,7 @@ Structure& BuildSystem::placeEdge(int gx, int gy, EdgeSide side, BuildKind kind,
                                   BuildTier tier) {
     const int hp = tierDef(tier).hp;
     pieces_.push_back(
-        Structure{nextId_++, kind, tier, gx, gy, side, hp, hp, owner, false, 0});
+        Structure{nextId_++, kind, tier, gx, gy, side, hp, hp, owner, false, false, 0});
     reindex();
     return pieces_.back();
 }
@@ -435,6 +435,20 @@ void BuildSystem::updateDeployables(double dt) {
             if (d.container.take(ItemId::MeatRaw, 1) > 0) d.container.add(ItemId::MeatCooked, 1);
         }
     }
+}
+
+void BuildSystem::applyDecay(double hours) {
+    if (hours <= 0) return;
+    // Five percent of a piece's full health an hour, as the other game had it.
+    constexpr double kDecayPerHour = 0.05;
+    const double loss = kDecayPerHour * hours;
+    for (Structure& piece : pieces_) {
+        piece.hp -= static_cast<int>(piece.maxHp * loss);
+    }
+    pieces_.erase(std::remove_if(pieces_.begin(), pieces_.end(),
+                                 [](const Structure& piece) { return piece.hp <= 0; }),
+                  pieces_.end());
+    reindex();
 }
 
 void BuildSystem::update(double dt) {

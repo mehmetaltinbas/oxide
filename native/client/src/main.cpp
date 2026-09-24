@@ -17,6 +17,7 @@
 #include "paint.hpp"
 #include "palette.hpp"
 #include "sim/action.hpp"
+#include "sim/blast.hpp"
 #include "sim/build.hpp"
 #include "sim/craft.hpp"
 #include "sim/deployable.hpp"
@@ -159,6 +160,9 @@ int main(int argc, char** argv) {
         inventory.add(sim::ItemId::Arrow, 40);
         inventory.add(sim::ItemId::RifleAmmo, 120);
         inventory.add(sim::ItemId::ShotgunShell, 40);
+        inventory.hotbar()[5] = sim::ItemStack{sim::ItemId::RocketLauncher, 1};
+        inventory.add(sim::ItemId::Rocket, 6);
+        inventory.add(sim::ItemId::C4, 3);
         inventory.selectSlot(3);
     }
     if (showBase) {
@@ -204,6 +208,7 @@ int main(int argc, char** argv) {
     }
 
     sim::Projectiles projectiles;
+    sim::Explosives explosives;
     sim::Crafting crafting;
     client::Hud hud;
     client::Panel panel;
@@ -306,7 +311,12 @@ int main(int argc, char** argv) {
                 }
                 if (sim::Structure* door = build.nearest(player.x, player.y, sim::kBuildCell * 0.9)) {
                     if (door->kind == sim::BuildKind::Door) {
-                        door->open = !door->open;
+                        if (door->locked && door->owner != 0) {
+                            hud.say("Locked. You will have to break it.", player.x, player.y - 26,
+                                    client::rgb(0xd8483a));
+                        } else {
+                            door->open = !door->open;
+                        }
                     }
                 }
                 const sim::PickResult got = sim::pickUp(world, player, inventory);
@@ -414,7 +424,13 @@ int main(int argc, char** argv) {
                 hud.say("Reload  (R)", player.x, player.y - 26, client::rgb(0xd8483a));
             }
         }
+        explosives.update(world, build, npcs, player, inventory, dt);
         for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt, &player)) {
+            if (hit.rocket) {
+                // A rocket takes the piece it struck and everything round it.
+                explosives.detonate(world, build, npcs, player, inventory, hit.x, hit.y,
+                                    hit.blastRadius, hit.blastDamage, hit.builtId, true);
+            }
             if (hit.player) {
                 sim::hurtPlayer(player, inventory, hit.damage);
                 hud.say("-" + std::to_string(static_cast<int>(hit.damage)), player.x, player.y - 22,
@@ -489,6 +505,21 @@ int main(int argc, char** argv) {
             player.attackTimer = 0.4;
         }
 
+        if (inHand == sim::ItemId::Lock && (buttons & SDL_BUTTON_LMASK) != 0 &&
+            player.attackTimer <= 0) {
+            // A lock goes on a door of your own, and on nothing else.
+            sim::Structure* door = build.nearest(cursorX, cursorY, sim::kBuildCell * 0.6);
+            if (door && door->kind == sim::BuildKind::Door && door->owner == 0 && !door->locked &&
+                inventory.take(sim::ItemId::Lock, 1) > 0) {
+                door->locked = true;
+                hud.say("Locked", cursorX, cursorY, client::rgb(0xefeadd));
+            } else {
+                hud.say("Locks go on your own doors", player.x, player.y - 26,
+                        client::rgb(0xd8483a));
+            }
+            player.attackTimer = 0.4;
+        }
+
         if (inHand == sim::ItemId::Hammer && (buttons & SDL_BUTTON_LMASK) != 0 &&
             player.attackTimer <= 0) {
             // The hammer takes a piece up a tier rather than knocking it down.
@@ -519,6 +550,22 @@ int main(int argc, char** argv) {
                         player.y - 26, client::rgb(0xefeadd));
             }
             player.attackTimer = 0.4;
+        }
+
+        if (sim::itemDef(inHand).category == sim::ItemCategory::Explosive &&
+            (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
+            // Placed against whatever is nearest where you clicked, which is
+            // what makes a charge a raiding tool rather than a grenade.
+            const double reach = sim::kBuildCell * 1.6;
+            if (SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
+                         (cursorY - player.y) * (cursorY - player.y)) > reach) {
+                hud.say("Too far away", player.x, player.y - 26, client::rgb(0xd8483a));
+            } else if (inventory.take(inHand, 1) > 0) {
+                const sim::Structure* against = build.nearest(cursorX, cursorY, 30);
+                explosives.place(inHand, cursorX, cursorY, against ? against->id : 0);
+                hud.say(sim::itemDef(inHand).name, cursorX, cursorY, client::rgb(0xff6b4a));
+            }
+            player.attackTimer = 0.5;
         }
 
         const bool eating = sim::itemDef(inHand).category == sim::ItemCategory::Consumable;
@@ -730,6 +777,17 @@ int main(int argc, char** argv) {
                 paint.line(bx - ux * tail * 0.4f, by - uy * tail * 0.4f, bx, by,
                            2.0f * static_cast<float>(scale), client::rgb(0xfff1a8));
             }
+        }
+
+        for (const sim::Charge& charge : explosives.list()) {
+            const float cx = static_cast<float>((charge.x - player.x) * scale) + width * 0.5f;
+            const float cy = static_cast<float>((charge.y - player.y) * scale) + height * 0.5f;
+            const float r = 9 * static_cast<float>(scale);
+            paint.inkedCircle(cx, cy, r, client::rgb(0x8a7a5a), client::kInkWidth);
+            // The fuse, blinking faster as it runs down.
+            const bool lit = SDL_fmod(charge.fuse * 6, 1.0) > 0.5;
+            paint.fillCircle(cx, cy - r * 0.6f, r * 0.35f,
+                             lit ? client::rgb(0xff6b4a) : client::rgb(0x3a3733));
         }
 
         hud.drawPopups(renderer, player.x, player.y, scale, width, height);

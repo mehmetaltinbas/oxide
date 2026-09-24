@@ -41,6 +41,7 @@ public:
     void garrison(const World& world, std::uint32_t seed);
 
     const std::vector<Npc>& list() const { return npcs_; }
+    std::vector<Npc>& mutableList() { return npcs_; }
 
     /** Everything alive in a rectangle, appended to `out`. */
     void inRect(double x0, double y0, double x1, double y1, std::vector<const Npc*>& out) const;
