@@ -22,6 +22,8 @@ enum class ItemId : std::uint8_t {
     Leather,
     Bone,
     AnimalFat,
+    Charcoal,
+    Gunpowder,
     // Ammunition.
     Arrow,
     ShotgunShell,
@@ -41,7 +43,7 @@ enum class ItemId : std::uint8_t {
     Ak47,
 };
 
-inline constexpr int kItemCount = 29;
+inline constexpr int kItemCount = 31;
 
 enum class ItemCategory : std::uint8_t { Resource, Tool, Ammo, Weapon };
 

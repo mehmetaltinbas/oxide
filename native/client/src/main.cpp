@@ -9,10 +9,12 @@
 #include "animal.hpp"
 #include "held.hpp"
 #include "hud.hpp"
+#include "panel.hpp"
 #include "human.hpp"
 #include "paint.hpp"
 #include "palette.hpp"
 #include "sim/action.hpp"
+#include "sim/craft.hpp"
 #include "sim/inventory.hpp"
 #include "sim/npcs.hpp"
 #include "sim/projectile.hpp"
@@ -76,12 +78,16 @@ int main(int argc, char** argv) {
     double poseSwing = -1;
     /** Armed to the teeth, for trying the guns before crafting exists. */
     bool armed = false;
+    /** The pack open with something in it, for a look at the screen itself. */
+    bool showPanel = false;
     for (int i = 1; i < argc; ++i) {
         if (SDL_strcmp(argv[i], "--shot") == 0 && i + 1 < argc) {
             shotPath = argv[++i];
         } else if (SDL_strcmp(argv[i], "--at") == 0 && i + 2 < argc) {
             startX = SDL_atof(argv[++i]);
             startY = SDL_atof(argv[++i]);
+        } else if (SDL_strcmp(argv[i], "--panel") == 0) {
+            showPanel = true;
         } else if (SDL_strcmp(argv[i], "--armed") == 0) {
             armed = true;
         } else if (SDL_strcmp(argv[i], "--swing") == 0 && i + 1 < argc) {
@@ -126,7 +132,18 @@ int main(int argc, char** argv) {
         inventory.selectSlot(3);
     }
     sim::Projectiles projectiles;
+    sim::Crafting crafting;
     client::Hud hud;
+    client::Panel panel;
+    if (showPanel) {
+        inventory.add(sim::ItemId::Wood, 320);
+        inventory.add(sim::ItemId::Stone, 180);
+        inventory.add(sim::ItemId::Cloth, 60);
+        inventory.add(sim::ItemId::Leather, 24);
+        inventory.add(sim::ItemId::Scrap, 12);
+        panel.toggle();
+        crafting.queue(inventory, sim::recipes()[0]);
+    }
 
     client::Terrain terrain(renderer);
     client::Sprites sprites(renderer);
@@ -135,6 +152,11 @@ int main(int argc, char** argv) {
     if (benchFrames > 0 && !SDL_SetRenderVSync(renderer, SDL_RENDERER_VSYNC_DISABLED)) {
         std::printf("bench: could not turn vsync off: %s\n", SDL_GetError());
     }
+
+    // The last frame's size and density, so a click knows what it landed on.
+    int lastWidth = kWindowWidth;
+    int lastHeight = kWindowHeight;
+    double lastDensity = 1;
 
     double zoom = 1.0;
     int framesLeft = benchFrames;
@@ -158,6 +180,16 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
                 event.key.key <= SDLK_6) {
                 inventory.selectSlot(static_cast<int>(event.key.key - SDLK_1));
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_TAB &&
+                !event.key.repeat) {
+                panel.toggle();
+            }
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && panel.open()) {
+                panel.click(inventory, crafting, event.button.x * static_cast<float>(lastDensity),
+                            event.button.y * static_cast<float>(lastDensity),
+                            event.button.button == SDL_BUTTON_RIGHT, lastWidth, lastHeight,
+                            static_cast<float>(lastDensity));
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R && !event.key.repeat) {
                 sim::reload(player, inventory);
@@ -190,6 +222,9 @@ int main(int argc, char** argv) {
         // half the size it was meant to be.
         const double density = windowW > 0 ? static_cast<double>(width) / windowW : 1.0;
         const double scale = zoom * density;
+        lastWidth = width;
+        lastHeight = height;
+        lastDensity = density;
 
         const bool* keys = SDL_GetKeyboardState(nullptr);
         sim::PlayerInput input;
@@ -230,13 +265,19 @@ int main(int argc, char** argv) {
         }
 
         sim::tickReload(player, inventory, dt);
+        crafting.update(dt, inventory);
 
         // Held down: a blow or a shot goes out whenever the last one has come
         // round. A bow is the exception: it draws while held and looses when
         // the button comes up.
-        const SDL_MouseButtonFlags buttons = SDL_GetMouseState(nullptr, nullptr);
-        const bool trigger = (buttons & SDL_BUTTON_LMASK) != 0;
-        const bool gun = sim::itemDef(inventory.held()).gun.damage > 0;
+        const SDL_MouseButtonFlags buttons =
+            panel.open() ? 0 : SDL_GetMouseState(nullptr, nullptr);
+        const sim::Gun& heldGun = sim::itemDef(inventory.held()).gun;
+        const bool gun = heldGun.damage > 0;
+        // A bow is drawn with the right button, as it is in Rust: the left one
+        // is the trigger of everything that has one.
+        const bool bow = gun && heldGun.magazine <= 0;
+        const bool trigger = (buttons & (bow ? SDL_BUTTON_RMASK : SDL_BUTTON_LMASK)) != 0;
         if (gun) {
             const sim::FireResult shot = sim::fire(player, inventory, projectiles, trigger, dt);
             if (shot.empty && trigger) {
@@ -249,7 +290,7 @@ int main(int argc, char** argv) {
                         client::rgb(0xefeadd));
             }
         }
-        if (!gun && trigger) {
+        if (!gun && (buttons & SDL_BUTTON_LMASK) != 0) {
             const sim::SwingResult blow = sim::swing(world, npcs, player, inventory);
             if (blow.landed && blow.gained.count > 0) {
                 hud.say(std::string("+") + std::to_string(blow.gained.count) + " " +
@@ -407,7 +448,8 @@ int main(int argc, char** argv) {
                     player.loaded == inventory.held() ? player.rounds : 0,
                     player.reloadTotal > 0 ? player.reloadLeft / player.reloadTotal : 0,
                     player.bowDraw / sim::kBowDrawSeconds);
-        hud.draw(paint, inventory, player.health, width, height, prompt, static_cast<float>(density));
+        panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
+        hud.draw(paint, inventory, player.health, width, height, panel.open() ? "" : prompt, static_cast<float>(density));
 
         fpsClock += dt;
         ++fpsFrames;

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "sim/action.hpp"
+#include "sim/craft.hpp"
 #include "sim/projectile.hpp"
 
 int main() {
@@ -59,6 +60,22 @@ int main() {
             if (blow.broke) felled = true;
         }
     }
+
+    // What was chopped, turned into a hatchet: queued, waited out, and in the
+    // pack at the end of it.
+    sim::Crafting crafting;
+    // One tree is four wood short of a hatchet and there is no stone in it at
+    // all, so the check tops up rather than felling another two.
+    inventory.add(sim::ItemId::Wood, 10);
+    inventory.add(sim::ItemId::Stone, 40);
+    const sim::Recipe* hatchet = nullptr;
+    for (const sim::Recipe& recipe : sim::recipes()) {
+        if (recipe.out == sim::ItemId::Hatchet) hatchet = &recipe;
+    }
+    const bool queued = hatchet && crafting.queue(inventory, *hatchet);
+    for (int i = 0; i < 60 * 6; ++i) crafting.update(dt, inventory);
+    std::printf("craft: %s, wood left %d, hatchets %d\n", queued ? "queued a hatchet" : "could not",
+                inventory.count(sim::ItemId::Wood), inventory.count(sim::ItemId::Hatchet));
 
     // Then the nearest animal: walked up to, hit until it falls, and what it
     // leaves picked up off the ground.

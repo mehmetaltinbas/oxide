@@ -184,6 +184,69 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
             }
             break;
         }
+        case sim::ItemId::Leather: {
+            // A cut hide, darker and stiffer than cloth.
+            paint.inkedPoly({{x - s * 0.6f, y - s * 0.5f}, {x + s * 0.55f, y - s * 0.6f},
+                             {x + s * 0.6f, y + s * 0.45f}, {x - s * 0.5f, y + s * 0.6f}},
+                            rgb(0x9c6a3c), kInkFine);
+            paint.line(x - s * 0.3f, y - s * 0.2f, x + s * 0.3f, y - s * 0.1f, kInkFine * 0.8f, kInk);
+            break;
+        }
+        case sim::ItemId::MeatRaw: {
+            paint.inkedPoly({{x - s * 0.55f, y - s * 0.1f}, {x - s * 0.2f, y - s * 0.6f},
+                             {x + s * 0.5f, y - s * 0.3f}, {x + s * 0.4f, y + s * 0.5f},
+                             {x - s * 0.4f, y + s * 0.4f}},
+                            rgb(0xb6544f), kInkFine);
+            paint.fillCircle(x + s * 0.1f, y, s * 0.18f, rgb(0xe08a84));
+            break;
+        }
+        case sim::ItemId::Bone: {
+            paint.line(x - s * 0.45f, y + s * 0.3f, x + s * 0.45f, y - s * 0.3f, s * 0.3f,
+                       rgb(0xe8e2d0));
+            paint.fillCircle(x - s * 0.5f, y + s * 0.35f, s * 0.22f, rgb(0xe8e2d0));
+            paint.fillCircle(x + s * 0.5f, y - s * 0.35f, s * 0.22f, rgb(0xe8e2d0));
+            break;
+        }
+        case sim::ItemId::AnimalFat:
+            paint.inkedCircle(x, y, s * 0.55f, rgb(0xf0e3c0), kInkFine);
+            break;
+        case sim::ItemId::Charcoal:
+            paint.inkedPoly({{x - s * 0.5f, y - s * 0.3f}, {x, y - s * 0.6f},
+                             {x + s * 0.55f, y - s * 0.1f}, {x + s * 0.2f, y + s * 0.55f},
+                             {x - s * 0.45f, y + s * 0.4f}},
+                            rgb(0x3a3733), kInkFine);
+            break;
+        case sim::ItemId::Gunpowder: {
+            // A little heap of it, as it is poured.
+            paint.inkedPoly({{x - s * 0.6f, y + s * 0.45f}, {x, y - s * 0.55f},
+                             {x + s * 0.6f, y + s * 0.45f}},
+                            rgb(0x4a4a52), kInkFine);
+            break;
+        }
+        case sim::ItemId::Arrow: {
+            paint.line(x - s * 0.5f, y + s * 0.45f, x + s * 0.4f, y - s * 0.4f, s * 0.14f,
+                       rgb(0x8a5a2e));
+            paint.fillPoly({{x + s * 0.3f, y - s * 0.5f}, {x + s * 0.6f, y - s * 0.6f},
+                            {x + s * 0.5f, y - s * 0.25f}},
+                           rgb(0xd5dae0));
+            break;
+        }
+        case sim::ItemId::ShotgunShell: {
+            paint.inkedPoly({{x - s * 0.25f, y - s * 0.6f}, {x + s * 0.25f, y - s * 0.6f},
+                             {x + s * 0.25f, y + s * 0.2f}, {x - s * 0.25f, y + s * 0.2f}},
+                            rgb(0xb0473a), kInkFine);
+            paint.inkedPoly({{x - s * 0.25f, y + s * 0.2f}, {x + s * 0.25f, y + s * 0.2f},
+                             {x + s * 0.25f, y + s * 0.6f}, {x - s * 0.25f, y + s * 0.6f}},
+                            rgb(0xc9a227), kInkFine);
+            break;
+        }
+        case sim::ItemId::RifleAmmo: {
+            paint.inkedPoly({{x - s * 0.22f, y + s * 0.6f}, {x - s * 0.22f, y - s * 0.3f},
+                             {x, y - s * 0.7f}, {x + s * 0.22f, y - s * 0.3f},
+                             {x + s * 0.22f, y + s * 0.6f}},
+                            rgb(0xb69269), kInkFine);
+            break;
+        }
         case sim::ItemId::Cloth: {
             paint.inkedPoly({{x - s * 0.6f, y - s * 0.4f}, {x + s * 0.6f, y - s * 0.6f},
                              {x + s * 0.5f, y + s * 0.5f}, {x - s * 0.5f, y + s * 0.6f}},

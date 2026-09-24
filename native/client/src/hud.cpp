@@ -77,11 +77,16 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
         SDL_RenderDebugTextFormat(renderer, (x + 6 * uiScale) / digits, (y0 + 6 * uiScale) / digits,
                                   "%d", i + 1);
         if (stack.count > 1) {
-            SDL_SetRenderScale(renderer, digits * 1.6f, digits * 1.6f);
+            // Right-aligned inside the slot: a four-figure stack used to run
+            // out over the slot beside it.
+            char count[8];
+            SDL_snprintf(count, sizeof(count), "%d", stack.count);
+            const float size = digits * 1.6f;
+            const float textW = static_cast<float>(SDL_strlen(count)) * 8 * size;
+            SDL_SetRenderScale(renderer, size, size);
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            SDL_RenderDebugTextFormat(renderer, (x + slot - 30 * uiScale) / (digits * 1.6f),
-                                      (y0 + slot - 20 * uiScale) / (digits * 1.6f), "%d",
-                                      stack.count);
+            SDL_RenderDebugText(renderer, (x + slot - 5 * uiScale - textW) / size,
+                                (y0 + slot - 20 * uiScale) / size, count);
         }
         SDL_SetRenderScale(renderer, 1.0f, 1.0f);
     }

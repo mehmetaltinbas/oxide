@@ -24,6 +24,8 @@ constexpr ItemDef kItems[kItemCount] = {
     {ItemId::Leather, "Leather", ItemCategory::Resource, 1000, kNone, kNoGun},
     {ItemId::Bone, "Bone", ItemCategory::Resource, 1000, kNone, kNoGun},
     {ItemId::AnimalFat, "Animal Fat", ItemCategory::Resource, 1000, kNone, kNoGun},
+    {ItemId::Charcoal, "Charcoal", ItemCategory::Resource, 1000, kNone, kNoGun},
+    {ItemId::Gunpowder, "Gunpowder", ItemCategory::Resource, 1000, kNone, kNoGun},
     {ItemId::Arrow, "Arrow", ItemCategory::Ammo, 128, kNone, kNoGun},
     {ItemId::ShotgunShell, "Shotgun Shell", ItemCategory::Ammo, 128, kNone, kNoGun},
     {ItemId::RifleAmmo, "Rifle Ammo", ItemCategory::Ammo, 128, kNone, kNoGun},

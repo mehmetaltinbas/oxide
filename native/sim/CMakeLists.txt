@@ -13,6 +13,7 @@ add_library(oxide_sim STATIC
     src/npc.cpp
     src/npcs.cpp
     src/projectile.cpp
+    src/craft.cpp
     src/world_life.cpp
 )
 target_include_directories(oxide_sim PUBLIC include)
