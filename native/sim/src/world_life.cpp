@@ -103,6 +103,29 @@ void World::removeDrop(int id) {
                  drops_.end());
 }
 
+void World::setRegrowthBlocked(const void* owner, bool (*blocked)(const void*, double, double)) {
+    blockedOwner_ = owner;
+    blocked_ = blocked;
+}
+
+int World::clearNaturalIn(double x0, double y0, double x1, double y1) {
+    static thread_local std::vector<const ResourceNode*> found;
+    nodesInRect(x0, y0, x1, y1, found);
+    int cleared = 0;
+    for (const ResourceNode* node : found) {
+        if (node->hp <= 0) continue;
+        ResourceNode* live = nodeById(node->id);
+        if (!live) continue;
+        // The ordinary timer, not a deletion: it comes back if the building
+        // that took its place ever comes down.
+        live->hp = 0;
+        Rng rng(respawnSeed_ += 0x9e3779b9u);
+        live->respawn = 3600 + rng.range(-288, 288);
+        ++cleared;
+    }
+    return cleared;
+}
+
 void World::update(double dt) {
     // An emptied crate fills again a while later, so a monument is worth
     // walking back to rather than being used up.
@@ -116,6 +139,12 @@ void World::update(double dt) {
         if (node.respawn <= 0) continue;
         node.respawn -= dt;
         if (node.respawn > 0) continue;
+        if (blocked_ && blocked_(blockedOwner_, node.x, node.y)) {
+            // Something is standing on it. Not its timer, a check to run again
+            // once whatever is there might have come down.
+            node.respawn = 90;
+            continue;
+        }
         node.respawn = 0;
         node.hp = node.maxHp;
     }

@@ -93,6 +93,16 @@ public:
      */
     void update(double dt);
 
+    /**
+     * Where nothing may grow back: set by the game to the ground somebody has
+     * built on, so a felled tree waits rather than coming up through a floor.
+     * A short retry, because the base may come down.
+     */
+    void setRegrowthBlocked(const void* owner, bool (*blocked)(const void*, double, double));
+
+    /** Knocks out every live node in a box: what a foundation does to its cell. */
+    int clearNaturalIn(double x0, double y0, double x1, double y1);
+
 private:
     void generateBiomes(Rng& rng);
     /** The looting places, the big ones first and far apart. */
@@ -131,6 +141,8 @@ private:
     /** Rolls the jitter on regrowth, so a field cleared in one sweep does not
      * all come back on the same tick. */
     std::uint32_t respawnSeed_ = 1;
+    const void* blockedOwner_ = nullptr;
+    bool (*blocked_)(const void*, double, double) = nullptr;
     /** Node indices by bucket, for looking up what is near a point. */
     std::vector<std::vector<int>> buckets_;
 };

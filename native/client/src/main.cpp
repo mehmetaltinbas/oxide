@@ -208,6 +208,17 @@ int main(int argc, char** argv) {
         player.y = startY;
     }
 
+    // Nothing grows back up through a floor: the world asks the building
+    // system before it puts anything back.
+    world.setRegrowthBlocked(&build, [](const void* owner, double x, double y) {
+        const auto* build = static_cast<const sim::BuildSystem*>(owner);
+        const int gx = static_cast<int>(std::floor(x / sim::kBuildCell));
+        const int gy = static_cast<int>(std::floor(y / sim::kBuildCell));
+        if (build->foundationAt(gx, gy)) return true;
+        return const_cast<sim::BuildSystem*>(build)->deployableNear(x, y, sim::kDeployHalf * 2) !=
+               nullptr;
+    });
+
     sim::NpcSystem npcs;
     npcs.populate(world, seed);
     npcs.garrison(world, seed);
@@ -358,7 +369,8 @@ int main(int argc, char** argv) {
     bool typing = false;
     std::string typed;
     bool dead = false;
-    bool wantsRespawn = false;
+    /** Nought while dead, a bag's number to wake in it, or -1 for a beach. */
+    int wakeIn = 0;
 
     // The island's own clock, carried over from the last sitting.
     std::uint32_t inputSeq = 0;
@@ -470,8 +482,14 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H && !event.key.repeat) {
                 showHelp = !showHelp;
             }
-            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE && dead) {
-                wantsRespawn = true;
+            if (event.type == SDL_EVENT_KEY_DOWN && dead && !event.key.repeat) {
+                // A number picks a bag, B picks a beach, and space takes the
+                // first thing offered.
+                if (event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
+                    wakeIn = static_cast<int>(event.key.key - SDLK_1) + 1;
+                }
+                if (event.key.key == SDLK_B) wakeIn = -1;
+                if (event.key.key == SDLK_SPACE) wakeIn = -1;
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_M && !event.key.repeat) {
                 map.toggle();
@@ -662,27 +680,51 @@ int main(int argc, char** argv) {
         sim::updateUse(player, inventory, dt, player.sprinting);
 
         if (!player.alive && !dead) {
+            // Everything you were carrying falls where you did.
+            for (sim::ItemStack& stack : inventory.hotbar()) {
+                if (stack.id != sim::ItemId::None) {
+                    world.dropStack(stack, player.x + SDL_randf() * 20 - 10,
+                                    player.y + SDL_randf() * 20 - 10);
+                    stack = sim::ItemStack{};
+                }
+            }
+            for (sim::ItemStack& stack : inventory.pack()) {
+                if (stack.id != sim::ItemId::None) {
+                    world.dropStack(stack, player.x + SDL_randf() * 20 - 10,
+                                    player.y + SDL_randf() * 20 - 10);
+                    stack = sim::ItemStack{};
+                }
+            }
             // Dead: the screen waits for you rather than snatching you back,
             // and everything you were carrying stays where it fell.
             dead = true;
             panel.close();
             map.close();
         }
-        if (dead && wantsRespawn) {
-            wantsRespawn = false;
-            dead = false;
-            // Your own bag if you put one down, a beach if you did not.
+        if (dead && wakeIn != 0) {
+            // Your things stay where you fell; you wake in the bag you chose,
+            // or on a beach with nothing.
             const sim::Deployable* bag = nullptr;
-            for (const sim::Deployable& thing : build.deployables()) {
-                if (thing.kind == sim::DeployKind::SleepingBag && thing.owner == 0) bag = &thing;
+            if (wakeIn > 0) {
+                int seen = 0;
+                for (const sim::Deployable& thing : build.deployables()) {
+                    if (thing.kind != sim::DeployKind::SleepingBag || thing.owner != 0) continue;
+                    if (++seen == wakeIn) bag = &thing;
+                }
             }
-            dropIn(world, player, static_cast<std::uint32_t>(SDL_GetTicks()));
-            if (bag) {
-                player.x = bag->x;
-                player.y = bag->y;
+            if (wakeIn > 0 && !bag) {
+                wakeIn = 0;
+            } else {
+                dead = false;
+                dropIn(world, player, static_cast<std::uint32_t>(SDL_GetTicks()));
+                if (bag) {
+                    player.x = bag->x;
+                    player.y = bag->y;
+                }
+                inventory = sim::Inventory();
+                hud.notify(bag ? "Woke up in your bag." : "Woke up on the beach with nothing.");
+                wakeIn = 0;
             }
-            inventory = sim::Inventory();
-            hud.notify(bag ? "Woke up in your bag." : "Woke up on the beach with nothing.");
         }
         if (animals.playerDamage > 0) {
             sim::hurtPlayer(player, inventory, animals.playerDamage);
@@ -851,6 +893,11 @@ int main(int argc, char** argv) {
                 net.sendBuild(buildKind, target.gx, target.gy, target.side);
             } else if (buildKind == sim::BuildKind::Foundation) {
                 build.placeFoundation(target.gx, target.gy, 0);
+                // The cell is cleared as it is laid: nettles and saplings do
+                // not survive a floor going down on them.
+                world.clearNaturalIn(target.gx * sim::kBuildCell, target.gy * sim::kBuildCell,
+                                     (target.gx + 1) * sim::kBuildCell,
+                                     (target.gy + 1) * sim::kBuildCell);
             } else if (buildKind == sim::BuildKind::Door) {
                 // A door goes into the doorway that is already there.
                 if (sim::Structure* doorway = build.edgeAt(target.gx, target.gy, target.side)) {
@@ -1480,26 +1527,46 @@ int main(int argc, char** argv) {
             paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
                            client::Color{40, 8, 8, 170});
             const float size = 4.0f * static_cast<float>(density);
-            const char* line = "YOU DIED";
-            const float textW = static_cast<float>(SDL_strlen(line)) * 8 * size;
+            const char* headline = "YOU DIED";
+            const float textW = static_cast<float>(SDL_strlen(headline)) * 8 * size;
             SDL_SetRenderScale(renderer, size, size);
             SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size,
-                                (height * 0.4f) / size, line);
+            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size, (height * 0.4f) / size,
+                                headline);
             SDL_SetRenderScale(renderer, 1.0f, 1.0f);
 
-            bool hasBag = false;
-            for (const sim::Deployable& thing : build.deployables()) {
-                if (thing.kind == sim::DeployKind::SleepingBag && thing.owner == 0) hasBag = true;
-            }
-            const char* how = hasBag ? "SPACE to wake up in your bag"
-                                     : "SPACE to wake up on a beach with nothing";
             const float small = 1.8f * static_cast<float>(density);
-            const float howW = static_cast<float>(SDL_strlen(how)) * 8 * small;
             SDL_SetRenderScale(renderer, small, small);
+            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+            char line[96];
+            SDL_snprintf(line, sizeof(line),
+                         "Your things are on the ground where you fell.   Day %d.",
+                         1 + static_cast<int>(clock / sim::kDaySeconds));
+            float lineW = static_cast<float>(SDL_strlen(line)) * 8 * small;
+            SDL_RenderDebugText(renderer, (width - lineW) * 0.5f / small,
+                                (height * 0.4f + 60 * density) / small, line);
+            // Every bag you have put down, with how far off it lies and which
+            // way, so waking up is a decision rather than a button.
+            int listed = 0;
+            for (const sim::Deployable& thing : build.deployables()) {
+                if (thing.kind != sim::DeployKind::SleepingBag || thing.owner != 0) continue;
+                if (++listed > 9) break;
+                const double dx = thing.x - player.x;
+                const double dy = thing.y - player.y;
+                const char* ns = dy < 0 ? "north" : "south";
+                const char* ew = dx < 0 ? "west" : "east";
+                SDL_snprintf(line, sizeof(line), "%d   Sleeping bag, %d cells %s%s", listed,
+                             static_cast<int>(SDL_sqrt(dx * dx + dy * dy) / sim::kBuildCell), ns,
+                             ew);
+                lineW = static_cast<float>(SDL_strlen(line)) * 8 * small;
+                SDL_RenderDebugText(renderer, (width - lineW) * 0.5f / small,
+                                    (height * 0.4f + (100 + listed * 30) * density) / small, line);
+            }
+            SDL_snprintf(line, sizeof(line), "B   A beach, with nothing");
+            lineW = static_cast<float>(SDL_strlen(line)) * 8 * small;
             SDL_SetRenderDrawColor(renderer, 216, 72, 58, 255);
-            SDL_RenderDebugText(renderer, (width - howW) * 0.5f / small,
-                                (height * 0.4f + 70 * static_cast<float>(density)) / small, how);
+            SDL_RenderDebugText(renderer, (width - lineW) * 0.5f / small,
+                                (height * 0.4f + (130 + listed * 30) * density) / small, line);
             SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
 
