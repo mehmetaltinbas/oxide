@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "sim/biome.hpp"
+#include "sim/drop.hpp"
 #include "sim/node.hpp"
 #include "sim/rng.hpp"
 #include "sim/world_size.hpp"
@@ -45,6 +46,27 @@ public:
     void nodesInRect(double x0, double y0, double x1, double y1,
                      std::vector<const ResourceNode*>& out) const;
 
+    /** The one with this id, or nothing if it has been taken. */
+    ResourceNode* nodeById(int id);
+
+    /**
+     * A blow on something that stands: it loses hit points, and says whether
+     * that was the one that finished it.
+     */
+    bool hurtNode(ResourceNode& node, double damage);
+
+    const std::vector<Dropped>& drops() const { return drops_; }
+    /** Puts a stack on the ground, for whoever gets there first. */
+    void dropStack(ItemStack stack, double x, double y);
+    /** Takes one back off the ground. */
+    void removeDrop(int id);
+
+    /**
+     * The island's own clock: what was taken grows back, and what was dropped
+     * and left rots away.
+     */
+    void update(double dt);
+
 private:
     void generateBiomes(Rng& rng);
     /** Grass and forest cut off inside the snow is snow; the noise leaves pockets. */
@@ -71,6 +93,11 @@ private:
     /** 1 where the water is a lake rather than the sea. */
     std::vector<std::uint8_t> fresh_;
     std::vector<ResourceNode> nodes_;
+    std::vector<Dropped> drops_;
+    int nextDropId_ = 1;
+    /** Rolls the jitter on regrowth, so a field cleared in one sweep does not
+     * all come back on the same tick. */
+    std::uint32_t respawnSeed_ = 1;
     /** Node indices by bucket, for looking up what is near a point. */
     std::vector<std::vector<int>> buckets_;
 };

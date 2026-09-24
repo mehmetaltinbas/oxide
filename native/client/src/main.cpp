@@ -3,11 +3,16 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <vector>
 
+#include "held.hpp"
+#include "hud.hpp"
 #include "human.hpp"
 #include "paint.hpp"
 #include "palette.hpp"
+#include "sim/action.hpp"
+#include "sim/inventory.hpp"
 #include "sim/player.hpp"
 #include "sim/world.hpp"
 #include "sprites.hpp"
@@ -76,12 +81,16 @@ int main(int argc, char** argv) {
     double startX = -1;
     double startY = -1;
     int benchFrames = 0;
+    // A swing frozen part way through, for checking how a blow is drawn.
+    double poseSwing = -1;
     for (int i = 1; i < argc; ++i) {
         if (SDL_strcmp(argv[i], "--shot") == 0 && i + 1 < argc) {
             shotPath = argv[++i];
         } else if (SDL_strcmp(argv[i], "--at") == 0 && i + 2 < argc) {
             startX = SDL_atof(argv[++i]);
             startY = SDL_atof(argv[++i]);
+        } else if (SDL_strcmp(argv[i], "--swing") == 0 && i + 1 < argc) {
+            poseSwing = SDL_atof(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--bench") == 0 && i + 1 < argc) {
             // Frames drawn as fast as the machine will draw them, then the time
             // each one took: the number the whole rewrite is being judged on.
@@ -102,6 +111,13 @@ int main(int argc, char** argv) {
         player.x = startX;
         player.y = startY;
     }
+
+    sim::Inventory inventory;
+    if (poseSwing >= 0) {
+        inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
+        inventory.selectSlot(1);
+    }
+    client::Hud hud;
 
     client::Terrain terrain(renderer);
     client::Sprites sprites(renderer);
@@ -127,6 +143,18 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) running = false;
             if (event.type == SDL_EVENT_MOUSE_WHEEL) {
                 zoom = std::clamp(zoom * (1 + event.wheel.y * 0.1), kZoomMin, kZoomMax);
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
+                event.key.key <= SDLK_6) {
+                inventory.selectSlot(static_cast<int>(event.key.key - SDLK_1));
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_E && !event.key.repeat) {
+                const sim::PickResult got = sim::pickUp(world, player, inventory);
+                if (got.picked && got.stack.count > 0) {
+                    hud.say(std::string("+") + std::to_string(got.stack.count) + " " +
+                                sim::itemDef(got.stack.id).name,
+                            got.x, got.y, client::rgb(0xefeadd));
+                }
             }
         }
 
@@ -164,6 +192,25 @@ int main(int argc, char** argv) {
         input.aim = SDL_atan2(mouseY * density - height * 0.5, mouseX * density - width * 0.5);
 
         sim::stepPlayer(world, player, input, dt);
+        world.update(dt);
+        hud.update(dt);
+        if (poseSwing >= 0) {
+            player.swingLength = 0.34;
+            player.swingAnim = 0.34 * (1 - poseSwing);
+            player.aim = 0;
+        }
+
+        // Held down: a swing goes out whenever the last one has come round.
+        const SDL_MouseButtonFlags buttons = SDL_GetMouseState(nullptr, nullptr);
+        if ((buttons & SDL_BUTTON_LMASK) != 0) {
+            const sim::SwingResult blow = sim::swing(world, player, inventory);
+            if (blow.landed && blow.gained.count > 0) {
+                hud.say(std::string("+") + std::to_string(blow.gained.count) + " " +
+                            sim::itemDef(blow.gained.id).name,
+                        blow.x, blow.y - 10, client::rgb(0xefeadd));
+            }
+            if (blow.packFull) hud.say("Pack full", player.x, player.y - 24, client::rgb(0xd8483a));
+        }
 
         SDL_SetRenderDrawColor(renderer, client::kVoid.r, client::kVoid.g, client::kVoid.b, 255);
         SDL_RenderClear(renderer);
@@ -181,6 +228,13 @@ int main(int argc, char** argv) {
         std::sort(visible.begin(), visible.end(),
                   [](const sim::ResourceNode* a, const sim::ResourceNode* b) { return a->y < b->y; });
 
+        for (const sim::Dropped& drop : world.drops()) {
+            const float sx = static_cast<float>((drop.x - player.x) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((drop.y - player.y) * scale) + height * 0.5f;
+            if (sx < -40 || sy < -40 || sx > width + 40 || sy > height + 40) continue;
+            client::drawItemIcon(paint, drop.stack.id, sx, sy, static_cast<float>(22 * scale));
+        }
+
         bool playerDrawn = false;
         const auto drawPlayer = [&] {
             client::HumanLook look;
@@ -190,6 +244,11 @@ int main(int argc, char** argv) {
             look.phase = static_cast<float>(player.walkPhase);
             look.radius = static_cast<float>(sim::PlayerRules::kRadius * scale);
             look.swimming = player.swimming;
+            look.held = inventory.held();
+            // Where the swing has got to, as a fraction of its own length.
+            look.swingT = player.swingAnim > 0 && player.swingLength > 0
+                              ? static_cast<float>(1 - player.swingAnim / player.swingLength)
+                              : -1;
             client::drawHuman(paint, look);
             playerDrawn = true;
         };
@@ -218,6 +277,35 @@ int main(int argc, char** argv) {
         }
         if (!playerDrawn) drawPlayer();
 
+        hud.drawPopups(renderer, player.x, player.y, scale, width, height);
+
+        // What the key under your finger would do, if anything.
+        char prompt[96] = {0};
+        {
+            const sim::Dropped* nearest = nullptr;
+            double best = sim::kPickReach;
+            for (const sim::Dropped& drop : world.drops()) {
+                const double d = SDL_sqrt((drop.x - player.x) * (drop.x - player.x) +
+                                          (drop.y - player.y) * (drop.y - player.y));
+                if (d > best) continue;
+                nearest = &drop;
+                best = d;
+            }
+            if (nearest) {
+                SDL_snprintf(prompt, sizeof(prompt), "E   Pick up %d %s", nearest->stack.count,
+                             sim::itemDef(nearest->stack.id).name);
+            } else {
+                world.nodesInRect(player.x - sim::kPickReach, player.y - sim::kPickReach,
+                                  player.x + sim::kPickReach, player.y + sim::kPickReach, visible);
+                for (const sim::ResourceNode* node : visible) {
+                    if (node->kind != sim::NodeKind::Nettle || node->hp <= 0) continue;
+                    SDL_snprintf(prompt, sizeof(prompt), "E   Pick nettle");
+                    break;
+                }
+            }
+        }
+        hud.draw(paint, inventory, player.health, width, height, prompt, static_cast<float>(density));
+
         fpsClock += dt;
         ++fpsFrames;
         if (fpsClock >= 0.5) {
@@ -225,9 +313,11 @@ int main(int argc, char** argv) {
             fpsClock = 0;
             fpsFrames = 0;
         }
+        SDL_SetRenderScale(renderer, static_cast<float>(density), static_cast<float>(density));
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderDebugTextFormat(renderer, 10, 10, "%.0f fps  %zu drawn  %.0f, %.0f  zoom %.2f",
                                   fps, visible.size(), player.x, player.y, zoom);
+        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
 
         if (benchFrames > 0) {
             benchTime += dt;

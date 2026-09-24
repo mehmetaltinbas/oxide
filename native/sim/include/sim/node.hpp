@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "sim/item.hpp"
+
 namespace sim {
 
 /** Everything standing on the island that can be worked or broken. */
@@ -16,12 +18,29 @@ enum class NodeKind : std::uint8_t {
 
 inline constexpr int kNodeKindCount = 6;
 
+/** The kind of work a thing wants: the right tool is worth half again. */
+enum class Work : std::uint8_t { Chop, Mine, Pick, Break };
+
+/** What comes off it per blow, before the tool and the node's preference. */
+struct NodeYield {
+    ItemId id;
+    int per;
+};
+
 /** What one kind of them is worth and how tough it is. */
 struct NodeDef {
     NodeKind kind;
     const char* name;
     int hp;
     double radius;
+    Work prefers;
+    NodeYield yields[2];
+    int yieldCount;
+    /**
+     * Whether it is smashed rather than worked: nothing comes off it until it
+     * breaks, and then what was inside spills on the ground.
+     */
+    bool loot;
 };
 
 /** The table, in the order of NodeKind. */

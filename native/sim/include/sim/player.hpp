@@ -23,6 +23,14 @@ struct Player {
     double walkPhase = 0;
     bool swimming = false;
     bool sprinting = false;
+
+    int health = 100;
+    /** Seconds until the next blow may be thrown. */
+    double attackTimer = 0;
+    /** Seconds left of the swing being drawn. */
+    double swingAnim = 0;
+    /** How long the whole swing was, so the drawing knows where it is in it. */
+    double swingLength = 0;
 };
 
 /** What a player is asking to do this frame. */

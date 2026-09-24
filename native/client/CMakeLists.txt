@@ -7,6 +7,9 @@ add_executable(oxide_client
     src/terrain.cpp
     src/sprites.cpp
     src/human.cpp
+    src/held.cpp
+    src/melee.cpp
+    src/hud.cpp
 )
 target_link_libraries(oxide_client PRIVATE oxide_sim SDL3::SDL3)
 set_target_properties(oxide_client PROPERTIES OUTPUT_NAME oxide)

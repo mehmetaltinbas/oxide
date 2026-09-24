@@ -1,6 +1,9 @@
 #pragma once
 
+#include "body_frame.hpp"
+#include "melee.hpp"
 #include "paint.hpp"
+#include "sim/item.hpp"
 
 namespace client {
 
@@ -19,6 +22,10 @@ struct HumanLook {
     Color hair{0x3a, 0x2c, 0x22, 255};
     Color shirt{0x6a, 0x7f, 0x9a, 255};
     Color legs{0x4a, 0x3a, 0x2c, 255};
+    /** What is in their hand, and where they are in swinging it. */
+    sim::ItemId held = sim::ItemId::None;
+    /** 0 to 1 through a swing, or below zero when it is merely carried. */
+    float swingT = -1;
 };
 
 /**

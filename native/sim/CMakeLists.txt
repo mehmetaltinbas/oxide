@@ -7,5 +7,9 @@ add_library(oxide_sim STATIC
     src/node.cpp
     src/nodes.cpp
     src/player.cpp
+    src/item.cpp
+    src/inventory.cpp
+    src/action.cpp
+    src/world_life.cpp
 )
 target_include_directories(oxide_sim PUBLIC include)

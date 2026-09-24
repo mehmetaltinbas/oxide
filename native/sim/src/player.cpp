@@ -1,5 +1,6 @@
 #include "sim/player.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -30,6 +31,8 @@ void separate(const World& world, Player& player) {
 
 void stepPlayer(const World& world, Player& player, const PlayerInput& input, double dt) {
     player.aim = input.aim;
+    if (player.attackTimer > 0) player.attackTimer = std::max(0.0, player.attackTimer - dt);
+    if (player.swingAnim > 0) player.swingAnim = std::max(0.0, player.swingAnim - dt);
     player.swimming = world.biomeAt(player.x, player.y) == Biome::Water;
 
     double mx = input.moveX;
