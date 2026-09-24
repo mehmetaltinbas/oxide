@@ -75,6 +75,43 @@ Terrain::~Terrain() {
     for (SDL_Texture* t : tiles_) {
         if (t) SDL_DestroyTexture(t);
     }
+    if (screen_) SDL_DestroyTexture(screen_);
+}
+
+void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screenW, int screenH) {
+    // Two dots half a tile apart, so the grid reads as a screen rather than as
+    // rows and columns. Nine world units between them, as the press had it.
+    constexpr int kSpacing = 9;
+    constexpr int kOversample = 4;
+    if (!screen_) {
+        const int size = kSpacing * kOversample;
+        screen_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET,
+                                    size, size);
+        if (!screen_) return;
+        SDL_SetTextureBlendMode(screen_, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureScaleMode(screen_, SDL_SCALEMODE_LINEAR);
+        SDL_Texture* was = SDL_GetRenderTarget(renderer_);
+        SDL_SetRenderTarget(renderer_, screen_);
+        SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 0);
+        SDL_RenderClear(renderer_);
+        SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
+        Paint paint(renderer_);
+        const float dot = 0.55f * kOversample;
+        paint.fillCircle(size * 0.25f, size * 0.25f, dot, Color{20, 17, 13, 190});
+        paint.fillCircle(size * 0.75f, size * 0.75f, dot, Color{20, 17, 13, 190});
+        SDL_SetRenderTarget(renderer_, was);
+    }
+    // Pinned to the world rather than the screen, so the dots do not swim
+    // about as you walk.
+    const float tile = static_cast<float>(kSpacing * zoom);
+    const float offX = static_cast<float>(std::fmod(cameraX * zoom, tile));
+    const float offY = static_cast<float>(std::fmod(cameraY * zoom, tile));
+    const SDL_FRect dst{-offX - tile, -offY - tile, screenW + tile * 2, screenH + tile * 2};
+    // The tile is baked four times larger than it is drawn, so its dots stay
+    // round when the view is zoomed in.
+    SDL_RenderTextureTiled(renderer_, screen_, nullptr,
+                           static_cast<float>(zoom) / kOversample, &dst);
 }
 
 SDL_Texture* Terrain::tile(sim::Biome biome, int variant) {

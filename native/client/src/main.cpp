@@ -98,6 +98,8 @@ int main(int argc, char** argv) {
     int benchFrames = 0;
     // A swing frozen part way through, for checking how a blow is drawn.
     double poseSwing = -1;
+    /** A bow frozen part way through its draw, for checking how it is held. */
+    double poseDraw = -1;
     /** Armed to the teeth, for trying the guns before crafting exists. */
     bool armed = false;
     /** The pack open with something in it, for a look at the screen itself. */
@@ -130,6 +132,8 @@ int main(int argc, char** argv) {
             connectTo = argv[++i];
         } else if (SDL_strcmp(argv[i], "--name") == 0 && i + 1 < argc) {
             playerName = argv[++i];
+        } else if (SDL_strcmp(argv[i], "--draw") == 0 && i + 1 < argc) {
+            poseDraw = SDL_atof(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--sandbox") == 0) {
             sandbox = true;
         } else if (SDL_strcmp(argv[i], "--night") == 0) {
@@ -214,9 +218,12 @@ int main(int argc, char** argv) {
     double startClock = sim::kDaySeconds * 0.5;
 
     // Picking up where the last sitting left off, unless this is an island
-    // somebody else is running.
+    // somebody else is running, or a flag has said where to start, or this run
+    // is measuring something and wants the island as generated.
+    const bool asGenerated = startX >= 0 || atMonument >= 0 || shotPath != nullptr ||
+                             benchFrames > 0 || showBase || poseDraw >= 0 || poseSwing >= 0;
     bool loaded = false;
-    if (!online && !sandbox) {
+    if (!online && !sandbox && !asGenerated) {
         sim::Session session;
         if (sim::loadSession(savePath, session, world, build) && session.seed == seed) {
             player = session.player;
@@ -230,6 +237,11 @@ int main(int argc, char** argv) {
 
     if (poseSwing >= 0) {
         inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
+        inventory.selectSlot(1);
+    }
+    if (poseDraw >= 0) {
+        inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Bow, 1};
+        inventory.add(sim::ItemId::Arrow, 20);
         inventory.selectSlot(1);
     }
     const auto fillSandbox = [&] {
@@ -355,6 +367,10 @@ int main(int argc, char** argv) {
 
     double clock = startClock;
     if (startAtNight) clock = 0;
+
+    // Where the camera is, as opposed to where the player is.
+    double cameraX = player.x;
+    double cameraY = player.y;
 
     double zoom = 1.0;
     int framesLeft = benchFrames;
@@ -578,10 +594,11 @@ int main(int argc, char** argv) {
         float mouseX = 0;
         float mouseY = 0;
         SDL_GetMouseState(&mouseX, &mouseY);
-        // The mouse is in window points; the frame may be in denser pixels.
-        input.aim = SDL_atan2(mouseY * density - height * 0.5, mouseX * density - width * 0.5);
-        const double cursorX = player.x + (mouseX * density - width * 0.5) / scale;
-        const double cursorY = player.y + (mouseY * density - height * 0.5) / scale;
+        // The mouse is in window points; the frame may be in denser pixels, and
+        // the middle of the screen is the camera rather than the player.
+        const double cursorX = cameraX + (mouseX * density - width * 0.5) / scale;
+        const double cursorY = cameraY + (mouseY * density - height * 0.5) / scale;
+        input.aim = SDL_atan2(cursorY - player.y, cursorX - player.x);
 
         sim::stepPlayer(world, build, player, input, dt);
         if (online) {
@@ -675,6 +692,10 @@ int main(int argc, char** argv) {
                     player.y - 22, client::rgb(0xd8483a));
         }
 
+        if (poseDraw >= 0) {
+            player.bowDraw = sim::kBowDrawSeconds * poseDraw;
+            player.aim = 0;
+        }
         if (poseSwing >= 0) {
             player.swingLength = 0.34;
             player.swingAnim = 0.34 * (1 - poseSwing);
@@ -692,12 +713,13 @@ int main(int argc, char** argv) {
             panel.open() || map.open() || dead ? 0 : SDL_GetMouseState(nullptr, nullptr);
         const sim::Gun& heldGun = sim::itemDef(inventory.held()).gun;
         const bool gun = heldGun.damage > 0;
-        // A bow is drawn with the right button, as it is in Rust: the left one
-        // is the trigger of everything that has one.
-        const bool bow = gun && heldGun.magazine <= 0;
-        const bool trigger = (buttons & (bow ? SDL_BUTTON_RMASK : SDL_BUTTON_LMASK)) != 0;
+        // The left button is the trigger of everything that has one; the right
+        // draws a bow.
+        const bool trigger = (buttons & SDL_BUTTON_LMASK) != 0;
+        const bool drawing = (buttons & SDL_BUTTON_RMASK) != 0;
         if (gun) {
-            const sim::FireResult shot = sim::fire(player, inventory, projectiles, trigger, dt);
+            const sim::FireResult shot =
+                sim::fire(player, inventory, projectiles, trigger, drawing, dt);
             if (shot.fired) {
                 // The flash at the muzzle, and a nudge on the camera for the
                 // bigger guns.
@@ -739,6 +761,11 @@ int main(int argc, char** argv) {
             }
         }
         const sim::ItemId inHand = inventory.held();
+        // Running keeps your hands busy. Medicine is the exception: you can
+        // always patch yourself up on the move.
+        const bool handsFree =
+            !player.sprinting ||
+            sim::itemDef(inHand).category == sim::ItemCategory::Consumable;
         sim::DeployKind deployKind = sim::DeployKind::Campfire;
         const bool deploying = sim::deployableOf(inHand, deployKind);
         const bool planning = inHand == sim::ItemId::BuildingPlan;
@@ -750,7 +777,7 @@ int main(int argc, char** argv) {
                           : build.refuseEdge(world, target.gx, target.gy, target.side, buildKind, 0);
             // Out of reach is a refusal like any other: you build what you can
             // put a hand on.
-            const double reach = sim::kBuildCell * 1.8;
+            const double reach = sim::PlayerVitals::kBuildReach;
             if (!refusal && SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
                                      (cursorY - player.y) * (cursorY - player.y)) > reach) {
                 refusal = "Too far away";
@@ -768,10 +795,11 @@ int main(int argc, char** argv) {
             deployRefusal = build.refuseDeploy(world, deployGx, deployGy, deployKind, 0);
             if (!deployRefusal &&
                 SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
-                         (cursorY - player.y) * (cursorY - player.y)) > sim::kBuildCell * 1.8) {
+                         (cursorY - player.y) * (cursorY - player.y)) >
+                    sim::PlayerVitals::kDeployReach) {
                 deployRefusal = "Too far away";
             }
-            if ((buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
+            if (handsFree && (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
                 if (deployRefusal) {
                     hud.say(deployRefusal, player.x, player.y - 26, client::rgb(0xd8483a));
                 } else if (inventory.take(inHand, 1) > 0) {
@@ -781,7 +809,8 @@ int main(int argc, char** argv) {
             }
         }
 
-        if (planning && !refusal && (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
+        if (planning && !refusal && handsFree && (buttons & SDL_BUTTON_LMASK) != 0 &&
+            player.attackTimer <= 0) {
             const sim::TierDef& twig = sim::tierDef(sim::BuildTier::Twig);
             inventory.take(twig.cost.id, twig.cost.count);
             if (online) {
@@ -821,7 +850,7 @@ int main(int argc, char** argv) {
             player.attackTimer = 0.4;
         }
 
-        if (inHand == sim::ItemId::Hammer && (buttons & SDL_BUTTON_LMASK) != 0 &&
+        if (inHand == sim::ItemId::Hammer && handsFree && (buttons & SDL_BUTTON_LMASK) != 0 &&
             player.attackTimer <= 0) {
             // The hammer takes a piece up a tier rather than knocking it down.
             if (sim::Structure* piece = build.nearest(cursorX, cursorY, sim::kBuildCell * 0.6)) {
@@ -857,14 +886,16 @@ int main(int argc, char** argv) {
             (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
             // Placed against whatever is nearest where you clicked, which is
             // what makes a charge a raiding tool rather than a grenade.
-            const double reach = sim::kBuildCell * 1.6;
+            const double reach = sim::PlayerVitals::kDeployReach;
             if (SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
                          (cursorY - player.y) * (cursorY - player.y)) > reach) {
                 hud.say("Too far away", player.x, player.y - 26, client::rgb(0xd8483a));
             } else if (inventory.take(inHand, 1) > 0) {
-                const sim::Structure* against = build.nearest(cursorX, cursorY, 30);
-                explosives.place(inHand, cursorX, cursorY, against ? against->id : 0);
-                hud.say(sim::itemDef(inHand).name, cursorX, cursorY, client::rgb(0xff6b4a));
+                explosives.throwAt(inHand, player.x, player.y, cursorX, cursorY);
+                char fuse[64];
+                SDL_snprintf(fuse, sizeof(fuse), "%s thrown. %.1fs.", sim::itemDef(inHand).name,
+                             sim::itemDef(inHand).boom.fuse);
+                hud.notify(fuse);
             }
             player.attackTimer = 0.5;
         }
@@ -876,7 +907,7 @@ int main(int argc, char** argv) {
             }
         }
 
-        if (!gun && !planning && !eating && inHand != sim::ItemId::Hammer &&
+        if (!gun && !planning && !eating && handsFree && inHand != sim::ItemId::Hammer &&
             (buttons & SDL_BUTTON_LMASK) != 0) {
             const sim::SwingResult blow = sim::swing(world, npcs, build, player, inventory);
             if (blow.landed && blow.gained.count > 0) {
@@ -903,12 +934,28 @@ int main(int argc, char** argv) {
 
         SDL_SetRenderDrawColor(renderer, client::kVoid.r, client::kVoid.g, client::kVoid.b, 255);
         SDL_RenderClear(renderer);
+        {
+            // Eased after the player, at a rate that is the same however fast
+            // the frames come.
+            const double t = 1 - SDL_pow(0.001, dt);
+            cameraX += (player.x - cameraX) * t;
+            cameraY += (player.y - cameraY) * t;
+            const double halfViewW = width / (2 * scale);
+            const double halfViewH = height / (2 * scale);
+            cameraX = sim::kWorldWidth > halfViewW * 2
+                          ? std::clamp(cameraX, halfViewW, sim::kWorldWidth - halfViewW)
+                          : sim::kWorldWidth / 2.0;
+            cameraY = sim::kWorldHeight > halfViewH * 2
+                          ? std::clamp(cameraY, halfViewH, sim::kWorldHeight - halfViewH)
+                          : sim::kWorldHeight / 2.0;
+        }
         double shakeX = 0;
         double shakeY = 0;
         specks.shakeOffset(shakeX, shakeY);
-        const double camX = player.x + shakeX;
-        const double camY = player.y + shakeY;
+        const double camX = cameraX + shakeX;
+        const double camY = cameraY + shakeY;
         terrain.draw(world, camX, camY, scale, width, height);
+        terrain.drawScreen(camX, camY, scale, width, height);
 
         // The looting places are ground: they go down before anything stands
         // on them.
@@ -974,6 +1021,7 @@ int main(int argc, char** argv) {
             look.radius = static_cast<float>(sim::PlayerRules::kRadius * scale);
             look.swimming = player.swimming;
             look.held = inventory.held();
+            look.bowDraw = static_cast<float>(player.bowDraw / sim::kBowDrawSeconds);
             // Where the swing has got to, as a fraction of its own length.
             look.swingT = player.swingAnim > 0 && player.swingLength > 0
                               ? static_cast<float>(1 - player.swingAnim / player.swingLength)
@@ -1151,21 +1199,29 @@ int main(int argc, char** argv) {
             const float bx = static_cast<float>((bullet.x - camX) * scale) + width * 0.5f;
             const float by = static_cast<float>((bullet.y - camY) * scale) + height * 0.5f;
             const double speed = SDL_sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
-            // A streak behind the round, as long as it travels in a blink.
-            const float tail = static_cast<float>(speed * 0.02 * scale);
             const float ux = static_cast<float>(bullet.vx / speed);
             const float uy = static_cast<float>(bullet.vy / speed);
+            // A heavier round is drawn heavier: an AK's 78 reads thicker and
+            // longer than a revolver's 42.
+            const float width = 1.4f + static_cast<float>(bullet.damage) * 0.03f;
+            const float tail = static_cast<float>(speed * 0.02 * scale) *
+                               (1 + static_cast<float>(bullet.damage) * 0.006f);
+            // And it thins and fades over its last moments in the air.
+            const float left = static_cast<float>(
+                std::clamp(bullet.left / (std::max(1.0, speed) * 0.2), 0.0, 1.0));
             if (bullet.arrow) {
                 paint.line(bx - ux * tail, by - uy * tail, bx, by, 2.2f * static_cast<float>(scale),
                            client::rgb(0x8a5a2e));
             } else {
-                // Fading out at the back, so it reads as a thing in flight
-                // rather than a stick lying across the ground.
-                paint.line(bx - ux * tail, by - uy * tail, bx - ux * tail * 0.4f,
-                           by - uy * tail * 0.4f, 1.6f * static_cast<float>(scale),
-                           client::Color{255, 241, 168, 90});
-                paint.line(bx - ux * tail * 0.4f, by - uy * tail * 0.4f, bx, by,
-                           2.0f * static_cast<float>(scale), client::rgb(0xfff1a8));
+                const float core = width * static_cast<float>(scale) * (0.4f + 0.6f * left);
+                const std::uint8_t fade = static_cast<std::uint8_t>(255 * left);
+                // The black line round the core, so a tracer reads on snow.
+                paint.line(bx - ux * tail, by - uy * tail, bx, by, core + 1.6f,
+                           client::Color{20, 17, 13, fade});
+                const client::Color hot = bullet.fromPlayer ? client::rgb(0xfff1a8)
+                                                            : client::rgb(0xff9a6a);
+                paint.line(bx - ux * tail, by - uy * tail, bx, by, core,
+                           client::Color{hot.r, hot.g, hot.b, fade});
             }
         }
 
@@ -1416,6 +1472,24 @@ int main(int argc, char** argv) {
             fpsClock = 0;
             fpsFrames = 0;
         }
+        if (!title) {
+            // The day, the hour and whether it is night: what you plan around.
+            const int day = 1 + static_cast<int>(clock / sim::kDaySeconds);
+            const int hour = static_cast<int>(sim::dayFraction(clock) * 24);
+            const int minute = static_cast<int>(SDL_fmod(sim::dayFraction(clock) * 24 * 60, 60));
+            char top[96];
+            SDL_snprintf(top, sizeof(top), "DAY %d    %02d:%02d %s%s", day, hour, minute,
+                         sim::isNight(clock) ? "night" : "day", online ? "    online" : "");
+            const float size = 2.0f * static_cast<float>(density);
+            const float textW = static_cast<float>(SDL_strlen(top)) * 8 * size;
+            paint.fillRect((width - textW) * 0.5f - 14 * density, 0, textW + 28 * density,
+                           30 * density, client::Color{20, 17, 13, 170});
+            SDL_SetRenderScale(renderer, size, size);
+            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size, (8 * density) / size, top);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+
         SDL_SetRenderScale(renderer, static_cast<float>(density), static_cast<float>(density));
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderDebugTextFormat(renderer, 10, 10, "%.0f fps  %zu drawn  %.0f, %.0f  zoom %.2f  %02d:%02d",

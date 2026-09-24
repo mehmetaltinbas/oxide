@@ -151,28 +151,23 @@ bool feedsFromPack(const Gun& gun) { return gun.magazine <= 0; }
 
 }  // namespace
 
-FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, bool drawing,
-                double dt) {
+FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, bool trigger,
+                bool drawing, double dt) {
     FireResult out;
     const ItemId held = inventory.held();
     const Gun& gun = itemDef(held).gun;
-    if (gun.damage <= 0 || player.swimming) {
+    if (gun.damage <= 0 || player.swimming || player.sprinting) {
+        // Hands busy: swimming keeps you afloat and running keeps them moving.
         player.bowDraw = 0;
         return out;
     }
 
-    // A bow is drawn while the trigger is held and looses when it is let go,
-    // and only once the draw is full: Rust's hunting bow, and the reason a bow
-    // is punishing to aim.
+    // The string comes up while the right button is held and goes back down
+    // the moment it is let go: Rust's hunting bow, and why a bow is punishing.
     if (feedsFromPack(gun)) {
-        if (drawing) {
-            player.bowDraw += dt;
-            return out;
-        }
-        if (player.bowDraw < kBowDrawSeconds) {
-            player.bowDraw = 0;
-            return out;
-        }
+        player.bowDraw = drawing ? std::min(kBowDrawSeconds, player.bowDraw + dt) : 0;
+        if (!trigger) return out;
+        if (player.bowDraw < kBowDrawSeconds) return out;
         player.bowDraw = 0;
         if (player.attackTimer > 0) return out;
         if (inventory.take(gun.ammo, 1) < 1) {
@@ -180,7 +175,7 @@ FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, 
             return out;
         }
     } else {
-        if (!drawing || player.attackTimer > 0 || player.reloadLeft > 0) return out;
+        if (!trigger || player.attackTimer > 0 || player.reloadLeft > 0) return out;
         // A magazine belongs to the gun it is in: picking up another gun does
         // not hand you the rounds you loaded into the last one.
         if (player.loaded != held) {

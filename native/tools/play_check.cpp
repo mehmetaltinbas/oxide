@@ -299,7 +299,7 @@ int main() {
         player.aim = std::atan2(mark->y - player.y, mark->x - player.x);
         for (int frame = 0; frame < 60 * 20; ++frame) {
             player.attackTimer = std::max(0.0, player.attackTimer - dt);
-            const sim::FireResult shot = sim::fire(player, inventory, projectiles, true, dt);
+            const sim::FireResult shot = sim::fire(player, inventory, projectiles, true, false, dt);
             if (shot.fired) ++shots;
             for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt, &player)) {
                 if (hit.npc) ++landed;

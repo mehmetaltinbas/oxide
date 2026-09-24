@@ -15,7 +15,8 @@ namespace client {
  * over the fist and the handle runs away below it, out of the picture, and
  * mid-swing it lies flat and hangs off the grip.
  */
-void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const MeleePose& pose);
+void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const MeleePose& pose,
+                  float bowDraw = 0);
 
 /** The same item as a flat icon, for the belt and the pack. */
 void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size);

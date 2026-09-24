@@ -58,7 +58,8 @@ MeleeStyle meleeStyleOf(sim::ItemId item) {
     }
 }
 
-void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const MeleePose& pose) {
+void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const MeleePose& pose,
+                  float bowDraw) {
     if (item == sim::ItemId::None) return;
     // Held upright, what stands over the fist is the head, so the whole tool is
     // slid down until its head is where the hand is.
@@ -95,16 +96,40 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
             break;
         }
         case sim::ItemId::Bow: {
-            // The limbs curve away from you and the string runs between their
-            // tips, which is the whole shape of a bow from above.
-            std::vector<Point> limb;
-            for (int i = 0; i <= 10; ++i) {
-                const float u = i / 10.0f - 0.5f;
-                limb.push_back(tool.at(2 - u * u * 18, u * 26));
+            // Seen from above with the grip in the fist: the limbs sweep back
+            // towards the archer, the string runs between their tips, and
+            // drawing pulls it into a V with an arrow on it.
+            const float tipAcross = 9.5f;
+            // The tips sit behind the hand, and come back further as it draws.
+            const float tipAlong = -(5.5f - bowDraw * 1.5f);
+            const float nock = -(4.5f + bowDraw * 9.0f);
+            const Point leftTip = tool.at(tipAlong, -tipAcross);
+            const Point rightTip = tool.at(tipAlong, tipAcross);
+            const Point nockAt = tool.at(nock, 0);
+            paint.line(leftTip.x, leftTip.y, nockAt.x, nockAt.y, 1.0f, kInk);
+            paint.line(nockAt.x, nockAt.y, rightTip.x, rightTip.y, 1.0f, kInk);
+            if (bowDraw > 0) {
+                // The arrow on the string, its head out ahead of the grip.
+                const float head = nock + 26;
+                const Point shaft = tool.at(head - 3, 0);
+                paint.line(nockAt.x, nockAt.y, shaft.x, shaft.y, 1.8f, kWoodHandle);
+                inked(paint, {tool.at(head + 1, 0), tool.at(head - 3, -2), tool.at(head - 3, 2)},
+                      rgb(0xcfd8e0));
             }
-            paint.outlinePoly(limb, 2.2f, rgb(0x8a5a2e), false);
-            paint.line(tool.at(-2.5f, -13).x, tool.at(-2.5f, -13).y, tool.at(-2.5f, 13).x,
-                       tool.at(-2.5f, 13).y, 1.2f, kInk);
+            // The limbs: one curve from tip to tip, bowing out ahead of the
+            // hand, which is what makes it a bow rather than a stick.
+            std::vector<Point> limbs;
+            for (int i = 0; i <= 12; ++i) {
+                const float u = i / 12.0f;
+                const float w0 = (1 - u) * (1 - u);
+                const float w1 = 2 * u * (1 - u);
+                const float w2 = u * u;
+                const float along = w0 * tipAlong + w1 * (-tipAlong * 2.0f) + w2 * tipAlong;
+                const float across = w0 * -tipAcross + w2 * tipAcross;
+                limbs.push_back(tool.at(along, across));
+            }
+            paint.outlinePoly(limbs, 2.6f + kInkWidth, kInk, false);
+            paint.outlinePoly(limbs, 2.6f, kWoodHandle, false);
             break;
         }
         case sim::ItemId::Revolver: {

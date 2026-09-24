@@ -83,6 +83,13 @@ void drawHuman(Paint& paint, const HumanLook& look) {
         // where the swing puts it rather than where the stride would.
         hands[1] = look.held != sim::ItemId::None ? pose.hand
                                                   : Point{12.5f, -2 - step * 0.9f};
+        if (look.held == sim::ItemId::Bow) {
+            // A bow is held differently from everything else: the bow arm goes
+            // straight out ahead of the face and the other hand is at the nock,
+            // coming back as the string is drawn.
+            hands[1] = {1.5f, -17};
+            hands[0] = {1.5f, -17 + 4.5f + look.bowDraw * 9.0f};
+        }
     }
     const Point shoulders[2] = {{-10, -1}, {10, -1}};
     const Color sleeve = shade(look.shirt);
@@ -92,9 +99,24 @@ void drawHuman(Paint& paint, const HumanLook& look) {
         // Unless it is carried upright: then what is over the fist is the head
         // of the tool, and the hand is behind it.
         const bool holding = i == 1 && look.held != sim::ItemId::None && !look.swimming;
-        if (holding && !pose.overHand) drawHeldItem(paint, f, look.held, pose);
+        if (holding && look.held != sim::ItemId::Bow && !pose.overHand) {
+            drawHeldItem(paint, f, look.held, pose, look.bowDraw);
+        }
         blob(paint, f, hands[i].x, hands[i].y, 2.9f, 2.9f, look.skin, true);
-        if (holding && pose.overHand) drawHeldItem(paint, f, look.held, pose);
+        if (holding && look.held != sim::ItemId::Bow && pose.overHand) {
+            drawHeldItem(paint, f, look.held, pose, look.bowDraw);
+        }
+    }
+
+    if (look.held == sim::ItemId::Bow && !look.swimming) {
+        // Over both hands rather than under one: a bow is held out in front of
+        // you, and the arrow on it has to be seen.
+        MeleePose bowPose;
+        bowPose.hand = hands[1];
+        bowPose.angle = 0;
+        bowPose.stretch = 1;
+        bowPose.overHand = false;
+        drawHeldItem(paint, f, look.held, bowPose, look.bowDraw);
     }
 
     // The shoulders and chest: wider than deep, rounded at the ends.

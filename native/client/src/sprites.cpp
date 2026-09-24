@@ -23,6 +23,51 @@ float v(int variant, int slot) {
 /** The pen, at the weight trees and ore are inked with. */
 constexpr float kPen = kInkWidth * kNodeLineScale;
 
+/**
+ * The ink inside one tier of a conifer.
+ *
+ * Not an outline: the pen already drew that. These are the marks that say what
+ * the shape is made of, which for a pine is the fishbone of its branches and
+ * hatching down the side the light is not on.
+ */
+void markTier(Paint& paint, float cx, float y, float r, int variant) {
+    const float apexY = y - r;
+    const float baseY = y + r * 0.5f;
+    const float height = baseY - apexY;
+
+    // Branches, two rows, the lower one wider: a tier spreads as it drops.
+    for (const float t : {0.42f, 0.7f}) {
+        const float py = apexY + height * t;
+        const float reach = r * t * 0.62f;
+        const float drop = reach * 0.42f;
+        const float lean = static_cast<float>((variant % 3) - 1) * 0.6f;
+        paint.line(cx + lean, py, cx - reach + lean, py + drop, kInkMark, kInk);
+        paint.line(cx + lean, py, cx + reach + lean, py + drop, kInkMark, kInk);
+    }
+
+    // Hatching down the right flank, which is how a press says the light comes
+    // from the other side. Clipped to the tier by hand: each stroke is cut off
+    // where the tier's own edge is at that height.
+    const float step = 9 * 0.75f;
+    for (float hx = r * 0.18f; hx < r; hx += step) {
+        const float x0 = cx + hx;
+        const float y0 = baseY;
+        float x1 = cx + hx + height * 0.45f;
+        float y1 = apexY + height * 0.25f;
+        // The tier's edge runs from the apex out to the base corner; walk the
+        // stroke back until it is inside it.
+        for (int i = 0; i < 8; ++i) {
+            const float t = (y1 - apexY) / height;
+            const float halfAt = r * t;
+            if (std::abs(x1 - cx) <= halfAt) break;
+            x1 = x1 * 0.85f + x0 * 0.15f;
+            y1 = y1 * 0.85f + y0 * 0.15f;
+        }
+        if (std::abs(x0 - cx) > r) continue;
+        paint.line(x0, y0, x1, y1, kInkFine, kInk);
+    }
+}
+
 /** A pine: three tiers, the crown in front, leaning its own way. */
 void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snowy) {
     const float wide = 0.88f + v(variant, 1) * 0.2f;
@@ -55,13 +100,7 @@ void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snow
         const std::vector<Point> shape{
             {x, t.y - t.r}, {x - t.r, t.y + t.r * 0.5f}, {x + t.r, t.y + t.r * 0.5f}};
         paint.inkedPoly(shape, i % 2 == 0 ? nodeColor(sim::NodeKind::Tree) : rgb(0x5cc063), kPen);
-        // Needle marks, hanging off the tier's own edge.
-        for (int k = 0; k < 4; ++k) {
-            const float f = 0.25f + k * 0.2f;
-            const float ex = x - t.r * f + v(variant, 20 + k + i * 4) * t.r * 0.2f;
-            const float ey = t.y + t.r * (0.5f - f * 0.9f);
-            paint.line(ex, ey, ex + t.r * 0.22f, ey + t.r * 0.16f, kInkMark * 0.5f, kInk);
-        }
+        markTier(paint, x, t.y, t.r, variant + i);
         if (snowy) {
             // The crown gets a cap; a lower tier's top is under the tier above,
             // so its snow lies on the shelf that shows.
@@ -132,6 +171,20 @@ void paintStone(Paint& paint, float ox, float oy, float r, sim::NodeKind kind, i
         pts.push_back({ox + std::cos(a) * r * wob, oy + std::sin(a) * r * 0.78f * wob});
     }
     paint.inkedPoly(pts, nodeColor(kind), kPen);
+    // The lit face. Light, not an object, so it has no line round it.
+    paint.fillPoly(circlePoints(ox - r * 0.2f, oy - r * 0.25f, r * 0.3f),
+                   Color{255, 255, 255, 40});
+    // Stipple down the side away from the light, which is how a press shades.
+    const float step = 9 * 0.55f;
+    for (float sy = -r; sy < r; sy += step) {
+        for (float sx = -r; sx < r; sx += step) {
+            const float shade = (sx + sy) / (r * 2);
+            if (shade < 0.12f) continue;
+            if (sx * sx + sy * sy * 1.6f > r * r * 0.82f) continue;
+            const float off = (static_cast<int>((sy + r) / step) % 2) * step / 2;
+            paint.fillCircle(ox + sx + off, oy + sy, 1.4f * (0.6f + shade * 0.9f), kInk);
+        }
+    }
     if (snowy) {
         // Snow lies on the top half, following the rock's own edge.
         std::vector<Point> cap;

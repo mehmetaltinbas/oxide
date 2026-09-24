@@ -29,6 +29,15 @@ public:
     void draw(const sim::World& world, double cameraX, double cameraY, double zoom, int screenW,
               int screenH);
 
+    /**
+     * The dot screen over the ground.
+     *
+     * Light enough to read as paper rather than as dirt, and the one thing
+     * that stops a flat biome colour looking like a vector drawing. Laid over
+     * the terrain and under everything that stands on it.
+     */
+    void drawScreen(double cameraX, double cameraY, double zoom, int screenW, int screenH);
+
 private:
     static constexpr int kVariants = 4;
     /** Painted at this many pixels a tile, then scaled to the zoom. */
@@ -36,6 +45,7 @@ private:
 
     SDL_Renderer* renderer_ = nullptr;
     std::array<SDL_Texture*, sim::kBiomeCount * kVariants> tiles_{};
+    SDL_Texture* screen_ = nullptr;
 
     SDL_Texture* tile(sim::Biome biome, int variant);
 };

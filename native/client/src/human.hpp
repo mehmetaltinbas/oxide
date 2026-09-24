@@ -27,6 +27,8 @@ struct HumanLook {
     sim::ItemId held = sim::ItemId::None;
     /** 0 to 1 through a swing, or below zero when it is merely carried. */
     float swingT = -1;
+    /** How far a bow is drawn back, nought to one. */
+    float bowDraw = 0;
 };
 
 /**
