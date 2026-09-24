@@ -17,6 +17,7 @@
 #include "sim/action.hpp"
 #include "sim/build.hpp"
 #include "sim/craft.hpp"
+#include "sim/survival.hpp"
 #include "sim/inventory.hpp"
 #include "sim/npcs.hpp"
 #include "sim/projectile.hpp"
@@ -43,9 +44,19 @@ constexpr double kZoomMax = 1.8;
 /** Where you wake up: on a beach, as in the other game. */
 void dropIn(const sim::World& world, sim::Player& player, std::uint32_t roll) {
     world.beachSpawn(roll, player.x, player.y);
-    player.health = 100;
+    player.alive = true;
+    player.health = sim::PlayerVitals::kMaxHealth;
+    // You wake half fed and half watered, as the other game had it.
+    player.calories = sim::PlayerVitals::kMaxCalories * 0.5;
+    player.hydration = sim::PlayerVitals::kMaxHydration * 0.5;
+    player.temperature = sim::PlayerVitals::kComfortTemp;
+    player.radiation = 0;
+    player.bleeding = 0;
+    player.healOverTime = 0;
     player.attackTimer = 0;
     player.swingAnim = 0;
+    player.applying = sim::ItemId::None;
+    player.useLeft = 0;
 }
 
 }  // namespace
@@ -236,6 +247,9 @@ int main(int argc, char** argv) {
                 sim::reload(player, inventory);
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_E && !event.key.repeat) {
+                if (sim::drink(world, player)) {
+                    hud.say("drank", player.x, player.y - 26, client::rgb(0x5aa8d8));
+                }
                 if (sim::Structure* door = build.nearest(player.x, player.y, sim::kBuildCell * 0.9)) {
                     if (door->kind == sim::BuildKind::Door) {
                         door->open = !door->open;
@@ -292,7 +306,11 @@ int main(int argc, char** argv) {
         world.update(dt);
         hud.update(dt);
         const sim::NpcEvents animals = npcs.update(world, dt, player);
-        if (player.health <= 0) {
+        // Nothing warms you yet: the campfire arrives with the deployables.
+        sim::updateSurvival(world, player, inventory, dt, 0, 0);
+        sim::updateUse(player, inventory, dt, player.sprinting);
+
+        if (!player.alive) {
             // Dead: you wake on a beach with a rock, and everything you were
             // carrying is gone, exactly as the other game had it.
             dropIn(world, player, static_cast<std::uint32_t>(SDL_GetTicks()));
@@ -301,7 +319,7 @@ int main(int argc, char** argv) {
                     client::rgb(0xd8483a));
         }
         if (animals.playerDamage > 0) {
-            player.health = std::max(0, player.health - static_cast<int>(animals.playerDamage));
+            sim::hurtPlayer(player, inventory, animals.playerDamage);
             hud.say("-" + std::to_string(static_cast<int>(animals.playerDamage)), player.x,
                     player.y - 22, client::rgb(0xd8483a));
         }
@@ -400,7 +418,27 @@ int main(int argc, char** argv) {
             }
         }
 
-        if (!gun && !planning && inHand != sim::ItemId::Hammer &&
+        if (sim::itemDef(inHand).category == sim::ItemCategory::Clothing &&
+            (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
+            // Worn rather than held: what was on before goes back in the pack.
+            const sim::ItemStack was = inventory.worn();
+            if (inventory.take(inHand, 1) > 0) {
+                inventory.worn() = sim::ItemStack{inHand, 1};
+                if (was.id != sim::ItemId::None) inventory.add(was.id, was.count);
+                hud.say(std::string("Wearing ") + sim::itemDef(inHand).name, player.x,
+                        player.y - 26, client::rgb(0xefeadd));
+            }
+            player.attackTimer = 0.4;
+        }
+
+        const bool eating = sim::itemDef(inHand).category == sim::ItemCategory::Consumable;
+        if (eating && (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
+            if (sim::consume(player, inventory, inHand)) {
+                hud.say(sim::itemDef(inHand).name, player.x, player.y - 26, client::rgb(0x8cf08c));
+            }
+        }
+
+        if (!gun && !planning && !eating && inHand != sim::ItemId::Hammer &&
             (buttons & SDL_BUTTON_LMASK) != 0) {
             const sim::SwingResult blow = sim::swing(world, npcs, player, inventory);
             if (blow.landed && blow.gained.count > 0) {
@@ -570,7 +608,16 @@ int main(int argc, char** argv) {
                     break;
                 }
             }
+            // Fresh water is the last thing offered, being the one you are
+            // standing in rather than standing at.
+            if (!prompt[0] && world.freshAt(player.x, player.y)) {
+                SDL_snprintf(prompt, sizeof(prompt), "E   Drink");
+            }
         }
+        hud.setVitals(player.calories, player.hydration, player.temperature, player.radiation,
+                      player.bleeding > 0,
+                      player.useTotal > 0 && player.useLeft > 0 ? player.useLeft / player.useTotal
+                                                                : 0);
         hud.setAmmo(sim::itemDef(inventory.held()).gun.damage > 0
                         ? sim::roundsCarried(player, inventory)
                         : -1,
@@ -578,7 +625,7 @@ int main(int argc, char** argv) {
                     player.reloadTotal > 0 ? player.reloadLeft / player.reloadTotal : 0,
                     player.bowDraw / sim::kBowDrawSeconds);
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
-        hud.draw(paint, inventory, player.health, width, height, panel.open() ? "" : prompt, static_cast<float>(density));
+        hud.draw(paint, inventory, static_cast<int>(std::lround(player.health)), width, height, panel.open() ? "" : prompt, static_cast<float>(density));
 
         fpsClock += dt;
         ++fpsFrames;

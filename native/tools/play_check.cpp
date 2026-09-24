@@ -7,6 +7,7 @@
 
 #include "sim/action.hpp"
 #include "sim/build.hpp"
+#include "sim/survival.hpp"
 #include "sim/craft.hpp"
 #include "sim/projectile.hpp"
 
@@ -61,6 +62,22 @@ int main() {
             if (blow.swung) ++blows;
             if (blow.broke) felled = true;
         }
+    }
+
+    // A day of standing still: what hunger, thirst and the cold do on their own.
+    {
+        sim::Player idle = player;
+        idle.x = player.x;
+        idle.y = player.y;
+        sim::Inventory bare;
+        double clock = 0;
+        while (idle.alive && clock < 3600) {
+            sim::updateSurvival(world, idle, bare, 1.0 / 30, 0, 0);
+            clock += 1.0 / 30;
+        }
+        std::printf("survival: after %.0f minutes still %s, food %.0f, water %.0f, health %.0f\n",
+                    clock / 60, idle.alive ? "up" : "down", idle.calories, idle.hydration,
+                    idle.health);
     }
 
     // A foundation and a wall, and a shoulder against the wall: what is built
@@ -182,7 +199,7 @@ int main() {
 
     std::printf("hunt: %s %s after %d hits, leather %d, meat %d, health %d\n", preyName,
                 killed ? "killed" : "got away", hits, inventory.count(sim::ItemId::Leather),
-                inventory.count(sim::ItemId::MeatRaw), player.health);
+                inventory.count(sim::ItemId::MeatRaw), static_cast<int>(player.health));
 
     std::printf("tree at %.0f, %.0f: %s after %d blows, wood %d, stone %d, drops %zu\n", target->x,
                 target->y, felled ? "felled" : "still standing", blows,

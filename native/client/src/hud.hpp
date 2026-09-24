@@ -49,12 +49,22 @@ public:
      */
     void setAmmo(int carried, int loaded, double reloading, double bowDraw);
 
+    /** Food, water, warmth, what you have taken in, and what is being applied. */
+    void setVitals(double calories, double hydration, double temperature, double radiation,
+                   bool bleeding, double applying);
+
 private:
     std::vector<Popup> popups_;
     int carried_ = -1;
     int loaded_ = 0;
     double reloading_ = 0;
     double bowDraw_ = 0;
+    double calories_ = 100;
+    double hydration_ = 100;
+    double temperature_ = 20;
+    double radiation_ = 0;
+    bool bleeding_ = false;
+    double applying_ = 0;
 };
 
 }  // namespace client

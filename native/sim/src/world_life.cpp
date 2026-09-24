@@ -50,6 +50,8 @@ void World::beachSpawn(std::uint32_t roll, double& x, double& y) const {
     y = kWorldHeight * 0.5;
 }
 
+double World::radiationAt(double, double) const { return 0; }
+
 ResourceNode* World::nodeById(int id) {
     if (id <= 0 || id > static_cast<int>(nodes_.size())) return nullptr;
     ResourceNode& node = nodes_[id - 1];

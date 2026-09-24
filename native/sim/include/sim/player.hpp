@@ -25,7 +25,20 @@ struct Player {
     bool swimming = false;
     bool sprinting = false;
 
-    int health = 100;
+    bool alive = true;
+    double health = 100;
+    /** What is left of you: food, water, warmth and what you have taken in. */
+    double calories = 75;
+    double hydration = 75;
+    double temperature = 20;
+    double radiation = 0;
+    /** Seconds of bleeding left, and health still to come from a syringe. */
+    double bleeding = 0;
+    double healOverTime = 0;
+    /** A moment of grace after a hit, so one wolf is not eight hits a second. */
+    double invuln = 0;
+    double hurtFlash = 0;
+    double respawnTimer = 0;
     /** Seconds until the next blow may be thrown. */
     double attackTimer = 0;
     /** Seconds left of the swing being drawn. */
@@ -41,6 +54,11 @@ struct Player {
     double reloadTotal = 0;
     /** How long a bow has been drawn back. */
     double bowDraw = 0;
+
+    /** What is being applied, and how long is left of applying it. */
+    ItemId applying = ItemId::None;
+    double useLeft = 0;
+    double useTotal = 0;
 };
 
 /** What a player is asking to do this frame. */

@@ -22,15 +22,19 @@ const std::vector<Recipe>& table() {
         {ItemId::Bow, 1, {{ItemId::Wood, 200}, {ItemId::Cloth, 50}}, 2, 0, 6},
         {ItemId::BuildingPlan, 1, {{ItemId::Wood, 20}}, 1, 0, 2},
         {ItemId::Spear, 1, {{ItemId::Wood, 60}, {ItemId::Cloth, 10}}, 2, 0, 4},
+        {ItemId::Bandage, 2, {{ItemId::Cloth, 8}}, 1, 0, 2},
+        {ItemId::Clothing, 1, {{ItemId::Leather, 30}, {ItemId::Cloth, 20}}, 2, 0, 5},
         {ItemId::LowGrade, 4, {{ItemId::AnimalFat, 3}, {ItemId::Cloth, 1}}, 2, 0, 2},
 
         {ItemId::Arrow, 8, {{ItemId::Wood, 40}, {ItemId::Stone, 15}}, 2, 1, 3},
         {ItemId::Gunpowder, 10, {{ItemId::Sulfur, 20}, {ItemId::Charcoal, 30}}, 2, 1, 3},
+        {ItemId::Medkit, 1, {{ItemId::Cloth, 15}, {ItemId::LowGrade, 10}}, 2, 1, 4},
         {ItemId::Waterpipe, 1, {{ItemId::Wood, 150}, {ItemId::Metal, 75}}, 2, 1, 6},
         {ItemId::ShotgunShell, 4, {{ItemId::Gunpowder, 8}, {ItemId::Metal, 6}}, 2, 1, 3},
 
         {ItemId::Revolver, 1, {{ItemId::Metal, 150}, {ItemId::Scrap, 75}}, 2, 2, 8},
         {ItemId::PumpShotgun, 1, {{ItemId::Metal, 200}, {ItemId::Scrap, 120}}, 2, 2, 8},
+        {ItemId::Hazmat, 1, {{ItemId::Cloth, 60}, {ItemId::Scrap, 100}, {ItemId::Metal, 40}}, 3, 2, 10},
         {ItemId::PistolAmmo, 12, {{ItemId::Gunpowder, 10}, {ItemId::Metal, 10}}, 2, 2, 3},
 
         {ItemId::Rifle, 1, {{ItemId::Metal, 450}, {ItemId::Scrap, 300}}, 2, 3, 12},

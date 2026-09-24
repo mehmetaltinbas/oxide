@@ -28,6 +28,13 @@ public:
     /** The ground under a world point. Off the map reads as open water. */
     Biome biomeAt(double x, double y) const;
 
+    /**
+     * How hot a spot is, in radiation a second.
+     *
+     * Nought everywhere until the monuments are placed: it is theirs to give.
+     */
+    double radiationAt(double x, double y) const;
+
     /** Whether a point is in a lake, as opposed to the sea or dry land. */
     bool freshAt(double x, double y) const;
 

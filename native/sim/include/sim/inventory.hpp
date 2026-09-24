@@ -26,6 +26,10 @@ public:
     std::array<ItemStack, kPackSlots>& pack() { return pack_; }
     const std::array<ItemStack, kPackSlots>& pack() const { return pack_; }
 
+    /** What is worn, which is one thing at a time. */
+    ItemStack& worn() { return worn_; }
+    const ItemStack& worn() const { return worn_; }
+
     int activeSlot() const { return active_; }
     void selectSlot(int slot);
 
@@ -42,6 +46,7 @@ public:
 private:
     std::array<ItemStack, kHotbarSlots> hotbar_{};
     std::array<ItemStack, kPackSlots> pack_{};
+    ItemStack worn_{};
     int active_ = 0;
 };
 

@@ -24,6 +24,13 @@ enum class ItemId : std::uint8_t {
     AnimalFat,
     Charcoal,
     Gunpowder,
+    MeatCooked,
+    Water,
+    // Consumables and what you wear.
+    Bandage,
+    Medkit,
+    Clothing,
+    Hazmat,
     // Ammunition.
     Arrow,
     ShotgunShell,
@@ -44,9 +51,9 @@ enum class ItemId : std::uint8_t {
     Ak47,
 };
 
-inline constexpr int kItemCount = 32;
+inline constexpr int kItemCount = 38;
 
-enum class ItemCategory : std::uint8_t { Resource, Tool, Ammo, Weapon };
+enum class ItemCategory : std::uint8_t { Resource, Tool, Ammo, Weapon, Consumable, Clothing };
 
 /** What a tool does when it lands. */
 struct Melee {
@@ -75,6 +82,23 @@ struct Gun {
     int pellets;
 };
 
+/** What eating, drinking or applying something does. */
+struct Food {
+    double calories;
+    double hydration;
+    double health;
+    /** Zero means it happens at once; otherwise it is a channel of seconds. */
+    double useSeconds;
+};
+
+/** What wearing something does. */
+struct Wear {
+    double warmth;
+    /** The fraction of a blow it turns, and of the radiation it keeps out. */
+    double armor;
+    double radiation;
+};
+
 struct ItemDef {
     ItemId id;
     const char* name;
@@ -84,6 +108,10 @@ struct ItemDef {
     Melee melee;
     /** Zero damage means it is not a thing you fire. */
     Gun gun;
+    /** All zero means it is not a thing you consume. */
+    Food food;
+    /** All zero means it is not a thing you wear. */
+    Wear wear;
 };
 
 const ItemDef& itemDef(ItemId id);

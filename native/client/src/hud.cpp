@@ -31,6 +31,16 @@ void Hud::setAmmo(int carried, int loaded, double reloading, double bowDraw) {
     bowDraw_ = bowDraw;
 }
 
+void Hud::setVitals(double calories, double hydration, double temperature, double radiation,
+                    bool bleeding, double applying) {
+    calories_ = calories;
+    hydration_ = hydration;
+    temperature_ = temperature;
+    radiation_ = radiation;
+    bleeding_ = bleeding;
+    applying_ = applying;
+}
+
 void Hud::update(double dt) {
     for (Popup& p : popups_) p.life -= dt;
     popups_.erase(std::remove_if(popups_.begin(), popups_.end(),
@@ -105,6 +115,54 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
     SDL_RenderDebugTextFormat(renderer, (bx + 8 * uiScale) / uiScale, (by + 5 * uiScale) / uiScale,
                               "%d", health);
     SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+
+    // Food and water under the health bar, and the cold and the radiation only
+    // when they are worth knowing about.
+    const auto bar = [&](float row, double value, double max, Color color) {
+        const float h = 12 * uiScale;
+        const float y = by - row * (h + 5 * uiScale);
+        paint.fillRect(bx - 3 * uiScale, y - 3 * uiScale, barW + 6 * uiScale, h + 6 * uiScale, kInk);
+        paint.fillRect(bx, y, barW, h, kPlate);
+        paint.fillRect(bx, y, static_cast<float>(barW * std::clamp(value / max, 0.0, 1.0)), h,
+                       color);
+    };
+    bar(1, calories_, 100, rgb(0xd8a24a));
+    bar(2, hydration_, 100, rgb(0x5aa8d8));
+    if (radiation_ > 1) bar(3, radiation_, 100, rgb(0xb4e65a));
+
+    {
+        // The thermometer, as a word: a number in degrees says nothing at a
+        // glance about whether you are about to freeze.
+        const char* how = temperature_ < -2  ? "FREEZING"
+                          : temperature_ < 8 ? "COLD"
+                          : temperature_ > 34 ? "SWELTERING"
+                                              : "";
+        if (how[0]) {
+            SDL_SetRenderScale(renderer, 1.6f * uiScale, 1.6f * uiScale);
+            SDL_SetRenderDrawColor(renderer, 150, 200, 255, 255);
+            SDL_RenderDebugText(renderer, (bx) / (1.6f * uiScale),
+                                (by - 4 * (12 * uiScale + 5 * uiScale)) / (1.6f * uiScale), how);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+        if (bleeding_) {
+            SDL_SetRenderScale(renderer, 1.6f * uiScale, 1.6f * uiScale);
+            SDL_SetRenderDrawColor(renderer, 216, 72, 58, 255);
+            SDL_RenderDebugText(renderer, (bx + 120 * uiScale) / (1.6f * uiScale),
+                                (by - 4 * (12 * uiScale + 5 * uiScale)) / (1.6f * uiScale),
+                                "BLEEDING");
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+    }
+
+    if (applying_ > 0) {
+        // What is being applied, running down over the belt.
+        const float w = 200 * uiScale;
+        const float h = 8 * uiScale;
+        const float px = (width - w) * 0.5f;
+        const float py = y0 - 30 * uiScale;
+        paint.fillRect(px - 2, py - 2, w + 4, h + 4, kInk);
+        paint.fillRect(px, py, static_cast<float>(w * (1 - applying_)), h, rgb(0x8cf08c));
+    }
 
     if (carried_ >= 0) {
         // Over on the right, where the belt ends: what is in the gun and what
