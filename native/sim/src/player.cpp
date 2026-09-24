@@ -29,7 +29,8 @@ void separate(const World& world, Player& player) {
 
 }  // namespace
 
-void stepPlayer(const World& world, Player& player, const PlayerInput& input, double dt) {
+void stepPlayer(const World& world, const BuildSystem& build, Player& player,
+                const PlayerInput& input, double dt) {
     player.aim = input.aim;
     if (player.attackTimer > 0) player.attackTimer = std::max(0.0, player.attackTimer - dt);
     if (player.swingAnim > 0) player.swingAnim = std::max(0.0, player.swingAnim - dt);
@@ -60,6 +61,7 @@ void stepPlayer(const World& world, Player& player, const PlayerInput& input, do
     if (player.y > kWorldHeight - edge) player.y = kWorldHeight - edge;
 
     separate(world, player);
+    build.resolve(player.x, player.y, PlayerRules::kRadius);
 
     if (moving) {
         player.walkPhase += dt * (player.sprinting ? 14 : 9);

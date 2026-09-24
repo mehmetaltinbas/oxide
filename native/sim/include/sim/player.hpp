@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sim/build.hpp"
 #include "sim/world.hpp"
 
 namespace sim {
@@ -57,6 +58,7 @@ struct PlayerInput {
  * the server runs the same code on the same input, so the two agree without
  * anyone keeping two copies of the rules in step by hand.
  */
-void stepPlayer(const World& world, Player& player, const PlayerInput& input, double dt);
+void stepPlayer(const World& world, const BuildSystem& build, Player& player,
+                const PlayerInput& input, double dt);
 
 }  // namespace sim

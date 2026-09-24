@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "sim/build.hpp"
 #include "sim/npcs.hpp"
 #include "sim/world.hpp"
 
@@ -37,6 +38,9 @@ struct BulletHit {
     bool node;
     NodeKind nodeKind;
     bool brokeNode;
+    /** Or a wall, which takes the damage and may come down. */
+    bool built;
+    bool brokeBuilt;
 };
 
 /**
@@ -52,7 +56,8 @@ public:
 
     const std::vector<Bullet>& list() const { return bullets_; }
 
-    std::vector<BulletHit> update(World& world, NpcSystem& npcs, double dt);
+    std::vector<BulletHit> update(World& world, NpcSystem& npcs, BuildSystem& build,
+                                  double dt);
 
     void clear() { bullets_.clear(); }
 

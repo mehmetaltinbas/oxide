@@ -34,6 +34,8 @@ constexpr ItemDef kItems[kItemCount] = {
     {ItemId::Hatchet, "Hatchet", ItemCategory::Tool, 1, {22, 3, 0.5, 34}, kNoGun},
     {ItemId::Pickaxe, "Pickaxe", ItemCategory::Tool, 1, {20, 3, 0.52, 34}, kNoGun},
     {ItemId::Hammer, "Hammer", ItemCategory::Tool, 1, {8, 1, 0.5, 36}, kNoGun},
+    // Places twig foundations, walls and doorways.
+    {ItemId::BuildingPlan, "Building Plan", ItemCategory::Tool, 1, kNone, kNoGun},
     // Cheap reach, better than fists.
     {ItemId::Spear, "Wooden Spear", ItemCategory::Weapon, 1, {38, 1, 0.85, 58}, kNoGun},
     // Quiet, cheap to feed, punishing to aim.

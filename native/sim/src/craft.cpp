@@ -20,6 +20,7 @@ const std::vector<Recipe>& table() {
         {ItemId::Hammer, 1, {{ItemId::Wood, 40}, {ItemId::Stone, 20}}, 2, 0, 3},
         // A hunting bow is the first weapon you make, as in Rust: no bench.
         {ItemId::Bow, 1, {{ItemId::Wood, 200}, {ItemId::Cloth, 50}}, 2, 0, 6},
+        {ItemId::BuildingPlan, 1, {{ItemId::Wood, 20}}, 1, 0, 2},
         {ItemId::Spear, 1, {{ItemId::Wood, 60}, {ItemId::Cloth, 10}}, 2, 0, 4},
         {ItemId::LowGrade, 4, {{ItemId::AnimalFat, 3}, {ItemId::Cloth, 1}}, 2, 0, 2},
 

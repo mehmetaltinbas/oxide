@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "animal.hpp"
+#include "built.hpp"
 #include "held.hpp"
 #include "hud.hpp"
 #include "panel.hpp"
@@ -14,6 +15,7 @@
 #include "paint.hpp"
 #include "palette.hpp"
 #include "sim/action.hpp"
+#include "sim/build.hpp"
 #include "sim/craft.hpp"
 #include "sim/inventory.hpp"
 #include "sim/npcs.hpp"
@@ -80,12 +82,16 @@ int main(int argc, char** argv) {
     bool armed = false;
     /** The pack open with something in it, for a look at the screen itself. */
     bool showPanel = false;
+    /** A small base put up where you stand, for a look at what one looks like. */
+    bool showBase = false;
     for (int i = 1; i < argc; ++i) {
         if (SDL_strcmp(argv[i], "--shot") == 0 && i + 1 < argc) {
             shotPath = argv[++i];
         } else if (SDL_strcmp(argv[i], "--at") == 0 && i + 2 < argc) {
             startX = SDL_atof(argv[++i]);
             startY = SDL_atof(argv[++i]);
+        } else if (SDL_strcmp(argv[i], "--base") == 0) {
+            showBase = true;
         } else if (SDL_strcmp(argv[i], "--panel") == 0) {
             showPanel = true;
         } else if (SDL_strcmp(argv[i], "--armed") == 0) {
@@ -113,6 +119,7 @@ int main(int argc, char** argv) {
         player.y = startY;
     }
 
+    sim::BuildSystem build;
     sim::NpcSystem npcs;
     npcs.populate(world, seed);
 
@@ -131,10 +138,39 @@ int main(int argc, char** argv) {
         inventory.add(sim::ItemId::ShotgunShell, 40);
         inventory.selectSlot(3);
     }
+    if (showBase) {
+        // Two by two, walled in, with a doorway at the front and a door in it.
+        const int gx = static_cast<int>(player.x / sim::kBuildCell);
+        const int gy = static_cast<int>(player.y / sim::kBuildCell);
+        for (int oy = 0; oy < 2; ++oy) {
+            for (int ox = 0; ox < 2; ++ox) {
+                build.placeFoundation(gx + ox, gy + oy, 0, sim::BuildTier::Wood);
+            }
+        }
+        for (int ox = 0; ox < 2; ++ox) {
+            build.placeEdge(gx + ox, gy, sim::EdgeSide::North, sim::BuildKind::Wall, 0,
+                            sim::BuildTier::Wood);
+            build.placeEdge(gx + ox, gy + 2, sim::EdgeSide::North, sim::BuildKind::Wall, 0,
+                            sim::BuildTier::Stone);
+        }
+        for (int oy = 0; oy < 2; ++oy) {
+            build.placeEdge(gx, gy + oy, sim::EdgeSide::West, sim::BuildKind::Wall, 0,
+                            sim::BuildTier::Wood);
+            build.placeEdge(gx + 2, gy + oy, sim::EdgeSide::West, sim::BuildKind::Wall, 0,
+                            sim::BuildTier::Metal);
+        }
+        sim::Structure& doorway = build.placeEdge(gx + 1, gy + 2, sim::EdgeSide::North,
+                                                  sim::BuildKind::Doorway, 0, sim::BuildTier::Wood);
+        doorway.kind = sim::BuildKind::Door;
+        inventory.add(sim::ItemId::BuildingPlan, 1);
+    }
+
     sim::Projectiles projectiles;
     sim::Crafting crafting;
     client::Hud hud;
     client::Panel panel;
+    // What the building plan would put down, cycled with B.
+    sim::BuildKind buildKind = sim::BuildKind::Foundation;
     if (showPanel) {
         inventory.add(sim::ItemId::Wood, 320);
         inventory.add(sim::ItemId::Stone, 180);
@@ -191,10 +227,20 @@ int main(int argc, char** argv) {
                             event.button.button == SDL_BUTTON_RIGHT, lastWidth, lastHeight,
                             static_cast<float>(lastDensity));
             }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B && !event.key.repeat) {
+                // Foundation, wall, doorway, door, and round again.
+                buildKind = static_cast<sim::BuildKind>(
+                    (static_cast<int>(buildKind) + 1) % 4);
+            }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R && !event.key.repeat) {
                 sim::reload(player, inventory);
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_E && !event.key.repeat) {
+                if (sim::Structure* door = build.nearest(player.x, player.y, sim::kBuildCell * 0.9)) {
+                    if (door->kind == sim::BuildKind::Door) {
+                        door->open = !door->open;
+                    }
+                }
                 const sim::PickResult got = sim::pickUp(world, player, inventory);
                 if (got.picked && got.stack.count > 0) {
                     hud.say(std::string("+") + std::to_string(got.stack.count) + " " +
@@ -239,8 +285,10 @@ int main(int argc, char** argv) {
         SDL_GetMouseState(&mouseX, &mouseY);
         // The mouse is in window points; the frame may be in denser pixels.
         input.aim = SDL_atan2(mouseY * density - height * 0.5, mouseX * density - width * 0.5);
+        const double cursorX = player.x + (mouseX * density - width * 0.5) / scale;
+        const double cursorY = player.y + (mouseY * density - height * 0.5) / scale;
 
-        sim::stepPlayer(world, player, input, dt);
+        sim::stepPlayer(world, build, player, input, dt);
         world.update(dt);
         hud.update(dt);
         const sim::NpcEvents animals = npcs.update(world, dt, player);
@@ -266,6 +314,7 @@ int main(int argc, char** argv) {
 
         sim::tickReload(player, inventory, dt);
         crafting.update(dt, inventory);
+        build.update(dt);
 
         // Held down: a blow or a shot goes out whenever the last one has come
         // round. A bow is the exception: it draws while held and looses when
@@ -284,13 +333,75 @@ int main(int argc, char** argv) {
                 hud.say("Reload  (R)", player.x, player.y - 26, client::rgb(0xd8483a));
             }
         }
-        for (const sim::BulletHit& hit : projectiles.update(world, npcs, dt)) {
+        for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt)) {
             if (hit.npc && hit.killed) {
                 hud.say(std::string("Killed a ") + sim::npcDef(hit.npcKind).name, hit.x, hit.y - 22,
                         client::rgb(0xefeadd));
             }
         }
-        if (!gun && (buttons & SDL_BUTTON_LMASK) != 0) {
+        const sim::ItemId inHand = inventory.held();
+        const bool planning = inHand == sim::ItemId::BuildingPlan;
+        client::BuildTarget target = client::targetAt(cursorX, cursorY, buildKind);
+        const char* refusal = nullptr;
+        if (planning) {
+            refusal = buildKind == sim::BuildKind::Foundation
+                          ? build.refuseFoundation(world, target.gx, target.gy, 0)
+                          : build.refuseEdge(world, target.gx, target.gy, target.side, buildKind, 0);
+            // Out of reach is a refusal like any other: you build what you can
+            // put a hand on.
+            const double reach = sim::kBuildCell * 1.8;
+            if (!refusal && SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
+                                     (cursorY - player.y) * (cursorY - player.y)) > reach) {
+                refusal = "Too far away";
+            }
+            const sim::TierDef& twig = sim::tierDef(sim::BuildTier::Twig);
+            if (!refusal && inventory.count(twig.cost.id) < twig.cost.count) {
+                refusal = "Not enough wood";
+            }
+        }
+
+        if (planning && !refusal && (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
+            const sim::TierDef& twig = sim::tierDef(sim::BuildTier::Twig);
+            inventory.take(twig.cost.id, twig.cost.count);
+            if (buildKind == sim::BuildKind::Foundation) {
+                build.placeFoundation(target.gx, target.gy, 0);
+            } else if (buildKind == sim::BuildKind::Door) {
+                // A door goes into the doorway that is already there.
+                if (sim::Structure* doorway = build.edgeAt(target.gx, target.gy, target.side)) {
+                    doorway->kind = sim::BuildKind::Door;
+                    doorway->open = false;
+                }
+            } else {
+                build.placeEdge(target.gx, target.gy, target.side, buildKind, 0);
+            }
+            player.attackTimer = 0.25;
+        } else if (planning && refusal && (buttons & SDL_BUTTON_LMASK) != 0 &&
+                   player.attackTimer <= 0) {
+            hud.say(refusal, player.x, player.y - 26, client::rgb(0xd8483a));
+            player.attackTimer = 0.4;
+        }
+
+        if (inHand == sim::ItemId::Hammer && (buttons & SDL_BUTTON_LMASK) != 0 &&
+            player.attackTimer <= 0) {
+            // The hammer takes a piece up a tier rather than knocking it down.
+            if (sim::Structure* piece = build.nearest(cursorX, cursorY, sim::kBuildCell * 0.6)) {
+                sim::BuildTier up = sim::BuildTier::Twig;
+                if (!build.nextTier(*piece, up)) {
+                    hud.say("Already sheet metal", player.x, player.y - 26, client::rgb(0xd8483a));
+                } else if (build.upgrade(*piece, inventory)) {
+                    hud.say(sim::tierDef(up).name, cursorX, cursorY, client::rgb(0xefeadd));
+                } else {
+                    const sim::Cost& cost = sim::tierDef(up).cost;
+                    hud.say(std::string("Needs ") + std::to_string(cost.count) + " " +
+                                sim::itemDef(cost.id).name,
+                            player.x, player.y - 26, client::rgb(0xd8483a));
+                }
+                player.attackTimer = 0.5;
+            }
+        }
+
+        if (!gun && !planning && inHand != sim::ItemId::Hammer &&
+            (buttons & SDL_BUTTON_LMASK) != 0) {
             const sim::SwingResult blow = sim::swing(world, npcs, player, inventory);
             if (blow.landed && blow.gained.count > 0) {
                 hud.say(std::string("+") + std::to_string(blow.gained.count) + " " +
@@ -328,6 +439,11 @@ int main(int argc, char** argv) {
             const float sy = static_cast<float>((drop.y - player.y) * scale) + height * 0.5f;
             if (sx < -40 || sy < -40 || sx > width + 40 || sy > height + 40) continue;
             client::drawItemIcon(paint, drop.stack.id, sx, sy, static_cast<float>(22 * scale));
+        }
+
+        for (const sim::Structure& piece : build.list()) {
+            if (piece.kind != sim::BuildKind::Foundation) continue;
+            client::drawBuilt(paint, piece, player.x, player.y, scale, width, height);
         }
 
         static std::vector<const sim::Npc*> animalsNear;
@@ -393,6 +509,15 @@ int main(int argc, char** argv) {
         drawAnimalsUpTo(1e9);
         if (!playerDrawn) drawPlayer();
 
+        for (const sim::Structure& piece : build.list()) {
+            if (piece.kind == sim::BuildKind::Foundation) continue;
+            client::drawBuilt(paint, piece, player.x, player.y, scale, width, height);
+        }
+        if (planning) {
+            client::drawGhost(paint, target, sim::BuildTier::Twig, refusal == nullptr, player.x,
+                              player.y, scale, width, height);
+        }
+
         for (const sim::Bullet& bullet : projectiles.list()) {
             const float bx = static_cast<float>((bullet.x - player.x) * scale) + width * 0.5f;
             const float by = static_cast<float>((bullet.y - player.y) * scale) + height * 0.5f;
@@ -419,7 +544,11 @@ int main(int argc, char** argv) {
 
         // What the key under your finger would do, if anything.
         char prompt[96] = {0};
-        {
+        if (planning) {
+            static const char* kNames[4] = {"Foundation", "Wall", "Doorway", "Door"};
+            SDL_snprintf(prompt, sizeof(prompt), "%s   %s   (B to change)",
+                         kNames[static_cast<int>(buildKind)], refusal ? refusal : "click to place");
+        } else {
             const sim::Dropped* nearest = nullptr;
             double best = sim::kPickReach;
             for (const sim::Dropped& drop : world.drops()) {

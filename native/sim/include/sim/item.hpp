@@ -33,6 +33,7 @@ enum class ItemId : std::uint8_t {
     Hatchet,
     Pickaxe,
     Hammer,
+    BuildingPlan,
     // Weapons.
     Spear,
     Bow,
@@ -43,7 +44,7 @@ enum class ItemId : std::uint8_t {
     Ak47,
 };
 
-inline constexpr int kItemCount = 31;
+inline constexpr int kItemCount = 32;
 
 enum class ItemCategory : std::uint8_t { Resource, Tool, Ammo, Weapon };
 
@@ -86,6 +87,17 @@ struct ItemDef {
 };
 
 const ItemDef& itemDef(ItemId id);
+
+/**
+ * So much of one thing: what a recipe asks for, what a wall costs.
+ *
+ * The same shape as a stack, and deliberately a different name: a stack is
+ * something that exists somewhere, a cost is something being asked for.
+ */
+struct Cost {
+    ItemId id;
+    int count;
+};
 
 /** A count of one thing, as it sits in a slot or on the ground. */
 struct ItemStack {

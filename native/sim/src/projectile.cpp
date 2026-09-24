@@ -49,7 +49,8 @@ void Projectiles::spawn(double x, double y, double angle, const Gun& gun, double
     bullets_.push_back(bullet);
 }
 
-std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, double dt) {
+std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildSystem& build,
+                                          double dt) {
     std::vector<BulletHit> hits;
     static thread_local std::vector<const ResourceNode*> near;
 
@@ -96,6 +97,19 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, double
             bestAt = at;
             hitNode = node;
             hitNpc = nullptr;
+        }
+
+        double wallAt = 2;
+        Structure* wall = build.hitSegment(ax, ay, bx, by, wallAt);
+        if (wall && wallAt < bestAt) {
+            BulletHit hit{};
+            hit.x = ax + (bx - ax) * wallAt;
+            hit.y = ay + (by - ay) * wallAt;
+            hit.built = true;
+            hit.brokeBuilt = build.damage(*wall, bullet.damage);
+            hits.push_back(hit);
+            bullet.left = 0;
+            continue;
         }
 
         if (hitNpc) {

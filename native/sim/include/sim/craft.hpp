@@ -6,12 +6,6 @@
 
 namespace sim {
 
-/** One ingredient of a recipe. */
-struct Cost {
-    ItemId id;
-    int count;
-};
-
 /**
  * One thing you can make, what it takes, and how long it takes.
  *

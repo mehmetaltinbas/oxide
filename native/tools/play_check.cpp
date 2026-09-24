@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "sim/action.hpp"
+#include "sim/build.hpp"
 #include "sim/craft.hpp"
 #include "sim/projectile.hpp"
 
@@ -17,6 +18,7 @@ int main() {
     player.x = 10368;
     player.y = 10368;
     sim::Inventory inventory;
+    sim::BuildSystem build;
     sim::NpcSystem npcs;
     npcs.populate(world, 12345);
 
@@ -51,7 +53,7 @@ int main() {
             input.moveX = dx / d;
             input.moveY = dy / d;
         }
-        sim::stepPlayer(world, player, input, dt);
+        sim::stepPlayer(world, build, player, input, dt);
         world.update(dt);
         npcs.update(world, dt, player);
         if (d <= 40) {
@@ -59,6 +61,27 @@ int main() {
             if (blow.swung) ++blows;
             if (blow.broke) felled = true;
         }
+    }
+
+    // A foundation and a wall, and a shoulder against the wall: what is built
+    // has to stop you walking through it, or none of it means anything.
+    {
+        const int gx = static_cast<int>(player.x / sim::kBuildCell);
+        const int gy = static_cast<int>(player.y / sim::kBuildCell) + 2;
+        build.placeFoundation(gx, gy, 0, sim::BuildTier::Wood);
+        build.placeEdge(gx, gy, sim::EdgeSide::North, sim::BuildKind::Wall, 0, sim::BuildTier::Wood);
+        const double wallY = gy * static_cast<double>(sim::kBuildCell);
+        player.x = (gx + 0.5) * sim::kBuildCell;
+        player.y = wallY - 40;
+        const double startY = player.y;
+        for (int i = 0; i < 180; ++i) {
+            sim::PlayerInput push;
+            push.moveY = 1;
+            push.aim = 1.5707963;
+            sim::stepPlayer(world, build, player, push, 1.0 / 60);
+        }
+        std::printf("wall: walked %.0f into it, stopped %.0f short, through it: %s\n",
+                    player.y - startY, wallY - player.y, player.y > wallY ? "yes" : "no");
     }
 
     // What was chopped, turned into a hatchet: queued, waited out, and in the
@@ -111,7 +134,7 @@ int main() {
                 input.moveX = dx / d;
                 input.moveY = dy / d;
             }
-            sim::stepPlayer(world, player, input, dt);
+            sim::stepPlayer(world, build, player, input, dt);
             world.update(dt);
             const sim::NpcEvents events = npcs.update(world, dt, player);
             player.health -= static_cast<int>(events.playerDamage);
@@ -149,7 +172,7 @@ int main() {
             player.attackTimer = std::max(0.0, player.attackTimer - dt);
             const sim::FireResult shot = sim::fire(player, inventory, projectiles, true, dt);
             if (shot.fired) ++shots;
-            for (const sim::BulletHit& hit : projectiles.update(world, npcs, dt)) {
+            for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt)) {
                 if (hit.npc) ++landed;
             }
         }
