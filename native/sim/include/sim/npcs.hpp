@@ -2,11 +2,15 @@
 
 #include <vector>
 
+#include "sim/build.hpp"
 #include "sim/npc.hpp"
 #include "sim/player.hpp"
 #include "sim/world.hpp"
 
 namespace sim {
+
+/** Declared rather than included: the rounds in the air know about the npcs. */
+class Projectiles;
 
 /** What the animals did to you this tick, for the client to draw and sound. */
 struct NpcEvents {
@@ -33,12 +37,16 @@ public:
     /** Fills the island: boars, wolves and bears, away from road and water. */
     void populate(const World& world, std::uint32_t seed);
 
+    /** Posts the monuments' guards: scientists, and soldiers at the base. */
+    void garrison(const World& world, std::uint32_t seed);
+
     const std::vector<Npc>& list() const { return npcs_; }
 
     /** Everything alive in a rectangle, appended to `out`. */
     void inRect(double x0, double y0, double x1, double y1, std::vector<const Npc*>& out) const;
 
-    NpcEvents update(World& world, double dt, const Player& player);
+    NpcEvents update(World& world, const BuildSystem& build, Projectiles& projectiles, double dt,
+                     const Player& player);
 
     /**
      * A blow or a bullet landing.
@@ -54,6 +62,16 @@ public:
 
 private:
     std::vector<Npc> npcs_;
+    /** What has been killed and is owed back to the island, and when. */
+    struct Regrowth {
+        NpcKind kind;
+        bool guard;
+        double homeX;
+        double homeY;
+        double leash;
+        double seconds;
+    };
+    std::vector<Regrowth> regrowth_;
     int nextId_ = 1;
     std::uint32_t rolls_ = 1;
 

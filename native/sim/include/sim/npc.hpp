@@ -7,15 +7,24 @@
 namespace sim {
 
 /** What lives on the island. The people of the monuments come later. */
-enum class NpcKind : std::uint8_t { Boar, Wolf, Bear };
+enum class NpcKind : std::uint8_t { Boar, Wolf, Bear, Scientist, Soldier };
 
-inline constexpr int kNpcKindCount = 3;
+inline constexpr int kNpcKindCount = 5;
 
 /** What one animal drops when it is killed, as a range. */
 struct NpcLoot {
     ItemId id;
     int low;
     int high;
+};
+
+/** What one of them carries, and nothing for the ones that do not. */
+struct NpcGun {
+    double damage;
+    double range;
+    double cooldown;
+    double speed;
+    double spread;
 };
 
 struct NpcDef {
@@ -29,7 +38,11 @@ struct NpcDef {
     double attackCooldown;
     /** Whether it comes for you unprovoked; the rest only fight back. */
     bool hostile;
-    NpcLoot loot[4];
+    /** Whether it walks on two legs, which is most of how it is drawn. */
+    bool human;
+    NpcGun gun;
+    NpcLoot loot[5];
+    int lootCount;
 };
 
 const NpcDef& npcDef(NpcKind kind);
@@ -59,6 +72,13 @@ struct Npc {
     double leash;
     /** How long it has stood at the water's edge waiting for you to come out. */
     double shoreWait;
+    /** Seconds until it may fire again. */
+    double gunTimer;
+    /** What a blow knocked into it, shed over the next moment. */
+    double knockX;
+    double knockY;
+    /** Where it was posted, for the ones that hold a monument. */
+    bool guard;
     std::uint32_t seed;
 };
 

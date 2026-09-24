@@ -144,6 +144,7 @@ int main(int argc, char** argv) {
     sim::BuildSystem build;
     sim::NpcSystem npcs;
     npcs.populate(world, seed);
+    npcs.garrison(world, seed);
 
     sim::Inventory inventory;
     if (poseSwing >= 0) {
@@ -358,7 +359,7 @@ int main(int argc, char** argv) {
         sim::stepPlayer(world, build, player, input, dt);
         world.update(dt);
         hud.update(dt);
-        const sim::NpcEvents animals = npcs.update(world, dt, player);
+        const sim::NpcEvents animals = npcs.update(world, build, projectiles, dt, player);
         // Nothing warms you yet: the campfire arrives with the deployables.
         build.updateDeployables(dt);
         sim::updateSurvival(world, player, inventory, dt, 0, build.warmthAt(player.x, player.y));
@@ -413,7 +414,12 @@ int main(int argc, char** argv) {
                 hud.say("Reload  (R)", player.x, player.y - 26, client::rgb(0xd8483a));
             }
         }
-        for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt)) {
+        for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt, &player)) {
+            if (hit.player) {
+                sim::hurtPlayer(player, inventory, hit.damage);
+                hud.say("-" + std::to_string(static_cast<int>(hit.damage)), player.x, player.y - 22,
+                        client::rgb(0xd8483a));
+            }
             if (hit.npc && hit.killed) {
                 hud.say(std::string("Killed a ") + sim::npcDef(hit.npcKind).name, hit.x, hit.y - 22,
                         client::rgb(0xefeadd));
@@ -623,7 +629,28 @@ int main(int argc, char** argv) {
                 if (!playerDrawn && animal->y > player.y) drawPlayer();
                 const float ax = static_cast<float>((animal->x - player.x) * scale) + width * 0.5f;
                 const float ay = static_cast<float>((animal->y - player.y) * scale) + height * 0.5f;
-                client::drawAnimal(paint, *animal, ax, ay, static_cast<float>(scale));
+                const sim::NpcDef& def = sim::npcDef(animal->kind);
+                if (def.human) {
+                    // A scientist and a soldier are people, and go through the
+                    // one routine that draws a person.
+                    client::HumanLook look;
+                    look.x = ax;
+                    look.y = ay;
+                    look.facing = static_cast<float>(animal->facing);
+                    look.phase = static_cast<float>(animal->animPhase);
+                    look.radius = static_cast<float>(def.radius * scale);
+                    look.stride = static_cast<float>(
+                        std::min(1.0, std::hypot(animal->vx, animal->vy) / 90));
+                    look.shirt = animal->kind == sim::NpcKind::Soldier ? client::rgb(0x6f7a52)
+                                                                      : client::rgb(0xe6ebf0);
+                    look.legs = animal->kind == sim::NpcKind::Soldier ? client::rgb(0x454d31)
+                                                                     : client::rgb(0x758494);
+                    look.held = animal->kind == sim::NpcKind::Soldier ? sim::ItemId::Ak47
+                                                                     : sim::ItemId::Revolver;
+                    client::drawHuman(paint, look);
+                } else {
+                    client::drawAnimal(paint, *animal, ax, ay, static_cast<float>(scale));
+                }
                 client::drawAnimalTag(paint, *animal, ax, ay, static_cast<float>(scale),
                                       static_cast<float>(density));
             }

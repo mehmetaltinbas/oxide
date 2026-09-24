@@ -21,7 +21,9 @@ int main() {
     sim::Inventory inventory;
     sim::BuildSystem build;
     sim::NpcSystem npcs;
+    sim::Projectiles projectiles;
     npcs.populate(world, 12345);
+    npcs.garrison(world, 12345);
 
     // The nearest tree to where we woke up.
     std::vector<const sim::ResourceNode*> near;
@@ -56,7 +58,7 @@ int main() {
         }
         sim::stepPlayer(world, build, player, input, dt);
         world.update(dt);
-        npcs.update(world, dt, player);
+        npcs.update(world, build, projectiles, dt, player);
         if (d <= 40) {
             const sim::SwingResult blow = sim::swing(world, npcs, player, inventory);
             if (blow.swung) ++blows;
@@ -78,6 +80,37 @@ int main() {
         std::printf("survival: after %.0f minutes still %s, food %.0f, water %.0f, health %.0f\n",
                     clock / 60, idle.alive ? "up" : "down", idle.calories, idle.hydration,
                     idle.health);
+    }
+
+    // A monument's guards: put in front of one and shot at, to see that they
+    // shoot back and that they do not shoot each other.
+    {
+        const sim::Monument& monument = world.monuments().front();
+        sim::Player visitor;
+        visitor.x = monument.x;
+        visitor.y = monument.y + monument.radius * 0.4;
+        sim::Inventory kit;
+        sim::Projectiles fire;
+        int guards = 0;
+        for (const sim::Npc& npc : npcs.list()) {
+            if (sim::npcDef(npc.kind).gun.damage > 0 &&
+                std::hypot(npc.x - monument.x, npc.y - monument.y) < monument.radius) {
+                ++guards;
+            }
+        }
+        double taken = 0;
+        for (int i = 0; i < 60 * 20; ++i) {
+            npcs.update(world, build, fire, dt, visitor);
+            for (const sim::BulletHit& hit : fire.update(world, npcs, build, dt, &visitor)) {
+                if (hit.player) taken += hit.damage;
+            }
+        }
+        int standing = 0;
+        for (const sim::Npc& npc : npcs.list()) {
+            if (npc.hp > 0 && sim::npcDef(npc.kind).gun.damage > 0) ++standing;
+        }
+        std::printf("guards: %s holds %d, took %.0f in twenty seconds, %d armed still up\n",
+                    sim::monumentDef(monument.kind).name, guards, taken, standing);
     }
 
     // A fire with meat on it and a furnace with ore in it: both left to burn.
@@ -178,7 +211,7 @@ int main() {
             }
             sim::stepPlayer(world, build, player, input, dt);
             world.update(dt);
-            const sim::NpcEvents events = npcs.update(world, dt, player);
+            const sim::NpcEvents events = npcs.update(world, build, projectiles, dt, player);
             player.health -= static_cast<int>(events.playerDamage);
             if (d <= 30 && sim::swing(world, npcs, player, inventory).hitNpc) ++hits;
         }
@@ -189,7 +222,6 @@ int main() {
     }
 
     // And a rifle, at something far enough off that a bullet has to fly.
-    sim::Projectiles projectiles;
     inventory.hotbar()[2] = sim::ItemStack{sim::ItemId::Ak47, 1};
     inventory.selectSlot(2);
     inventory.add(sim::ItemId::RifleAmmo, 60);
@@ -214,7 +246,7 @@ int main() {
             player.attackTimer = std::max(0.0, player.attackTimer - dt);
             const sim::FireResult shot = sim::fire(player, inventory, projectiles, true, dt);
             if (shot.fired) ++shots;
-            for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt)) {
+            for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt, &player)) {
                 if (hit.npc) ++landed;
             }
         }

@@ -4,6 +4,7 @@
 
 #include "sim/build.hpp"
 #include "sim/npcs.hpp"
+#include "sim/player.hpp"
 #include "sim/world.hpp"
 
 namespace sim {
@@ -41,6 +42,9 @@ struct BulletHit {
     /** Or a wall, which takes the damage and may come down. */
     bool built;
     bool brokeBuilt;
+    /** Or the player, when it was a monument's guard that fired it. */
+    bool player;
+    double damage;
 };
 
 /**
@@ -53,11 +57,13 @@ struct BulletHit {
 class Projectiles {
 public:
     void spawn(double x, double y, double angle, const Gun& gun, double damage, bool arrow);
+    /** One fired at the player rather than by them. */
+    void spawnHostile(double x, double y, double angle, const Gun& gun, double damage);
 
     const std::vector<Bullet>& list() const { return bullets_; }
 
-    std::vector<BulletHit> update(World& world, NpcSystem& npcs, BuildSystem& build,
-                                  double dt);
+    std::vector<BulletHit> update(World& world, NpcSystem& npcs, BuildSystem& build, double dt,
+                                  const Player* target);
 
     void clear() { bullets_.clear(); }
 

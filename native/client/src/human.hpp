@@ -16,6 +16,7 @@ struct HumanLook {
     float facing = 0;
     /** How far through a stride they are. */
     float phase = 0;
+    /** How much of a stride is being taken, nought to one. */
     float stride = 1;
     bool swimming = false;
     Color skin{0xc0, 0x8a, 0x5e, 255};

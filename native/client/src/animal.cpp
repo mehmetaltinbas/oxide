@@ -14,6 +14,9 @@ Color coatOf(sim::NpcKind kind) {
         case sim::NpcKind::Boar: return rgb(0x966e50);
         case sim::NpcKind::Wolf: return rgb(0x8e97a5);
         case sim::NpcKind::Bear: return rgb(0x88522c);
+        // The people of the monuments: a lab coat and a field green.
+        case sim::NpcKind::Scientist: return rgb(0xe6ebf0);
+        case sim::NpcKind::Soldier: return rgb(0x6f7a52);
     }
     return rgb(0x966e50);
 }
@@ -23,6 +26,8 @@ Color darkOf(sim::NpcKind kind) {
         case sim::NpcKind::Boar: return rgb(0x573d27);
         case sim::NpcKind::Wolf: return rgb(0x505d6d);
         case sim::NpcKind::Bear: return rgb(0x523119);
+        case sim::NpcKind::Scientist: return rgb(0x758494);
+        case sim::NpcKind::Soldier: return rgb(0x454d31);
     }
     return rgb(0x573d27);
 }

@@ -49,8 +49,13 @@ void Projectiles::spawn(double x, double y, double angle, const Gun& gun, double
     bullets_.push_back(bullet);
 }
 
+void Projectiles::spawnHostile(double x, double y, double angle, const Gun& gun, double damage) {
+    spawn(x, y, angle, gun, damage, false);
+    bullets_.back().fromPlayer = false;
+}
+
 std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildSystem& build,
-                                          double dt) {
+                                           double dt, const Player* target) {
     std::vector<BulletHit> hits;
     static thread_local std::vector<const ResourceNode*> near;
 
@@ -70,8 +75,27 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
         Npc* hitNpc = nullptr;
         const ResourceNode* hitNode = nullptr;
 
+        // A round from a guard looks for the player; one of the player's looks
+        // for anything alive that is not them.
+        if (!bullet.fromPlayer && target && target->alive) {
+            double at = 0;
+            if (segmentHitsCircle(ax, ay, bx, by, target->x, target->y, PlayerRules::kRadius, at) &&
+                at < bestAt) {
+                BulletHit hit{};
+                hit.x = ax + (bx - ax) * at;
+                hit.y = ay + (by - ay) * at;
+                hit.player = true;
+                hit.damage = bullet.damage;
+                hits.push_back(hit);
+                bullet.left = 0;
+                continue;
+            }
+        }
+
         for (const Npc& npc : npcs.list()) {
             if (npc.hp <= 0) continue;
+            // Nobody shoots their own: the guards of a monument hold it together.
+            if (!bullet.fromPlayer) continue;
             const double reach = npcDef(npc.kind).radius;
             if (std::abs(npc.x - ax) > step + reach + 40) continue;
             if (std::abs(npc.y - ay) > step + reach + 40) continue;
