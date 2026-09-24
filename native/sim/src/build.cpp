@@ -158,16 +158,26 @@ const char* BuildSystem::refuseEdge(const World& world, int gx, int gy, EdgeSide
 Structure& BuildSystem::placeFoundation(int gx, int gy, int owner, BuildTier tier) {
     const int hp = static_cast<int>(std::lround(tierDef(tier).hp * kFoundationHpMul));
     pieces_.push_back(Structure{nextId_++, BuildKind::Foundation, tier, gx, gy, EdgeSide::North, hp,
-                                hp, owner, false, false, 0});
+                                hp, owner, false, false, 0, 0, 0});
     reindex();
     return pieces_.back();
 }
 
 Structure& BuildSystem::placeEdge(int gx, int gy, EdgeSide side, BuildKind kind, int owner,
-                                  BuildTier tier) {
+                                  BuildTier tier, double fromX, double fromY) {
     const int hp = tierDef(tier).hp;
-    pieces_.push_back(
-        Structure{nextId_++, kind, tier, gx, gy, side, hp, hp, owner, false, false, 0});
+    double x0 = 0;
+    double y0 = 0;
+    double x1 = 0;
+    double y1 = 0;
+    edgeSegment(gx, gy, side, x0, y0, x1, y1);
+    const double dx = fromX - (x0 + x1) * 0.5;
+    const double dy = fromY - (y0 + y1) * 0.5;
+    const double len = std::hypot(dx, dy);
+    const double softX = len > 0.001 ? dx / len : 0;
+    const double softY = len > 0.001 ? dy / len : 0;
+    pieces_.push_back(Structure{nextId_++, kind, tier, gx, gy, side, hp, hp, owner, false, false,
+                                softX, softY, 0});
     reindex();
     return pieces_.back();
 }
@@ -193,8 +203,19 @@ bool BuildSystem::upgrade(Structure& piece, Inventory& inventory) {
     return true;
 }
 
-bool BuildSystem::damage(Structure& piece, double amount) {
+bool BuildSystem::damage(Structure& piece, double amount, double fromX, double fromY, bool melee) {
     if (piece.hp <= 0) return false;
+    if (melee && piece.kind != BuildKind::Foundation) {
+        // Struck from the hard side, a wall barely notices: that is what stops
+        // anyone chopping their way out of a base from the inside.
+        const double dx = fromX - (piece.gx + 0.5) * kBuildCell;
+        const double dy = fromY - (piece.gy + 0.5) * kBuildCell;
+        const double len = std::hypot(dx, dy);
+        if (len > 0.001) {
+            const double dot = (dx / len) * piece.softX + (dy / len) * piece.softY;
+            if (dot < 0.15) amount *= kHardSideMeleeMul;
+        }
+    }
     piece.hp -= static_cast<int>(amount);
     piece.flash = 0.12;
     if (piece.hp > 0) return false;
@@ -391,6 +412,15 @@ void BuildSystem::removeDeployable(int id) {
     deployables_.erase(std::remove_if(deployables_.begin(), deployables_.end(),
                                       [id](const Deployable& d) { return d.id == id; }),
                        deployables_.end());
+}
+
+bool BuildSystem::canReach(double fromX, double fromY, double toX, double toY, int owner) const {
+    double at = 0;
+    if (const_cast<BuildSystem*>(this)->hitSegment(fromX, fromY, toX, toY, at)) return false;
+    const int region = regionAt(toX, toY);
+    if (region == 0) return true;
+    if (regionAt(fromX, fromY) == region) return true;
+    return regionOwner(region) == owner;
 }
 
 int BuildSystem::benchTierAt(double x, double y, int owner) const {

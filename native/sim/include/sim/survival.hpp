@@ -26,6 +26,14 @@ struct PlayerVitals {
     static constexpr double kComfortTemp = 10;
     /** How close you must be to pick up, harvest, open or use something. */
     static constexpr double kInteract = 39;
+    /** A box is a big thing to stand at, so it is reached a little further. */
+    static constexpr double kDeployableReachBonus = 22;
+    /** How far from you a box, a fire or a bag can be put down. */
+    static constexpr double kDeployReach = 200;
+    /** How far out you can lay a foundation or a wall. */
+    static constexpr double kBuildReach = 220;
+    /** How far you may wander from an open box before it shuts itself. */
+    static constexpr double kContainerSlack = 40;
 };
 
 /** Water is cold whatever the biome says. */

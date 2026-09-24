@@ -32,7 +32,8 @@ bool fistsCanWork(NodeKind kind) { return kind == NodeKind::Tree || kind == Node
 
 }  // namespace
 
-SwingResult swing(World& world, NpcSystem& npcs, Player& player, Inventory& inventory) {
+SwingResult swing(World& world, NpcSystem& npcs, BuildSystem& build, Player& player,
+                  Inventory& inventory) {
     SwingResult out;
     if (player.attackTimer > 0 || player.swimming) return out;
 
@@ -68,6 +69,23 @@ SwingResult swing(World& world, NpcSystem& npcs, Player& player, Inventory& inve
             out.x = animal->x;
             out.y = animal->y;
             return out;
+        }
+    }
+
+    // Then somebody's building, with something in your hand. Fists gather and
+    // fight and do nothing else: a punch does not dent a wall.
+    if (tool) {
+        const double tipX = player.x + std::cos(player.aim) * melee.reach * 0.75;
+        const double tipY = player.y + std::sin(player.aim) * melee.reach * 0.75;
+        if (Structure* piece = build.nearest(tipX, tipY, 26)) {
+            if (piece->owner != 0) {
+                out.landed = true;
+                out.built = true;
+                out.x = tipX;
+                out.y = tipY;
+                out.brokeBuilt = build.damage(*piece, melee.damage, player.x, player.y, true);
+                return out;
+            }
         }
     }
 
@@ -235,14 +253,17 @@ int roundsCarried(const Player& player, const Inventory& inventory) {
     return (player.loaded == held ? player.rounds : 0) + inventory.count(gun.ammo);
 }
 
-PickResult pickUp(World& world, const Player& player, Inventory& inventory) {
+PickResult pickUp(World& world, const BuildSystem& build, const Player& player,
+                  Inventory& inventory) {
     PickResult out;
+    const double reach = PlayerVitals::kInteract;
     // Anything lying on the ground first: that is what the key is mostly for.
     const Dropped* nearest = nullptr;
-    double best = kPickReach;
+    double best = reach;
     for (const Dropped& drop : world.drops()) {
         const double d = dist(player.x, player.y, drop.x, drop.y);
         if (d > best) continue;
+        if (!build.canReach(player.x, player.y, drop.x, drop.y, 0)) continue;
         nearest = &drop;
         best = d;
     }
@@ -267,11 +288,11 @@ PickResult pickUp(World& world, const Player& player, Inventory& inventory) {
 
     // Then a nettle, which is picked by hand rather than swung at.
     static thread_local std::vector<const ResourceNode*> near;
-    world.nodesInRect(player.x - kPickReach, player.y - kPickReach, player.x + kPickReach,
-                      player.y + kPickReach, near);
+    world.nodesInRect(player.x - reach, player.y - reach, player.x + reach, player.y + reach, near);
     for (const ResourceNode* node : near) {
         if (node->kind != NodeKind::Nettle || node->hp <= 0) continue;
-        if (dist(player.x, player.y, node->x, node->y) > kPickReach + node->radius) continue;
+        if (dist(player.x, player.y, node->x, node->y) > reach + node->radius) continue;
+        if (!build.canReach(player.x, player.y, node->x, node->y, 0)) continue;
         ResourceNode* live = world.nodeById(node->id);
         if (!live) continue;
         const NodeDef& def = nodeDef(NodeKind::Nettle);

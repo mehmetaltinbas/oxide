@@ -31,6 +31,9 @@ const TierDef& tierDef(BuildTier tier);
 /** Which edge of a cell a piece sits on. Every edge belongs to one cell. */
 enum class EdgeSide : std::uint8_t { North, West };
 
+/** Melee only bites on the soft side; explosives do not care. */
+inline constexpr double kHardSideMeleeMul = 0.1;
+
 /** A foundation is tougher than the walls on it; a door is a little softer. */
 inline constexpr double kFoundationHpMul = 1.6;
 inline constexpr double kDoorHpMul = 0.8;
@@ -51,6 +54,9 @@ struct Structure {
     bool open;
     /** A locked door opens for its owner and for nobody else. */
     bool locked;
+    /** Which way the builder was standing: the side a blow bites on. */
+    double softX;
+    double softY;
     double flash;
 };
 
@@ -84,8 +90,12 @@ public:
                            int owner) const;
 
     Structure& placeFoundation(int gx, int gy, int owner, BuildTier tier = BuildTier::Twig);
+    /**
+     * `fromX`/`fromY` is where the builder was standing, which becomes the
+     * piece's soft side, as in Rust: a wall is meant to be broken from outside.
+     */
     Structure& placeEdge(int gx, int gy, EdgeSide side, BuildKind kind, int owner,
-                         BuildTier tier = BuildTier::Twig);
+                         BuildTier tier = BuildTier::Twig, double fromX = 0, double fromY = 0);
 
     /** The next tier up from what a piece is, if there is one. */
     bool nextTier(const Structure& piece, BuildTier& out) const;
@@ -132,6 +142,12 @@ public:
     /** Every sealed cell and the room it belongs to, for putting a roof on. */
     const std::unordered_map<std::uint64_t, int>& enclosedCells() const;
 
+    /**
+     * Whether a point can be reached from another: not through a wall, and not
+     * into a room somebody else has sealed.
+     */
+    bool canReach(double fromX, double fromY, double toX, double toY, int owner) const;
+
     /** The best workbench within reach of a point, and nought for none. */
     int benchTierAt(double x, double y, int owner) const;
 
@@ -153,8 +169,14 @@ public:
     /** Puts a piece up a tier, if the pack holds what that costs. */
     bool upgrade(Structure& piece, Inventory& inventory);
 
-    /** A blow or a bullet on a piece. Says whether that was the end of it. */
-    bool damage(Structure& piece, double amount);
+    /**
+     * A blow or a bullet on a piece. Says whether that was the end of it.
+     *
+     * A melee blow from the hard side of a wall barely scratches it, which is
+     * what stops anyone chopping their way out of a base from the inside.
+     */
+    bool damage(Structure& piece, double amount, double fromX = 0, double fromY = 0,
+                bool melee = false);
 
     /** Pushes a point out of any wall it is inside. */
     void resolve(double& x, double& y, double radius) const;

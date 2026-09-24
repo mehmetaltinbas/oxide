@@ -63,7 +63,7 @@ int main() {
         world.update(dt);
         npcs.update(world, build, projectiles, dt, player);
         if (d <= 40) {
-            const sim::SwingResult blow = sim::swing(world, npcs, player, inventory);
+            const sim::SwingResult blow = sim::swing(world, npcs, build, player, inventory);
             if (blow.swung) ++blows;
             if (blow.broke) felled = true;
         }
@@ -268,11 +268,11 @@ int main() {
             world.update(dt);
             const sim::NpcEvents events = npcs.update(world, build, projectiles, dt, player);
             player.health -= static_cast<int>(events.playerDamage);
-            if (d <= 30 && sim::swing(world, npcs, player, inventory).hitNpc) ++hits;
+            if (d <= 30 && sim::swing(world, npcs, build, player, inventory).hitNpc) ++hits;
         }
         // Everything it dropped, gathered up.
         for (int i = 0; i < 12; ++i) {
-            if (!sim::pickUp(world, player, inventory).picked) break;
+            if (!sim::pickUp(world, build, player, inventory).picked) break;
         }
     }
 

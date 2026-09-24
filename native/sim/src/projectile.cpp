@@ -102,8 +102,10 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
 
         for (const Npc& npc : npcs.list()) {
             if (npc.hp <= 0) continue;
-            // Nobody shoots their own: the guards of a monument hold it together.
-            if (!bullet.fromPlayer) continue;
+            // A round finds whatever is in its way: a guard's shot can drop a
+            // boar that wanders into the firefight. What it will not do is hit
+            // another of the monument's own.
+            if (!bullet.fromPlayer && npcDef(npc.kind).human) continue;
             const double reach = npcDef(npc.kind).radius;
             if (std::abs(npc.x - ax) > step + reach + 40) continue;
             if (std::abs(npc.y - ay) > step + reach + 40) continue;
@@ -124,7 +126,10 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
             // A nettle is not cover, and neither is something already taken.
             if (node->hp <= 0 || node->kind == NodeKind::Nettle) continue;
             double at = 0;
-            if (!segmentHitsCircle(ax, ay, bx, by, node->x, node->y, node->radius, at)) continue;
+            // A barrel is hit anywhere on it; a trunk or a boulder stops a
+            // round only through its solid middle, so cover stays honest.
+            const double reach = nodeDef(node->kind).loot ? node->radius : node->radius * 0.5;
+            if (!segmentHitsCircle(ax, ay, bx, by, node->x, node->y, reach, at)) continue;
             if (at >= bestAt) continue;
             bestAt = at;
             hitNode = node;

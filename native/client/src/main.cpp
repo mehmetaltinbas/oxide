@@ -530,7 +530,7 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
-                const sim::PickResult got = sim::pickUp(world, player, inventory);
+                const sim::PickResult got = sim::pickUp(world, build, player, inventory);
                 if (got.picked && got.stack.count > 0) {
                     hud.say(std::string("+") + std::to_string(got.stack.count) + " " +
                                 sim::itemDef(got.stack.id).name,
@@ -878,7 +878,7 @@ int main(int argc, char** argv) {
 
         if (!gun && !planning && !eating && inHand != sim::ItemId::Hammer &&
             (buttons & SDL_BUTTON_LMASK) != 0) {
-            const sim::SwingResult blow = sim::swing(world, npcs, player, inventory);
+            const sim::SwingResult blow = sim::swing(world, npcs, build, player, inventory);
             if (blow.landed && blow.gained.count > 0) {
                 hud.say(std::string("+") + std::to_string(blow.gained.count) + " " +
                             sim::itemDef(blow.gained.id).name,
@@ -1226,7 +1226,7 @@ int main(int argc, char** argv) {
                          kNames[static_cast<int>(buildKind)], refusal ? refusal : "click to place");
         } else {
             const sim::Dropped* nearest = nullptr;
-            double best = sim::kPickReach;
+            double best = sim::PlayerVitals::kInteract;
             for (const sim::Dropped& drop : world.drops()) {
                 const double d = SDL_sqrt((drop.x - player.x) * (drop.x - player.x) +
                                           (drop.y - player.y) * (drop.y - player.y));
@@ -1238,8 +1238,8 @@ int main(int argc, char** argv) {
                 SDL_snprintf(prompt, sizeof(prompt), "E   Pick up %d %s", nearest->stack.count,
                              sim::itemDef(nearest->stack.id).name);
             } else {
-                world.nodesInRect(player.x - sim::kPickReach, player.y - sim::kPickReach,
-                                  player.x + sim::kPickReach, player.y + sim::kPickReach, visible);
+                world.nodesInRect(player.x - sim::PlayerVitals::kInteract, player.y - sim::PlayerVitals::kInteract,
+                                  player.x + sim::PlayerVitals::kInteract, player.y + sim::PlayerVitals::kInteract, visible);
                 for (const sim::ResourceNode* node : visible) {
                     if (node->kind != sim::NodeKind::Nettle || node->hp <= 0) continue;
                     SDL_snprintf(prompt, sizeof(prompt), "E   Pick nettle");

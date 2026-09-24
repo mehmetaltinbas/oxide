@@ -2,6 +2,7 @@
 
 #include "sim/inventory.hpp"
 #include "sim/npcs.hpp"
+#include "sim/survival.hpp"
 #include "sim/projectile.hpp"
 #include "sim/player.hpp"
 #include "sim/world.hpp"
@@ -27,6 +28,9 @@ struct SwingResult {
     NpcKind npcKind = NpcKind::Boar;
     /** Whether that blow was the one that finished it. */
     bool killed = false;
+    /** Or it landed on somebody's wall. */
+    bool built = false;
+    bool brokeBuilt = false;
     double damage = 0;
 };
 
@@ -36,7 +40,8 @@ struct SwingResult {
  * Living things first, then what stands on the ground. Other players and
  * buildings arrive on top of this, in the order the old game took them.
  */
-SwingResult swing(World& world, NpcSystem& npcs, Player& player, Inventory& inventory);
+SwingResult swing(World& world, NpcSystem& npcs, BuildSystem& build, Player& player,
+                  Inventory& inventory);
 
 /** What picking something up did. */
 struct PickResult {
@@ -51,7 +56,8 @@ struct PickResult {
  * Picking up: a stack off the ground first, then a nettle, which is gathered
  * by hand rather than swung at.
  */
-PickResult pickUp(World& world, const Player& player, Inventory& inventory);
+PickResult pickUp(World& world, const BuildSystem& build, const Player& player,
+                  Inventory& inventory);
 
 /** What pulling the trigger did. */
 struct FireResult {
@@ -84,6 +90,5 @@ void tickReload(Player& player, Inventory& inventory, double dt);
 int roundsCarried(const Player& player, const Inventory& inventory);
 
 /** How far you can reach to pick something up. */
-inline constexpr double kPickReach = 46;
 
 }  // namespace sim

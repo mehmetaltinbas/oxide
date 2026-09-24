@@ -22,10 +22,18 @@ struct Charge {
     ItemId kind;
     double x;
     double y;
+    double vx;
+    double vy;
     double fuse;
     /** The piece it stuck to, which takes the whole charge rather than a share. */
     int stuckTo;
 };
+
+/** How hard a charge can be lobbed, and how gently it can be dropped. */
+inline constexpr double kThrowMin = 180;
+inline constexpr double kThrowMax = 520;
+/** How fast a thrown charge sheds its speed once it is in the air. */
+inline constexpr double kThrowDrag = 2.6;
 
 /**
  * Everything that goes off.
@@ -37,7 +45,13 @@ struct Charge {
  */
 class Explosives {
 public:
-    /** Throws one, which sticks to whatever piece it lands against. */
+    /**
+     * Thrown at a point: it flies, slows, and sticks to the first wall it
+     * reaches, which is how a satchel ends up on somebody's door rather than
+     * in the grass in front of it.
+     */
+    void throwAt(ItemId kind, double fromX, double fromY, double toX, double toY);
+    /** Stuck straight onto a piece, the way a charge is placed by hand. */
     void place(ItemId kind, double x, double y, int stuckTo);
 
     const std::vector<Charge>& list() const { return charges_; }

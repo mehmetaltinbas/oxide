@@ -28,13 +28,47 @@ void centerOf(const Structure& piece, double& x, double& y) {
 }  // namespace
 
 void Explosives::place(ItemId kind, double x, double y, int stuckTo) {
-    charges_.push_back(Charge{nextId_++, kind, x, y, itemDef(kind).boom.fuse, stuckTo});
+    charges_.push_back(Charge{nextId_++, kind, x, y, 0, 0, itemDef(kind).boom.fuse, stuckTo});
+}
+
+void Explosives::throwAt(ItemId kind, double fromX, double fromY, double toX, double toY) {
+    const double a = std::atan2(toY - fromY, toX - fromX);
+    // How far you aimed is how hard it is thrown, between a drop and a lob.
+    const double power = std::clamp(std::hypot(toX - fromX, toY - fromY) * 2.4, kThrowMin, kThrowMax);
+    charges_.push_back(Charge{nextId_++, kind, fromX + std::cos(a) * 18, fromY + std::sin(a) * 18,
+                              std::cos(a) * power, std::sin(a) * power, itemDef(kind).boom.fuse,
+                              0});
 }
 
 void Explosives::update(World& world, BuildSystem& build, NpcSystem& npcs, Player& player,
                         Inventory& inventory, double dt) {
     for (std::size_t i = charges_.size(); i-- > 0;) {
-        charges_[i].fuse -= dt;
+        Charge& flying = charges_[i];
+        flying.fuse -= dt;
+        if (flying.stuckTo == 0) {
+            flying.x += flying.vx * dt;
+            flying.y += flying.vy * dt;
+            flying.vx *= 1 - kThrowDrag * dt;
+            flying.vy *= 1 - kThrowDrag * dt;
+            // While it is still moving it can find a wall to stick to; once it
+            // has slowed it has simply landed where it landed.
+            if (std::hypot(flying.vx, flying.vy) > 30) {
+                if (Structure* wall = build.nearest(flying.x, flying.y, 26)) {
+                    if (wall->kind != BuildKind::Foundation) {
+                        flying.stuckTo = wall->id;
+                        double x0 = 0;
+                        double y0 = 0;
+                        double x1 = 0;
+                        double y1 = 0;
+                        edgeSegment(wall->gx, wall->gy, wall->side, x0, y0, x1, y1);
+                        flying.x = (x0 + x1) * 0.5;
+                        flying.y = (y0 + y1) * 0.5;
+                        flying.vx = 0;
+                        flying.vy = 0;
+                    }
+                }
+            }
+        }
         if (charges_[i].fuse > 0) continue;
         const Charge charge = charges_[i];
         charges_.erase(charges_.begin() + static_cast<long>(i));
