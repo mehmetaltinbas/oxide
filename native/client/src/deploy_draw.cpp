@@ -78,6 +78,19 @@ void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, fl
             box(paint, x, y - r * 0.15f, r * 0.55f, r * 0.4f, rgb(0x8a7a5a));
             break;
         }
+        case sim::DeployKind::Workbench1:
+        case sim::DeployKind::Workbench2:
+        case sim::DeployKind::Workbench3: {
+            // A bench with its work laid out on it, and a mark for its tier.
+            box(paint, x, y, r * 0.98f, r * 0.7f, rgb(0x8a6034));
+            box(paint, x, y - r * 0.18f, r * 0.7f, r * 0.3f, rgb(0xb0b9c1));
+            const int tier = sim::benchTier(deployable.kind);
+            for (int i = 0; i < tier; ++i) {
+                paint.fillCircle(x - r * 0.5f + i * r * 0.36f, y + r * 0.42f, r * 0.12f,
+                                 rgb(0xc9a227));
+            }
+            break;
+        }
         case sim::DeployKind::SleepingBag: {
             // Flat on the ground, and walked over rather than into.
             paint.inkedPoly({{x - r * 0.65f, y - r * 0.95f}, {x + r * 0.65f, y - r * 0.95f},

@@ -43,6 +43,9 @@ enum class ItemId : std::uint8_t {
     RocketLauncher,
     Rocket,
     Lock,
+    Workbench1,
+    Workbench2,
+    Workbench3,
     // Ammunition.
     Arrow,
     ShotgunShell,
@@ -63,7 +66,7 @@ enum class ItemId : std::uint8_t {
     Ak47,
 };
 
-inline constexpr int kItemCount = 48;
+inline constexpr int kItemCount = 51;
 
 enum class ItemCategory : std::uint8_t {
     Resource,

@@ -4,6 +4,15 @@
 
 namespace sim {
 
+int benchTier(DeployKind kind) {
+    switch (kind) {
+        case DeployKind::Workbench1: return 1;
+        case DeployKind::Workbench2: return 2;
+        case DeployKind::Workbench3: return 3;
+        default: return 0;
+    }
+}
+
 int containerSlots(DeployKind kind) {
     switch (kind) {
         case DeployKind::WoodenBox: return 12;
@@ -12,6 +21,9 @@ int containerSlots(DeployKind kind) {
         // A cupboard holds the upkeep, which is not in yet, and a bag holds you.
         case DeployKind::ToolCupboard: return 6;
         case DeployKind::SleepingBag: return 0;
+        case DeployKind::Workbench1:
+        case DeployKind::Workbench2:
+        case DeployKind::Workbench3: return 0;
     }
     return 0;
 }
@@ -65,6 +77,9 @@ bool deployableOf(ItemId id, DeployKind& out) {
         case ItemId::ToolCupboard: out = DeployKind::ToolCupboard; return true;
         case ItemId::WoodenBox: out = DeployKind::WoodenBox; return true;
         case ItemId::SleepingBag: out = DeployKind::SleepingBag; return true;
+        case ItemId::Workbench1: out = DeployKind::Workbench1; return true;
+        case ItemId::Workbench2: out = DeployKind::Workbench2; return true;
+        case ItemId::Workbench3: out = DeployKind::Workbench3; return true;
         default: return false;
     }
 }
@@ -76,6 +91,9 @@ ItemId itemOf(DeployKind kind) {
         case DeployKind::ToolCupboard: return ItemId::ToolCupboard;
         case DeployKind::WoodenBox: return ItemId::WoodenBox;
         case DeployKind::SleepingBag: return ItemId::SleepingBag;
+        case DeployKind::Workbench1: return ItemId::Workbench1;
+        case DeployKind::Workbench2: return ItemId::Workbench2;
+        case DeployKind::Workbench3: return ItemId::Workbench3;
     }
     return ItemId::None;
 }

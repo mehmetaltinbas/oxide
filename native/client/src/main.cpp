@@ -17,6 +17,7 @@
 #include "panel.hpp"
 #include "human.hpp"
 #include "paint.hpp"
+#include "particles.hpp"
 #include "palette.hpp"
 #include "sim/action.hpp"
 #include "sim/blast.hpp"
@@ -258,6 +259,7 @@ int main(int argc, char** argv) {
     sim::Explosives explosives;
     sim::Crafting crafting;
     client::Hud hud;
+    client::Particles specks;
     client::Panel panel;
     client::MapScreen map(renderer);
     if (showMap) map.toggle();
@@ -270,7 +272,7 @@ int main(int argc, char** argv) {
         inventory.add(sim::ItemId::Leather, 24);
         inventory.add(sim::ItemId::Scrap, 12);
         panel.toggle();
-        crafting.queue(inventory, sim::recipes()[0]);
+        crafting.queue(inventory, sim::recipes()[0], 0);
     }
 
     client::Terrain terrain(renderer);
@@ -515,6 +517,12 @@ int main(int argc, char** argv) {
         const sim::NpcEvents animals = npcs.update(world, build, projectiles, dt, player);
         // Nothing warms you yet: the campfire arrives with the deployables.
         build.updateDeployables(dt);
+        specks.update(dt);
+        // Embers off anything burning, so a fire looks alight from across a field.
+        for (const sim::Deployable& thing : build.deployables()) {
+            if (!thing.lit) continue;
+            if (SDL_randf() < dt * 20) specks.ember(thing.x, thing.y - 4);
+        }
         clock += dt;
         const double dark = sim::darkness(clock);
         sim::updateSurvival(world, player, inventory, dt, sim::nightness(clock),
@@ -546,6 +554,8 @@ int main(int argc, char** argv) {
         }
         if (animals.playerDamage > 0) {
             sim::hurtPlayer(player, inventory, animals.playerDamage);
+            specks.burst(player.x, player.y, 8, client::rgb(0xc22b2b), 160, 0.45, 2.8);
+            specks.shake(6, 0.25);
             hud.say("-" + std::to_string(static_cast<int>(animals.playerDamage)), player.x,
                     player.y - 22, client::rgb(0xd8483a));
         }
@@ -573,12 +583,29 @@ int main(int argc, char** argv) {
         const bool trigger = (buttons & (bow ? SDL_BUTTON_RMASK : SDL_BUTTON_LMASK)) != 0;
         if (gun) {
             const sim::FireResult shot = sim::fire(player, inventory, projectiles, trigger, dt);
+            if (shot.fired) {
+                // The flash at the muzzle, and a nudge on the camera for the
+                // bigger guns.
+                const double mx = player.x + SDL_cos(shot.angle) * 20;
+                const double my = player.y + SDL_sin(shot.angle) * 20;
+                specks.burst(mx, my, 6, client::rgb(0xffd98a), 220, 0.12, 2.6, 0, shot.angle, 0.7);
+                specks.shake(sim::itemDef(shot.gun).gun.damage > 50 ? 3.5 : 2.0, 0.12);
+            }
             if (shot.empty && trigger) {
                 hud.say("Reload  (R)", player.x, player.y - 26, client::rgb(0xd8483a));
             }
         }
         explosives.update(world, build, npcs, player, inventory, dt);
         for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt, &player)) {
+            if (hit.npc) specks.burst(hit.x, hit.y, 7, client::rgb(0x8c1f1f), 170, 0.4, 2.6);
+            if (hit.node || hit.built) {
+                specks.burst(hit.x, hit.y, 5, client::rgb(0x6b7a5c), 120, 0.3, 2.0, 180);
+            }
+            if (hit.rocket) {
+                specks.burst(hit.x, hit.y, 46, client::rgb(0xff8c2e), 300, 1.0, 5.0);
+                specks.burst(hit.x, hit.y, 24, client::rgb(0xffd98a), 200, 0.7, 3.6);
+                specks.shake(14, 0.5);
+            }
             if (hit.rocket) {
                 // A rocket takes the piece it struck and everything round it.
                 explosives.detonate(world, build, npcs, player, inventory, hit.x, hit.y,
@@ -586,6 +613,8 @@ int main(int argc, char** argv) {
             }
             if (hit.player) {
                 sim::hurtPlayer(player, inventory, hit.damage);
+                specks.burst(player.x, player.y, 8, client::rgb(0xc22b2b), 160, 0.45, 2.8);
+                specks.shake(5, 0.2);
                 hud.say("-" + std::to_string(static_cast<int>(hit.damage)), player.x, player.y - 22,
                         client::rgb(0xd8483a));
             }
@@ -740,6 +769,13 @@ int main(int argc, char** argv) {
                             sim::itemDef(blow.gained.id).name,
                         blow.x, blow.y - 10, client::rgb(0xefeadd));
             }
+            if (blow.landed && !blow.hitNpc) {
+                specks.burst(blow.x, blow.y - 4, 6, client::nodeColor(blow.kind), 130, 0.4, 2.4,
+                             220);
+            }
+            if (blow.hitNpc) {
+                specks.burst(blow.x, blow.y, 6, client::rgb(0x8c1f1f), 150, 0.35, 2.5);
+            }
             if (blow.hitNpc && blow.killed) {
                 hud.say(std::string("Killed a ") + sim::npcDef(blow.npcKind).name, blow.x, blow.y - 22,
                         client::rgb(0xefeadd));
@@ -752,14 +788,19 @@ int main(int argc, char** argv) {
 
         SDL_SetRenderDrawColor(renderer, client::kVoid.r, client::kVoid.g, client::kVoid.b, 255);
         SDL_RenderClear(renderer);
-        terrain.draw(world, player.x, player.y, scale, width, height);
+        double shakeX = 0;
+        double shakeY = 0;
+        specks.shakeOffset(shakeX, shakeY);
+        const double camX = player.x + shakeX;
+        const double camY = player.y + shakeY;
+        terrain.draw(world, camX, camY, scale, width, height);
 
         // The looting places are ground: they go down before anything stands
         // on them.
         for (const sim::Monument& monument : world.monuments()) {
             if (SDL_fabs(monument.x - player.x) > width / (2 * scale) + monument.radius) continue;
             if (SDL_fabs(monument.y - player.y) > height / (2 * scale) + monument.radius) continue;
-            client::drawMonument(paint, monument, player.x, player.y, scale, width, height,
+            client::drawMonument(paint, monument, camX, camY, scale, width, height,
                                  static_cast<float>(density));
         }
 
@@ -776,28 +817,28 @@ int main(int argc, char** argv) {
                   [](const sim::ResourceNode* a, const sim::ResourceNode* b) { return a->y < b->y; });
 
         for (const sim::Dropped& drop : world.drops()) {
-            const float sx = static_cast<float>((drop.x - player.x) * scale) + width * 0.5f;
-            const float sy = static_cast<float>((drop.y - player.y) * scale) + height * 0.5f;
+            const float sx = static_cast<float>((drop.x - camX) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((drop.y - camY) * scale) + height * 0.5f;
             if (sx < -40 || sy < -40 || sx > width + 40 || sy > height + 40) continue;
             client::drawItemIcon(paint, drop.stack.id, sx, sy, static_cast<float>(22 * scale));
         }
 
         for (const sim::Structure& piece : build.list()) {
             if (piece.kind != sim::BuildKind::Foundation) continue;
-            client::drawBuilt(paint, piece, player.x, player.y, scale, width, height);
+            client::drawBuilt(paint, piece, camX, camY, scale, width, height);
         }
 
         for (const sim::Deployable& thing : build.deployables()) {
             if (thing.kind != sim::DeployKind::SleepingBag) continue;
-            const float sx = static_cast<float>((thing.x - player.x) * scale) + width * 0.5f;
-            const float sy = static_cast<float>((thing.y - player.y) * scale) + height * 0.5f;
+            const float sx = static_cast<float>((thing.x - camX) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((thing.y - camY) * scale) + height * 0.5f;
             client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale));
         }
 
         for (sim::LootCrate& crate : world.crates()) {
             if (crate.looted) continue;
-            const float sx = static_cast<float>((crate.x - player.x) * scale) + width * 0.5f;
-            const float sy = static_cast<float>((crate.y - player.y) * scale) + height * 0.5f;
+            const float sx = static_cast<float>((crate.x - camX) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((crate.y - camY) * scale) + height * 0.5f;
             if (sx < -60 || sy < -60 || sx > width + 60 || sy > height + 60) continue;
             client::drawCrate(paint, crate, sx, sy, static_cast<float>(scale));
         }
@@ -809,8 +850,10 @@ int main(int argc, char** argv) {
         bool playerDrawn = false;
         const auto drawPlayer = [&] {
             client::HumanLook look;
-            look.x = width * 0.5f;
-            look.y = height * 0.5f;
+            // Drawn from the camera like everything else, so a shake moves the
+            // whole picture rather than sliding the world out from under you.
+            look.x = static_cast<float>((player.x - camX) * scale) + width * 0.5f;
+            look.y = static_cast<float>((player.y - camY) * scale) + height * 0.5f;
             look.facing = static_cast<float>(player.aim);
             look.phase = static_cast<float>(player.walkPhase);
             look.radius = static_cast<float>(sim::PlayerRules::kRadius * scale);
@@ -831,8 +874,8 @@ int main(int argc, char** argv) {
             while (nextAnimal < animalsNear.size() && animalsNear[nextAnimal]->y <= y) {
                 const sim::Npc* animal = animalsNear[nextAnimal++];
                 if (!playerDrawn && animal->y > player.y) drawPlayer();
-                const float ax = static_cast<float>((animal->x - player.x) * scale) + width * 0.5f;
-                const float ay = static_cast<float>((animal->y - player.y) * scale) + height * 0.5f;
+                const float ax = static_cast<float>((animal->x - camX) * scale) + width * 0.5f;
+                const float ay = static_cast<float>((animal->y - camY) * scale) + height * 0.5f;
                 const sim::NpcDef& def = sim::npcDef(animal->kind);
                 if (def.human) {
                     // A scientist and a soldier are people, and go through the
@@ -863,8 +906,8 @@ int main(int argc, char** argv) {
         for (const sim::ResourceNode* node : visible) {
             drawAnimalsUpTo(node->y);
             if (!playerDrawn && node->y > player.y) drawPlayer();
-            const float sx = static_cast<float>((node->x - player.x) * scale) + width * 0.5f;
-            const float sy = static_cast<float>((node->y - player.y) * scale) + height * 0.5f;
+            const float sx = static_cast<float>((node->x - camX) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((node->y - camY) * scale) + height * 0.5f;
             const sim::Biome under = world.biomeAt(node->x, node->y);
             const bool snowy = under == sim::Biome::Snow;
             // The lighter tree of the open grassland; the pines keep to the
@@ -886,8 +929,8 @@ int main(int argc, char** argv) {
         drawAnimalsUpTo(1e9);
         for (const auto& [id, other] : net.others()) {
             if (!other.alive) continue;
-            const float ox = static_cast<float>((other.drawX - player.x) * scale) + width * 0.5f;
-            const float oy = static_cast<float>((other.drawY - player.y) * scale) + height * 0.5f;
+            const float ox = static_cast<float>((other.drawX - camX) * scale) + width * 0.5f;
+            const float oy = static_cast<float>((other.drawY - camY) * scale) + height * 0.5f;
             if (ox < -80 || oy < -80 || ox > width + 80 || oy > height + 80) continue;
             client::HumanLook look;
             look.x = ox;
@@ -909,26 +952,26 @@ int main(int argc, char** argv) {
 
         for (const sim::Deployable& thing : build.deployables()) {
             if (thing.kind == sim::DeployKind::SleepingBag) continue;
-            const float sx = static_cast<float>((thing.x - player.x) * scale) + width * 0.5f;
-            const float sy = static_cast<float>((thing.y - player.y) * scale) + height * 0.5f;
+            const float sx = static_cast<float>((thing.x - camX) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((thing.y - camY) * scale) + height * 0.5f;
             client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale));
         }
 
         for (const sim::Structure& piece : build.list()) {
             if (piece.kind == sim::BuildKind::Foundation) continue;
-            client::drawBuilt(paint, piece, player.x, player.y, scale, width, height);
+            client::drawBuilt(paint, piece, camX, camY, scale, width, height);
         }
         if (planning) {
-            client::drawGhost(paint, target, sim::BuildTier::Twig, refusal == nullptr, player.x,
-                              player.y, scale, width, height);
+            client::drawGhost(paint, target, sim::BuildTier::Twig, refusal == nullptr, camX, camY,
+                              scale, width, height);
         }
         if (deploying) {
             // The cell it would sit on, rather than a ghost of the thing: what
             // matters is which square it takes.
-            const float gx = static_cast<float>((deployGx * sim::kBuildCell - player.x) * scale) +
-                             width * 0.5f;
-            const float gy = static_cast<float>((deployGy * sim::kBuildCell - player.y) * scale) +
-                             height * 0.5f;
+            const float gx =
+                static_cast<float>((deployGx * sim::kBuildCell - camX) * scale) + width * 0.5f;
+            const float gy =
+                static_cast<float>((deployGy * sim::kBuildCell - camY) * scale) + height * 0.5f;
             const float size = static_cast<float>(sim::kBuildCell * scale);
             paint.fillRect(gx, gy, size, size,
                            deployRefusal ? client::Color{224, 80, 60, 90}
@@ -936,8 +979,8 @@ int main(int argc, char** argv) {
         }
 
         for (const sim::Bullet& bullet : projectiles.list()) {
-            const float bx = static_cast<float>((bullet.x - player.x) * scale) + width * 0.5f;
-            const float by = static_cast<float>((bullet.y - player.y) * scale) + height * 0.5f;
+            const float bx = static_cast<float>((bullet.x - camX) * scale) + width * 0.5f;
+            const float by = static_cast<float>((bullet.y - camY) * scale) + height * 0.5f;
             const double speed = SDL_sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
             // A streak behind the round, as long as it travels in a blink.
             const float tail = static_cast<float>(speed * 0.02 * scale);
@@ -958,8 +1001,8 @@ int main(int argc, char** argv) {
         }
 
         for (const sim::Charge& charge : explosives.list()) {
-            const float cx = static_cast<float>((charge.x - player.x) * scale) + width * 0.5f;
-            const float cy = static_cast<float>((charge.y - player.y) * scale) + height * 0.5f;
+            const float cx = static_cast<float>((charge.x - camX) * scale) + width * 0.5f;
+            const float cy = static_cast<float>((charge.y - camY) * scale) + height * 0.5f;
             const float r = 9 * static_cast<float>(scale);
             paint.inkedCircle(cx, cy, r, client::rgb(0x8a7a5a), client::kInkWidth);
             // The fuse, blinking faster as it runs down.
@@ -980,8 +1023,8 @@ int main(int argc, char** argv) {
 
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
             const auto glow = [&](double wx, double wy, double radius) {
-                const float sx = static_cast<float>((wx - player.x) * scale) + width * 0.5f;
-                const float sy = static_cast<float>((wy - player.y) * scale) + height * 0.5f;
+                const float sx = static_cast<float>((wx - camX) * scale) + width * 0.5f;
+                const float sy = static_cast<float>((wy - camY) * scale) + height * 0.5f;
                 const float r = static_cast<float>(radius * scale);
                 // Rings rather than a gradient: SDL has no radial fill, and a
                 // dozen fading rings read as one soft light.
@@ -999,7 +1042,9 @@ int main(int argc, char** argv) {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         }
 
-        hud.drawPopups(renderer, player.x, player.y, scale, width, height);
+        specks.draw(paint, camX, camY, scale, width, height);
+
+        hud.drawPopups(renderer, camX, camY, scale, width, height);
 
         // What the key under your finger would do, if anything.
         char prompt[96] = {0};
@@ -1081,6 +1126,7 @@ int main(int argc, char** argv) {
         }
 
         map.draw(paint, world, build, player, width, height, static_cast<float>(density));
+        panel.setBench(build.benchTierAt(player.x, player.y, 0));
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
         if (typing) {
             const float size = 1.8f * static_cast<float>(density);

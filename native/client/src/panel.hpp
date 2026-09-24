@@ -53,6 +53,9 @@ public:
     bool click(sim::Inventory& inventory, sim::Crafting& crafting, float x, float y, bool right,
                int width, int height, float uiScale);
 
+    /** The best workbench within reach, which decides what can be made. */
+    void setBench(int tier) { bench_ = tier; }
+
     void draw(Paint& paint, const sim::Inventory& inventory, const sim::Crafting& crafting,
               int width, int height, float uiScale) const;
 
@@ -61,6 +64,7 @@ private:
     /** What is being looked into, or nothing when it is the bench. */
     sim::Container* container_ = nullptr;
     const char* title_ = "";
+    int bench_ = 0;
     const sim::Deployable* fire_ = nullptr;
 
     /** Where everything is, worked out once and used by both drawing and clicks. */

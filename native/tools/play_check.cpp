@@ -210,7 +210,7 @@ int main() {
     for (const sim::Recipe& recipe : sim::recipes()) {
         if (recipe.out == sim::ItemId::Hatchet) hatchet = &recipe;
     }
-    const bool queued = hatchet && crafting.queue(inventory, *hatchet);
+    const bool queued = hatchet && crafting.queue(inventory, *hatchet, 0);
     for (int i = 0; i < 60 * 6; ++i) crafting.update(dt, inventory);
     std::printf("craft: %s, wood left %d, hatchets %d\n", queued ? "queued a hatchet" : "could not",
                 inventory.count(sim::ItemId::Wood), inventory.count(sim::ItemId::Hatchet));

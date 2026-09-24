@@ -107,7 +107,7 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
         const auto& all = sim::recipes();
         if (row >= 0 && row < static_cast<int>(all.size())) {
             // Only what can be made by hand, for as long as there is no bench.
-            if (all[row].bench == 0) crafting.queue(inventory, all[row]);
+            crafting.queue(inventory, all[row], bench_);
         }
     }
     return true;
@@ -181,7 +181,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         const sim::Recipe& recipe = all[i];
         const float ry = l.listY + i * l.rowH;
         if (ry + l.rowH > l.queueY - 10 * uiScale) break;
-        const bool byHand = recipe.bench == 0;
+        const bool byHand = recipe.bench <= bench_;
         const bool ready = byHand && sim::canAfford(inventory, recipe);
         paint.fillRect(l.listX, ry, l.rowW, l.rowH - 3 * uiScale, ready ? kRowReady : kRow);
         drawItemIcon(paint, recipe.out, l.listX + 18 * uiScale, ry + l.rowH * 0.45f,
@@ -189,8 +189,8 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
 
         char line[96];
         if (!byHand) {
-            SDL_snprintf(line, sizeof(line), "%s   (bench %d)", sim::itemDef(recipe.out).name,
-                         recipe.bench);
+            SDL_snprintf(line, sizeof(line), "%s   (needs a level %d bench)",
+                         sim::itemDef(recipe.out).name, recipe.bench);
         } else {
             // What it costs, in the order the recipe lists it.
             char cost[64] = {0};

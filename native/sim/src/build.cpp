@@ -393,6 +393,16 @@ void BuildSystem::removeDeployable(int id) {
                        deployables_.end());
 }
 
+int BuildSystem::benchTierAt(double x, double y, int owner) const {
+    int best = 0;
+    for (const Deployable& d : deployables_) {
+        if (d.owner != owner) continue;
+        if (std::hypot(d.x - x, d.y - y) > kBenchReach) continue;
+        best = std::max(best, benchTier(d.kind));
+    }
+    return best;
+}
+
 double BuildSystem::warmthAt(double x, double y) const {
     double warmth = 0;
     for (const Deployable& d : deployables_) {

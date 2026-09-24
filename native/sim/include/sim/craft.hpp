@@ -48,7 +48,7 @@ public:
     static constexpr int kQueueMax = 6;
 
     /** Queues one, taking its cost. Says whether it went on. */
-    bool queue(Inventory& inventory, const Recipe& recipe);
+    bool queue(Inventory& inventory, const Recipe& recipe, int benchTier);
     /** Takes one back off and returns what it cost. */
     void cancel(Inventory& inventory, int jobId);
 

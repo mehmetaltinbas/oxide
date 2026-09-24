@@ -7,7 +7,22 @@
 namespace sim {
 
 /** The things you put down rather than build: they sit on a cell of their own. */
-enum class DeployKind : std::uint8_t { Campfire, Furnace, ToolCupboard, WoodenBox, SleepingBag };
+enum class DeployKind : std::uint8_t {
+    Campfire,
+    Furnace,
+    ToolCupboard,
+    WoodenBox,
+    SleepingBag,
+    Workbench1,
+    Workbench2,
+    Workbench3,
+};
+
+/** How near you must stand to a bench for it to count. */
+inline constexpr double kBenchReach = 160;
+
+/** Which tier a thing is as a workbench, and nought for everything else. */
+int benchTier(DeployKind kind);
 
 /** How much room each one has inside it, and nought for the ones with none. */
 int containerSlots(DeployKind kind);

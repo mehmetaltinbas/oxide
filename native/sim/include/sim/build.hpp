@@ -119,6 +119,9 @@ public:
      */
     bool claimed(double x, double y, int owner) const;
 
+    /** The best workbench within reach of a point, and nought for none. */
+    int benchTierAt(double x, double y, int owner) const;
+
     /** How warm any lit fire nearby makes a point. */
     double warmthAt(double x, double y) const;
 
