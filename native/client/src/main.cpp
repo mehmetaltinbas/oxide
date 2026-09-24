@@ -13,6 +13,7 @@
 #include "held.hpp"
 #include "hud.hpp"
 #include "map_screen.hpp"
+#include "net_client.hpp"
 #include "panel.hpp"
 #include "human.hpp"
 #include "paint.hpp"
@@ -103,6 +104,9 @@ int main(int argc, char** argv) {
     bool showMap = false;
     /** Dropped in at midnight, for a look at the dark. */
     bool startAtNight = false;
+    /** Where to play: nowhere is this machine, a host is somebody's island. */
+    std::string connectTo;
+    std::string playerName = "survivor";
     /** A small base put up where you stand, for a look at what one looks like. */
     bool showBase = false;
     /** Dropped in at the nth looting place, for a look at one. */
@@ -117,6 +121,10 @@ int main(int argc, char** argv) {
             atMonument = SDL_atoi(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--base") == 0) {
             showBase = true;
+        } else if (SDL_strcmp(argv[i], "--connect") == 0 && i + 1 < argc) {
+            connectTo = argv[++i];
+        } else if (SDL_strcmp(argv[i], "--name") == 0 && i + 1 < argc) {
+            playerName = argv[++i];
         } else if (SDL_strcmp(argv[i], "--night") == 0) {
             startAtNight = true;
         } else if (SDL_strcmp(argv[i], "--map") == 0) {
@@ -135,6 +143,31 @@ int main(int argc, char** argv) {
             seed = static_cast<std::uint32_t>(std::strtoul(argv[i], nullptr, 10));
         }
     }
+    // Online, the island is whichever one the server is running: the seed
+    // comes down the wire and the same generator builds it here.
+    client::NetClient net;
+    bool online = false;
+    if (!connectTo.empty()) {
+        std::string host = connectTo;
+        std::uint16_t port = sim::net::kDefaultPort;
+        const std::size_t colon = host.find(':');
+        if (colon != std::string::npos) {
+            port = static_cast<std::uint16_t>(SDL_atoi(host.c_str() + colon + 1));
+            host = host.substr(0, colon);
+        }
+        std::string problem;
+        if (!net.connect(host, port, playerName, problem)) {
+            std::fprintf(stderr, "Could not join %s: %s\n", connectTo.c_str(), problem.c_str());
+            SDL_DestroyRenderer(renderer);
+            SDL_DestroyWindow(window);
+            SDL_Quit();
+            return 1;
+        }
+        online = true;
+        seed = net.seed();
+        std::printf("Joined %s as %u on island %u\n", connectTo.c_str(), net.id(), seed);
+    }
+
     sim::World world;
     const std::uint64_t built = SDL_GetTicks();
     world.generate(seed);
@@ -143,6 +176,10 @@ int main(int argc, char** argv) {
 
     sim::Player player;
     dropIn(world, player, seed);
+    if (online) {
+        player.x = net.startX();
+        player.y = net.startY();
+    }
     if (atMonument >= 0 && atMonument < static_cast<int>(world.monuments().size())) {
         player.x = world.monuments()[atMonument].x;
         player.y = world.monuments()[atMonument].y;
@@ -251,11 +288,17 @@ int main(int argc, char** argv) {
 
     /** Whether the death screen is up, and whether space has been pressed. */
     bool showHelp = false;
+    /** Typing a line of chat, and what has been typed so far. */
+    bool typing = false;
+    std::string typed;
     bool dead = false;
     bool wantsRespawn = false;
 
     // The island's own clock. Noon when you arrive, so the first thing you see
     // is the place rather than the dark.
+    std::uint32_t inputSeq = 0;
+    std::size_t chatSeen = 0;
+
     double clock = sim::kDaySeconds * 0.5;
     if (startAtNight) clock = 0;
 
@@ -281,6 +324,49 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
                 event.key.key <= SDLK_6) {
                 inventory.selectSlot(static_cast<int>(event.key.key - SDLK_1));
+            }
+            if (typing) {
+                // While typing, the keyboard belongs to the line being typed.
+                if (event.type == SDL_EVENT_TEXT_INPUT) typed += event.text.text;
+                if (event.type == SDL_EVENT_KEY_DOWN) {
+                    if (event.key.key == SDLK_BACKSPACE && !typed.empty()) typed.pop_back();
+                    if (event.key.key == SDLK_RETURN || event.key.key == SDLK_ESCAPE) {
+                        if (event.key.key == SDLK_RETURN && !typed.empty()) net.sendChat(typed);
+                        typed.clear();
+                        typing = false;
+                        SDL_StopTextInput(window);
+                    }
+                }
+                continue;
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_T && online &&
+                !event.key.repeat) {
+                typing = true;
+                SDL_StartTextInput(window);
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F && online &&
+                !event.key.repeat) {
+                // Asked of whoever is in front of you, as an invite should be.
+                std::uint16_t nearest = 0;
+                double bestD = 120;
+                for (const auto& [id, other] : net.others()) {
+                    const double d = SDL_sqrt((other.x - player.x) * (other.x - player.x) +
+                                              (other.y - player.y) * (other.y - player.y));
+                    if (d > bestD) continue;
+                    nearest = id;
+                    bestD = d;
+                }
+                if (nearest) {
+                    net.sendInvite(nearest);
+                    hud.notify("Asked them to team up");
+                } else {
+                    hud.notify("Nobody near enough to ask");
+                }
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_Y && online &&
+                net.inviteFrom() != 0 && !event.key.repeat) {
+                net.sendInviteReply(net.inviteFrom(), true);
+                net.clearInvite();
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H && !event.key.repeat) {
                 showHelp = !showHelp;
@@ -345,6 +431,8 @@ int main(int argc, char** argv) {
                         if (door->locked && door->owner != 0) {
                             hud.say("Locked. You will have to break it.", player.x, player.y - 26,
                                     client::rgb(0xd8483a));
+                        } else if (online) {
+                            net.sendDoor(door->id, !door->open);
                         } else {
                             door->open = !door->open;
                         }
@@ -382,9 +470,10 @@ int main(int argc, char** argv) {
         lastDensity = density;
 
         const bool* keys = SDL_GetKeyboardState(nullptr);
-        // Dead, there is nothing to do but decide where to wake up.
+        // Dead, there is nothing to do but decide where to wake up; and while
+        // a line of chat is being typed the keys are not steering anyone.
         sim::PlayerInput input;
-        if (!dead) {
+        if (!dead && !typing) {
             if (keys[SDL_SCANCODE_W]) input.moveY -= 1;
             if (keys[SDL_SCANCODE_S]) input.moveY += 1;
             if (keys[SDL_SCANCODE_A]) input.moveX -= 1;
@@ -401,6 +490,26 @@ int main(int argc, char** argv) {
         const double cursorY = player.y + (mouseY * density - height * 0.5) / scale;
 
         sim::stepPlayer(world, build, player, input, dt);
+        if (online) {
+            net.poll(build, dt);
+            net.sendInput(input, ++inputSeq);
+            // Your own guess is pulled gently back to where the server says you
+            // are: a hard snap every tick makes walking about feel like ice.
+            const double dx = net.serverX() - player.x;
+            const double dy = net.serverY() - player.y;
+            const double off = SDL_sqrt(dx * dx + dy * dy);
+            if (off > 120) {
+                player.x = net.serverX();
+                player.y = net.serverY();
+            } else if (off > 1) {
+                const double pull = std::min(1.0, dt * 6);
+                player.x += dx * pull;
+                player.y += dy * pull;
+            }
+            const std::string refused = net.takeRefusal();
+            if (!refused.empty()) hud.notify(refused);
+            while (chatSeen < net.chat().size()) hud.notify(net.chat()[chatSeen++]);
+        }
         world.update(dt);
         hud.update(dt);
         const sim::NpcEvents animals = npcs.update(world, build, projectiles, dt, player);
@@ -531,7 +640,11 @@ int main(int argc, char** argv) {
         if (planning && !refusal && (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
             const sim::TierDef& twig = sim::tierDef(sim::BuildTier::Twig);
             inventory.take(twig.cost.id, twig.cost.count);
-            if (buildKind == sim::BuildKind::Foundation) {
+            if (online) {
+                // The server decides: a wall exists once everybody has been
+                // told about it, not the moment you clicked.
+                net.sendBuild(buildKind, target.gx, target.gy, target.side);
+            } else if (buildKind == sim::BuildKind::Foundation) {
                 build.placeFoundation(target.gx, target.gy, 0);
             } else if (buildKind == sim::BuildKind::Door) {
                 // A door goes into the doorway that is already there.
@@ -771,6 +884,27 @@ int main(int argc, char** argv) {
             sprites.draw(*node, sx, sy, static_cast<float>(scale), snowy, broadleaf, alpha);
         }
         drawAnimalsUpTo(1e9);
+        for (const auto& [id, other] : net.others()) {
+            if (!other.alive) continue;
+            const float ox = static_cast<float>((other.drawX - player.x) * scale) + width * 0.5f;
+            const float oy = static_cast<float>((other.drawY - player.y) * scale) + height * 0.5f;
+            if (ox < -80 || oy < -80 || ox > width + 80 || oy > height + 80) continue;
+            client::HumanLook look;
+            look.x = ox;
+            look.y = oy;
+            look.facing = static_cast<float>(other.aim);
+            look.phase = static_cast<float>(other.walkPhase);
+            look.radius = static_cast<float>(sim::PlayerRules::kRadius * scale);
+            look.swimming = other.swimming;
+            look.stride = 0.7f;
+            client::drawHuman(paint, look);
+            // A mate is marked, and nobody else is: finding the rest is the game.
+            if (other.team != 0 && other.team == net.team()) {
+                paint.inkedCircle(ox, oy - 26 * static_cast<float>(scale),
+                                  5 * static_cast<float>(density), client::rgb(0x5fb85f),
+                                  client::kInkFine);
+            }
+        }
         if (!playerDrawn) drawPlayer();
 
         for (const sim::Deployable& thing : build.deployables()) {
@@ -948,6 +1082,19 @@ int main(int argc, char** argv) {
 
         map.draw(paint, world, build, player, width, height, static_cast<float>(density));
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
+        if (typing) {
+            const float size = 1.8f * static_cast<float>(density);
+            const std::string line = "say: " + typed + "_";
+            paint.fillRect(0, height - 150 * static_cast<float>(density),
+                           static_cast<float>(width), 30 * static_cast<float>(density),
+                           client::Color{20, 17, 13, 200});
+            SDL_SetRenderScale(renderer, size, size);
+            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+            SDL_RenderDebugText(renderer, (20 * density) / size,
+                                (height - 142 * density) / size, line.c_str());
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+
         if (showHelp) {
             static const char* kLines[] = {
                 "WASD  move        SHIFT  run",

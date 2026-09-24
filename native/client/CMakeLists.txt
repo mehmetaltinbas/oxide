@@ -16,6 +16,7 @@ add_executable(oxide_client
     src/deploy_draw.cpp
     src/monument_draw.cpp
     src/map_screen.cpp
+    src/net_client.cpp
 )
-target_link_libraries(oxide_client PRIVATE oxide_sim SDL3::SDL3)
+target_link_libraries(oxide_client PRIVATE oxide_sim SDL3::SDL3 enet)
 set_target_properties(oxide_client PROPERTIES OUTPUT_NAME oxide)
