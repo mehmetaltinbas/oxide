@@ -21,6 +21,7 @@
 #include "sim/blast.hpp"
 #include "sim/build.hpp"
 #include "sim/craft.hpp"
+#include "sim/daylight.hpp"
 #include "sim/deployable.hpp"
 #include "sim/survival.hpp"
 #include "sim/inventory.hpp"
@@ -100,6 +101,8 @@ int main(int argc, char** argv) {
     bool showPanel = false;
     /** The island's own map, opened for a look at it. */
     bool showMap = false;
+    /** Dropped in at midnight, for a look at the dark. */
+    bool startAtNight = false;
     /** A small base put up where you stand, for a look at what one looks like. */
     bool showBase = false;
     /** Dropped in at the nth looting place, for a look at one. */
@@ -114,6 +117,8 @@ int main(int argc, char** argv) {
             atMonument = SDL_atoi(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--base") == 0) {
             showBase = true;
+        } else if (SDL_strcmp(argv[i], "--night") == 0) {
+            startAtNight = true;
         } else if (SDL_strcmp(argv[i], "--map") == 0) {
             showMap = true;
         } else if (SDL_strcmp(argv[i], "--panel") == 0) {
@@ -248,6 +253,11 @@ int main(int argc, char** argv) {
     bool showHelp = false;
     bool dead = false;
     bool wantsRespawn = false;
+
+    // The island's own clock. Noon when you arrive, so the first thing you see
+    // is the place rather than the dark.
+    double clock = sim::kDaySeconds * 0.5;
+    if (startAtNight) clock = 0;
 
     double zoom = 1.0;
     int framesLeft = benchFrames;
@@ -396,7 +406,10 @@ int main(int argc, char** argv) {
         const sim::NpcEvents animals = npcs.update(world, build, projectiles, dt, player);
         // Nothing warms you yet: the campfire arrives with the deployables.
         build.updateDeployables(dt);
-        sim::updateSurvival(world, player, inventory, dt, 0, build.warmthAt(player.x, player.y));
+        clock += dt;
+        const double dark = sim::darkness(clock);
+        sim::updateSurvival(world, player, inventory, dt, sim::nightness(clock),
+                            build.warmthAt(player.x, player.y));
         sim::updateUse(player, inventory, dt, player.sprinting);
 
         if (!player.alive && !dead) {
@@ -821,6 +834,37 @@ int main(int argc, char** argv) {
                              lit ? client::rgb(0xff6b4a) : client::rgb(0x3a3733));
         }
 
+        if (dark > 0.02) {
+            // Night is laid over the world, and every fire cuts a hole in it.
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_MUL);
+            SDL_SetRenderDrawColorFloat(renderer, 1.0f - static_cast<float>(dark) * 0.94f,
+                                        1.0f - static_cast<float>(dark) * 0.9f,
+                                        1.0f - static_cast<float>(dark) * 0.78f, 1.0f);
+            const SDL_FRect all{0, 0, static_cast<float>(width), static_cast<float>(height)};
+            SDL_RenderFillRect(renderer, &all);
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
+            const auto glow = [&](double wx, double wy, double radius) {
+                const float sx = static_cast<float>((wx - player.x) * scale) + width * 0.5f;
+                const float sy = static_cast<float>((wy - player.y) * scale) + height * 0.5f;
+                const float r = static_cast<float>(radius * scale);
+                // Rings rather than a gradient: SDL has no radial fill, and a
+                // dozen fading rings read as one soft light.
+                for (int i = 18; i >= 1; --i) {
+                    const float t = i / 18.0f;
+                    const std::uint8_t a =
+                        static_cast<std::uint8_t>(13 * (1 - t) * (1 - t) * dark * 2.2);
+                    paint.fillCircle(sx, sy, r * t, client::Color{255, 220, 165, a});
+                }
+            };
+            if (player.alive) glow(player.x, player.y, 170);
+            for (const sim::Deployable& thing : build.deployables()) {
+                if (thing.lit) glow(thing.x, thing.y, 250);
+            }
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        }
+
         hud.drawPopups(renderer, player.x, player.y, scale, width, height);
 
         // What the key under your finger would do, if anything.
@@ -962,8 +1006,10 @@ int main(int argc, char** argv) {
         }
         SDL_SetRenderScale(renderer, static_cast<float>(density), static_cast<float>(density));
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderDebugTextFormat(renderer, 10, 10, "%.0f fps  %zu drawn  %.0f, %.0f  zoom %.2f",
-                                  fps, visible.size(), player.x, player.y, zoom);
+        SDL_RenderDebugTextFormat(renderer, 10, 10, "%.0f fps  %zu drawn  %.0f, %.0f  zoom %.2f  %02d:%02d",
+                                  fps, visible.size(), player.x, player.y, zoom,
+                                  static_cast<int>(sim::dayFraction(clock) * 24),
+                                  static_cast<int>(SDL_fmod(sim::dayFraction(clock) * 24 * 60, 60)));
         SDL_SetRenderScale(renderer, 1.0f, 1.0f);
 
         if (benchFrames > 0) {
