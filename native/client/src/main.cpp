@@ -12,6 +12,7 @@
 #include "monument_draw.hpp"
 #include "held.hpp"
 #include "hud.hpp"
+#include "map_screen.hpp"
 #include "panel.hpp"
 #include "human.hpp"
 #include "paint.hpp"
@@ -97,6 +98,8 @@ int main(int argc, char** argv) {
     bool armed = false;
     /** The pack open with something in it, for a look at the screen itself. */
     bool showPanel = false;
+    /** The island's own map, opened for a look at it. */
+    bool showMap = false;
     /** A small base put up where you stand, for a look at what one looks like. */
     bool showBase = false;
     /** Dropped in at the nth looting place, for a look at one. */
@@ -111,6 +114,8 @@ int main(int argc, char** argv) {
             atMonument = SDL_atoi(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--base") == 0) {
             showBase = true;
+        } else if (SDL_strcmp(argv[i], "--map") == 0) {
+            showMap = true;
         } else if (SDL_strcmp(argv[i], "--panel") == 0) {
             showPanel = true;
         } else if (SDL_strcmp(argv[i], "--armed") == 0) {
@@ -212,6 +217,8 @@ int main(int argc, char** argv) {
     sim::Crafting crafting;
     client::Hud hud;
     client::Panel panel;
+    client::MapScreen map(renderer);
+    if (showMap) map.toggle();
     // What the building plan would put down, cycled with B.
     sim::BuildKind buildKind = sim::BuildKind::Foundation;
     if (showPanel) {
@@ -237,6 +244,11 @@ int main(int argc, char** argv) {
     int lastHeight = kWindowHeight;
     double lastDensity = 1;
 
+    /** Whether the death screen is up, and whether space has been pressed. */
+    bool showHelp = false;
+    bool dead = false;
+    bool wantsRespawn = false;
+
     double zoom = 1.0;
     int framesLeft = benchFrames;
     double benchTime = 0;
@@ -259,6 +271,15 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
                 event.key.key <= SDLK_6) {
                 inventory.selectSlot(static_cast<int>(event.key.key - SDLK_1));
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H && !event.key.repeat) {
+                showHelp = !showHelp;
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE && dead) {
+                wantsRespawn = true;
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_M && !event.key.repeat) {
+                map.toggle();
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_TAB &&
                 !event.key.repeat) {
@@ -351,12 +372,15 @@ int main(int argc, char** argv) {
         lastDensity = density;
 
         const bool* keys = SDL_GetKeyboardState(nullptr);
+        // Dead, there is nothing to do but decide where to wake up.
         sim::PlayerInput input;
-        if (keys[SDL_SCANCODE_W]) input.moveY -= 1;
-        if (keys[SDL_SCANCODE_S]) input.moveY += 1;
-        if (keys[SDL_SCANCODE_A]) input.moveX -= 1;
-        if (keys[SDL_SCANCODE_D]) input.moveX += 1;
-        input.sprint = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT];
+        if (!dead) {
+            if (keys[SDL_SCANCODE_W]) input.moveY -= 1;
+            if (keys[SDL_SCANCODE_S]) input.moveY += 1;
+            if (keys[SDL_SCANCODE_A]) input.moveX -= 1;
+            if (keys[SDL_SCANCODE_D]) input.moveX += 1;
+            input.sprint = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT];
+        }
 
         float mouseX = 0;
         float mouseY = 0;
@@ -375,9 +399,17 @@ int main(int argc, char** argv) {
         sim::updateSurvival(world, player, inventory, dt, 0, build.warmthAt(player.x, player.y));
         sim::updateUse(player, inventory, dt, player.sprinting);
 
-        if (!player.alive) {
-            // Dead: everything you were carrying is gone, and you wake in your
-            // own bag if you put one down and on a beach if you did not.
+        if (!player.alive && !dead) {
+            // Dead: the screen waits for you rather than snatching you back,
+            // and everything you were carrying stays where it fell.
+            dead = true;
+            panel.close();
+            map.close();
+        }
+        if (dead && wantsRespawn) {
+            wantsRespawn = false;
+            dead = false;
+            // Your own bag if you put one down, a beach if you did not.
             const sim::Deployable* bag = nullptr;
             for (const sim::Deployable& thing : build.deployables()) {
                 if (thing.kind == sim::DeployKind::SleepingBag && thing.owner == 0) bag = &thing;
@@ -388,8 +420,7 @@ int main(int argc, char** argv) {
                 player.y = bag->y;
             }
             inventory = sim::Inventory();
-            hud.say(bag ? "Woke up in your bag." : "Woke up on the beach with nothing.", player.x,
-                    player.y - 30, client::rgb(0xd8483a));
+            hud.notify(bag ? "Woke up in your bag." : "Woke up on the beach with nothing.");
         }
         if (animals.playerDamage > 0) {
             sim::hurtPlayer(player, inventory, animals.playerDamage);
@@ -411,7 +442,7 @@ int main(int argc, char** argv) {
         // round. A bow is the exception: it draws while held and looses when
         // the button comes up.
         const SDL_MouseButtonFlags buttons =
-            panel.open() ? 0 : SDL_GetMouseState(nullptr, nullptr);
+            panel.open() || map.open() || dead ? 0 : SDL_GetMouseState(nullptr, nullptr);
         const sim::Gun& heldGun = sim::itemDef(inventory.held()).gun;
         const bool gun = heldGun.damage > 0;
         // A bow is drawn with the right button, as it is in Rust: the left one
@@ -871,7 +902,55 @@ int main(int argc, char** argv) {
             if (panel.container() == &crate.container) panel.close();
         }
 
+        map.draw(paint, world, build, player, width, height, static_cast<float>(density));
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
+        if (showHelp) {
+            static const char* kLines[] = {
+                "WASD  move        SHIFT  run",
+                "LEFT CLICK  hit, fire, place     RIGHT CLICK  draw a bow",
+                "1-6  belt         R  reload       E  use what is in front of you",
+                "TAB  pack and bench               M  map",
+                "B  what the plan puts down        H  close this",
+            };
+            const float size = 1.8f * static_cast<float>(density);
+            paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
+                           client::Color{0, 0, 0, 170});
+            SDL_SetRenderScale(renderer, size, size);
+            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+            for (int i = 0; i < 5; ++i) {
+                SDL_RenderDebugText(renderer, (width * 0.5f - 300 * density) / size,
+                                    (height * 0.35f + i * 30 * density) / size, kLines[i]);
+            }
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+
+        if (dead) {
+            paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
+                           client::Color{40, 8, 8, 170});
+            const float size = 4.0f * static_cast<float>(density);
+            const char* line = "YOU DIED";
+            const float textW = static_cast<float>(SDL_strlen(line)) * 8 * size;
+            SDL_SetRenderScale(renderer, size, size);
+            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size,
+                                (height * 0.4f) / size, line);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+
+            bool hasBag = false;
+            for (const sim::Deployable& thing : build.deployables()) {
+                if (thing.kind == sim::DeployKind::SleepingBag && thing.owner == 0) hasBag = true;
+            }
+            const char* how = hasBag ? "SPACE to wake up in your bag"
+                                     : "SPACE to wake up on a beach with nothing";
+            const float small = 1.8f * static_cast<float>(density);
+            const float howW = static_cast<float>(SDL_strlen(how)) * 8 * small;
+            SDL_SetRenderScale(renderer, small, small);
+            SDL_SetRenderDrawColor(renderer, 216, 72, 58, 255);
+            SDL_RenderDebugText(renderer, (width - howW) * 0.5f / small,
+                                (height * 0.4f + 70 * static_cast<float>(density)) / small, how);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+
         hud.draw(paint, inventory, static_cast<int>(std::lround(player.health)), width, height, panel.open() ? "" : prompt, static_cast<float>(density));
 
         fpsClock += dt;

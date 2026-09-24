@@ -41,7 +41,17 @@ void Hud::setVitals(double calories, double hydration, double temperature, doubl
     applying_ = applying;
 }
 
+void Hud::notify(const std::string& text) {
+    // Newest at the bottom, and never more than a handful at once.
+    notices_.push_back(Popup{text, 0, 0, 4.0, kText});
+    if (notices_.size() > 5) notices_.erase(notices_.begin());
+}
+
 void Hud::update(double dt) {
+    for (Popup& p : notices_) p.life -= dt;
+    notices_.erase(std::remove_if(notices_.begin(), notices_.end(),
+                                  [](const Popup& p) { return p.life <= 0; }),
+                   notices_.end());
     for (Popup& p : popups_) p.life -= dt;
     popups_.erase(std::remove_if(popups_.begin(), popups_.end(),
                                  [](const Popup& p) { return p.life <= 0; }),
@@ -185,6 +195,19 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
         const double progress = reloading_ > 0 ? 1 - reloading_ : std::min(1.0, bowDraw_);
         paint.fillRect(px - 2, py - 2, w + 4, h + 4, kInk);
         paint.fillRect(px, py, static_cast<float>(w * progress), h, rgb(0xe8c87a));
+    }
+
+    // What just happened, stacked in the top left under the frame counter.
+    for (std::size_t i = 0; i < notices_.size(); ++i) {
+        const Popup& notice = notices_[i];
+        const float size = 1.5f * uiScale;
+        const std::uint8_t fade =
+            static_cast<std::uint8_t>(255 * std::min(1.0, notice.life / 0.8));
+        SDL_SetRenderScale(renderer, size, size);
+        SDL_SetRenderDrawColor(renderer, kText.r, kText.g, kText.b, fade);
+        SDL_RenderDebugText(renderer, (20 * uiScale) / size,
+                            (40 * uiScale + i * 18 * uiScale) / size, notice.text.c_str());
+        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
     }
 
     if (prompt && prompt[0]) {
