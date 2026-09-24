@@ -163,8 +163,11 @@ public:
      */
     void applyDecay(double hours);
 
-    /** Fires burn, meat cooks, ore smelts. */
-    void updateDeployables(double dt);
+    /**
+     * Fires burn, meat cooks, ore smelts, and anything that has been broken
+     * spills what was inside it onto the ground.
+     */
+    void updateDeployables(World& world, double dt);
 
     /** Puts a piece up a tier, if the pack holds what that costs. */
     bool upgrade(Structure& piece, Inventory& inventory);

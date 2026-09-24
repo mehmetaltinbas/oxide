@@ -134,6 +134,8 @@ struct Wear {
 struct ItemDef {
     ItemId id;
     const char* name;
+    /** One line on what it is for, as the pack screen prints it. */
+    const char* desc;
     ItemCategory category;
     int stack;
     /** Zero damage means it is not a thing you swing. */
@@ -174,6 +176,25 @@ struct ItemStack {
  * and make a rock again, and slow enough that you want to.
  */
 inline constexpr double kFistFraction = 0.5;
+
+/**
+ * Whether a thing belongs on the belt.
+ *
+ * Anything you can hold goes there first, so a freshly crafted hatchet is in
+ * your hand rather than buried in a bag. Wood and ore are not belt items: they
+ * would fill it with things you never hold.
+ */
+inline bool isBeltItem(ItemId id) {
+    switch (itemDef(id).category) {
+        case ItemCategory::Tool:
+        case ItemCategory::Weapon:
+        case ItemCategory::Consumable:
+        case ItemCategory::Deployable:
+        case ItemCategory::Explosive:
+        case ItemCategory::Clothing: return true;
+        default: return false;
+    }
+}
 
 /** How long a bow takes to draw: an arrow cannot be loosed before it is full. */
 inline constexpr double kBowDrawSeconds = 1.0;

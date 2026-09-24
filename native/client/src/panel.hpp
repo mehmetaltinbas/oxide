@@ -56,6 +56,9 @@ public:
     /** The best workbench within reach, which decides what can be made. */
     void setBench(int tier) { bench_ = tier; }
 
+    /** A transfer in progress, which finishes on its own. */
+    void update(double dt, sim::Inventory& inventory);
+
     void draw(Paint& paint, const sim::Inventory& inventory, const sim::Crafting& crafting,
               int width, int height, float uiScale) const;
 
@@ -65,6 +68,15 @@ private:
     sim::Container* container_ = nullptr;
     const char* title_ = "";
     int bench_ = 0;
+    /** What is being moved, where to, and how long is left of moving it. */
+    struct Move {
+        bool intoContainer = false;
+        bool fromBelt = false;
+        int slot = 0;
+        double left = 0;
+        double total = 0;
+    };
+    Move move_;
     const sim::Deployable* fire_ = nullptr;
 
     /** Where everything is, worked out once and used by both drawing and clicks. */

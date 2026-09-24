@@ -6,6 +6,24 @@
 
 namespace sim {
 
+/**
+ * How long a transfer takes.
+ *
+ * Moving a stack is work: you are lifting things in and out of a box, not
+ * clicking a spreadsheet. A single bandage is nearly instant and a full stack
+ * of stone is a real pause you would not want to start with a bear behind you.
+ */
+struct Transfer {
+    static constexpr double kBaseSeconds = 0.34;
+    static constexpr double kPerItemSeconds = 0.004;
+    static constexpr double kMaxSeconds = 1.4;
+
+    static double seconds(int count) {
+        const double t = kBaseSeconds + count * kPerItemSeconds;
+        return t < kMaxSeconds ? t : kMaxSeconds;
+    }
+};
+
 /** The belt you carry things on, and the pack behind it. */
 inline constexpr int kHotbarSlots = 6;
 inline constexpr int kPackSlots = 24;

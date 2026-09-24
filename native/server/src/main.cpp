@@ -353,7 +353,7 @@ int main(int argc, char** argv) {
         }
         world.update(step);
         build.update(step);
-        build.updateDeployables(step);
+        build.updateDeployables(world, step);
         clock += step;
 
         // And what each of them can see of it. Only what is near: a player on

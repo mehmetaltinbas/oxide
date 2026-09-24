@@ -51,7 +51,9 @@ void Inventory::selectSlot(int slot) {
 
 int Inventory::add(ItemId id, int count) {
     if (id == ItemId::None || count <= 0) return 0;
-    count = addInto(hotbar_.data(), kHotbarSlots, id, count);
+    // The belt takes what you hold; everything else, and any overflow, goes
+    // into the pack behind it.
+    if (isBeltItem(id)) count = addInto(hotbar_.data(), kHotbarSlots, id, count);
     count = addInto(pack_.data(), kPackSlots, id, count);
     return count;
 }

@@ -143,7 +143,7 @@ int main() {
             furnace.container.add(sim::ItemId::Wood, 30);
             furnace.container.add(sim::ItemId::MetalOre, 6);
         }
-        for (int i = 0; i < 60 * 40; ++i) build.updateDeployables(dt);
+        for (int i = 0; i < 60 * 40; ++i) build.updateDeployables(world, dt);
         const sim::Deployable& fire = *build.deployableById(fireId);
         const sim::Deployable& furnace = *build.deployableById(furnaceId);
         std::printf("fire: %d cooked, %d raw left; furnace: %d metal, %d charcoal, %d ore left\n",

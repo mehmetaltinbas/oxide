@@ -443,7 +443,23 @@ double BuildSystem::warmthAt(double x, double y) const {
     return warmth;
 }
 
-void BuildSystem::updateDeployables(double dt) {
+void BuildSystem::updateDeployables(World& world, double dt) {
+    // What has been broken spills out where it stood, box and fire alike.
+    std::vector<int> broken;
+    for (const Deployable& d : deployables_) {
+        if (d.hp <= 0) broken.push_back(d.id);
+    }
+    for (const int id : broken) {
+        Deployable* d = deployableById(id);
+        if (!d) continue;
+        for (const ItemStack& stack : d->container.slots) {
+            if (stack.id != ItemId::None) world.dropStack(stack, d->x, d->y);
+        }
+        // And the thing itself, for whoever knocked it down.
+        world.dropStack(ItemStack{itemOf(d->kind), 1}, d->x, d->y);
+        removeDeployable(id);
+    }
+
     for (Deployable& d : deployables_) {
         if (d.flash > 0) d.flash -= dt;
         if (!d.lit || d.container.slots.empty()) continue;

@@ -79,23 +79,21 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
         const int inSlot =
             slotHit(l.listX, l.listY, static_cast<int>(container_->slots.size()), 4);
         // A click sends a stack the other way: into the box, or out of it.
+        // The move takes a moment rather than happening on the click.
+        if (move_.left > 0) return true;
         if (packSlot >= 0 || beltSlot >= 0) {
-            sim::ItemStack& stack =
+            const sim::ItemStack& stack =
                 packSlot >= 0 ? inventory.pack()[packSlot] : inventory.hotbar()[beltSlot];
-            if (stack.id != sim::ItemId::None) {
-                const int left = container_->add(stack.id, stack.count);
-                stack.count = left;
-                if (left <= 0) stack = sim::ItemStack{};
-            }
+            if (stack.id == sim::ItemId::None) return true;
+            move_ = Move{true, beltSlot >= 0, beltSlot >= 0 ? beltSlot : packSlot,
+                         sim::Transfer::seconds(stack.count), sim::Transfer::seconds(stack.count)};
             return true;
         }
         if (inSlot >= 0) {
-            sim::ItemStack& stack = container_->slots[inSlot];
-            if (stack.id != sim::ItemId::None) {
-                const int left = inventory.add(stack.id, stack.count);
-                stack.count = left;
-                if (left <= 0) stack = sim::ItemStack{};
-            }
+            const sim::ItemStack& stack = container_->slots[inSlot];
+            if (stack.id == sim::ItemId::None) return true;
+            move_ = Move{false, false, inSlot, sim::Transfer::seconds(stack.count),
+                         sim::Transfer::seconds(stack.count)};
             return true;
         }
         return true;
@@ -111,6 +109,28 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
         }
     }
     return true;
+}
+
+void Panel::update(double dt, sim::Inventory& inventory) {
+    if (move_.left <= 0 || !container_) return;
+    move_.left -= dt;
+    if (move_.left > 0) return;
+    move_.left = 0;
+    if (move_.intoContainer) {
+        sim::ItemStack& stack =
+            move_.fromBelt ? inventory.hotbar()[move_.slot] : inventory.pack()[move_.slot];
+        if (stack.id == sim::ItemId::None) return;
+        const int left = container_->add(stack.id, stack.count);
+        stack.count = left;
+        if (left <= 0) stack = sim::ItemStack{};
+        return;
+    }
+    if (move_.slot >= static_cast<int>(container_->slots.size())) return;
+    sim::ItemStack& stack = container_->slots[move_.slot];
+    if (stack.id == sim::ItemId::None) return;
+    const int left = inventory.add(stack.id, stack.count);
+    stack.count = left;
+    if (left <= 0) stack = sim::ItemStack{};
 }
 
 void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Crafting& crafting,
@@ -169,6 +189,15 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
             SDL_snprintf(line, sizeof(line), "%s   %s", fire_->lit ? "Lit" : "Out",
                          fire_->lit ? "burning wood" : "E to light it");
             text(renderer, l.listX, statusY, 1.4f * uiScale, kDim, line);
+        }
+        if (move_.left > 0 && move_.total > 0) {
+            // The spinner: how much longer the lifting takes.
+            const float w = 160 * uiScale;
+            const float bx = l.listX;
+            const float by = l.listY + 3 * (l.slot + 4 * uiScale) + 24 * uiScale;
+            paint.fillRect(bx - 2, by - 2, w + 4, 10 * uiScale + 4, kInk);
+            paint.fillRect(bx, by, static_cast<float>(w * (1 - move_.left / move_.total)),
+                           10 * uiScale, rgb(0xe8c87a));
         }
         text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim,
              "click a slot to move it   TAB to close");
@@ -243,6 +272,13 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
     }
     if (over != sim::ItemId::None) {
         const sim::ItemDef& def = sim::itemDef(over);
+        // Its name and what it is for, under the pack where there is room.
+        const float detailY = l.y + l.h - 76 * uiScale;
+        drawItemIcon(paint, over, l.packX + 14 * uiScale, detailY + 14 * uiScale, 26 * uiScale);
+        text(renderer, l.packX + 34 * uiScale, detailY + 6 * uiScale, 1.7f * uiScale, kText,
+             def.name);
+        text(renderer, l.packX + 34 * uiScale, detailY + 24 * uiScale, 1.2f * uiScale, kDim,
+             def.desc);
         char line[96];
         if (def.gun.damage > 0) {
             SDL_snprintf(line, sizeof(line), "%s   %.0f damage, %d in the magazine", def.name,
@@ -259,7 +295,8 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         } else {
             SDL_snprintf(line, sizeof(line), "%s   stacks to %d", def.name, def.stack);
         }
-        text(renderer, l.packX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kText, line);
+        text(renderer, l.packX + 34 * uiScale, l.y + l.h - 22 * uiScale, 1.3f * uiScale, kText,
+             line);
     }
     text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim, "TAB to close");
 }

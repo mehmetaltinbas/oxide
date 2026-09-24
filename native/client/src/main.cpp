@@ -625,7 +625,7 @@ int main(int argc, char** argv) {
         hud.update(dt);
         const sim::NpcEvents animals = npcs.update(world, build, projectiles, dt, player);
         // Nothing warms you yet: the campfire arrives with the deployables.
-        build.updateDeployables(dt);
+        build.updateDeployables(world, dt);
         specks.update(dt);
         if (!online && !sandbox) {
             sinceSave += dt;
@@ -704,6 +704,38 @@ int main(int argc, char** argv) {
 
         sim::tickReload(player, inventory, dt);
         crafting.update(dt, inventory);
+        panel.update(dt, inventory);
+        // Walking away from an open box, or being shut out of it, closes it.
+        if (panel.container()) {
+            const sim::Deployable* thing = nullptr;
+            for (const sim::Deployable& d : build.deployables()) {
+                if (&d.container == panel.container()) thing = &d;
+            }
+            double away = 0;
+            double atX = 0;
+            double atY = 0;
+            bool found = false;
+            if (thing) {
+                atX = thing->x;
+                atY = thing->y;
+                found = true;
+            } else {
+                for (const sim::LootCrate& crate : world.crates()) {
+                    if (&crate.container != panel.container()) continue;
+                    atX = crate.x;
+                    atY = crate.y;
+                    found = true;
+                }
+            }
+            if (found) {
+                away = SDL_sqrt((atX - player.x) * (atX - player.x) +
+                                (atY - player.y) * (atY - player.y));
+                if (away > sim::PlayerVitals::kInteract + sim::PlayerVitals::kContainerSlack ||
+                    !build.canReach(player.x, player.y, atX, atY, 0)) {
+                    panel.close();
+                }
+            }
+        }
         build.update(dt);
 
         // Held down: a blow or a shot goes out whenever the last one has come
@@ -978,18 +1010,26 @@ int main(int argc, char** argv) {
         std::sort(visible.begin(), visible.end(),
                   [](const sim::ResourceNode* a, const sim::ResourceNode* b) { return a->y < b->y; });
 
-        for (const sim::Dropped& drop : world.drops()) {
-            const float sx = static_cast<float>((drop.x - camX) * scale) + width * 0.5f;
-            const float sy = static_cast<float>((drop.y - camY) * scale) + height * 0.5f;
-            if (sx < -40 || sy < -40 || sx > width + 40 || sy > height + 40) continue;
-            client::drawItemIcon(paint, drop.stack.id, sx, sy, static_cast<float>(22 * scale));
-        }
 
         for (const sim::Structure& piece : build.list()) {
             if (piece.kind != sim::BuildKind::Foundation) continue;
             client::drawBuilt(paint, piece, camX, camY, scale, width, height);
         }
 
+        const int myRegion = build.regionAt(player.x, player.y);
+        // What is sealed in a room you are not in is out of sight, roof and all.
+        const auto hidden = [&](double wx, double wy) {
+            const int region = build.regionAt(wx, wy);
+            return region != 0 && region != myRegion;
+        };
+
+        for (const sim::Dropped& drop : world.drops()) {
+            const float sx = static_cast<float>((drop.x - camX) * scale) + width * 0.5f;
+            const float sy = static_cast<float>((drop.y - camY) * scale) + height * 0.5f;
+            if (sx < -40 || sy < -40 || sx > width + 40 || sy > height + 40) continue;
+            if (hidden(drop.x, drop.y)) continue;
+            client::drawItemIcon(paint, drop.stack.id, sx, sy, static_cast<float>(22 * scale));
+        }
         for (const sim::Deployable& thing : build.deployables()) {
             if (thing.kind != sim::DeployKind::SleepingBag) continue;
             const float sx = static_cast<float>((thing.x - camX) * scale) + width * 0.5f;
@@ -1037,6 +1077,7 @@ int main(int argc, char** argv) {
             while (nextAnimal < animalsNear.size() && animalsNear[nextAnimal]->y <= y) {
                 const sim::Npc* animal = animalsNear[nextAnimal++];
                 if (!playerDrawn && animal->y > player.y) drawPlayer();
+                if (hidden(animal->x, animal->y)) continue;
                 const float ax = static_cast<float>((animal->x - camX) * scale) + width * 0.5f;
                 const float ay = static_cast<float>((animal->y - camY) * scale) + height * 0.5f;
                 const sim::NpcDef& def = sim::npcDef(animal->kind);
@@ -1104,6 +1145,7 @@ int main(int argc, char** argv) {
             const float ox = static_cast<float>((other.drawX - camX) * scale) + width * 0.5f;
             const float oy = static_cast<float>((other.drawY - camY) * scale) + height * 0.5f;
             if (ox < -80 || oy < -80 || ox > width + 80 || oy > height + 80) continue;
+            if (hidden(other.drawX, other.drawY)) continue;
             client::HumanLook look;
             look.x = ox;
             look.y = oy;
@@ -1132,7 +1174,6 @@ int main(int argc, char** argv) {
         // A roof over every sealed room but the one you are in: a base is a
         // thing you cannot see into, which is most of what makes one worth
         // building.
-        const int myRegion = build.regionAt(player.x, player.y);
         for (const auto& [key, region] : build.enclosedCells()) {
             if (region == myRegion) continue;
             const int gx = static_cast<int>(static_cast<std::int32_t>(key >> 32));
