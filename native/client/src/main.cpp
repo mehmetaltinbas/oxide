@@ -104,6 +104,7 @@ int main(int argc, char** argv) {
     bool showPanel = false;
     /** The island's own map, opened for a look at it. */
     bool showMap = false;
+    bool showTitle = false;
     /** Dropped in at midnight, for a look at the dark. */
     bool startAtNight = false;
     /** Nothing to worry about and everything to hand, for trying things out. */
@@ -133,6 +134,8 @@ int main(int argc, char** argv) {
             sandbox = true;
         } else if (SDL_strcmp(argv[i], "--night") == 0) {
             startAtNight = true;
+        } else if (SDL_strcmp(argv[i], "--title") == 0) {
+            showTitle = true;
         } else if (SDL_strcmp(argv[i], "--map") == 0) {
             showMap = true;
         } else if (SDL_strcmp(argv[i], "--panel") == 0) {
@@ -229,7 +232,7 @@ int main(int argc, char** argv) {
         inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
         inventory.selectSlot(1);
     }
-    if (sandbox) {
+    const auto fillSandbox = [&] {
         // Every bench to hand and a bag of everything, so the whole game can
         // be looked at without playing through it first.
         inventory.add(sim::ItemId::Workbench3, 1);
@@ -241,7 +244,8 @@ int main(int argc, char** argv) {
         inventory.add(sim::ItemId::Scrap, 2000);
         inventory.add(sim::ItemId::Cloth, 1000);
         inventory.add(sim::ItemId::Gunpowder, 2000);
-    }
+    };
+    if (sandbox) fillSandbox();
     if (armed) {
         inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
         inventory.hotbar()[2] = sim::ItemStack{sim::ItemId::Bow, 1};
@@ -334,6 +338,10 @@ int main(int argc, char** argv) {
 
     /** Whether the death screen is up, and whether space has been pressed. */
     bool showHelp = false;
+    bool paused = false;
+    /** The card you land on, until you say how you want to play. */
+    bool title = connectTo.empty() && !showPanel && !showMap && poseSwing < 0 &&
+                 benchFrames <= 0 && (!shotPath || showTitle);
     /** Typing a line of chat, and what has been typed so far. */
     bool typing = false;
     std::string typed;
@@ -363,13 +371,42 @@ int main(int argc, char** argv) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) running = false;
-            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) running = false;
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
+                // Closes whatever is open first, and only then stops the game.
+                if (panel.open()) {
+                    panel.close();
+                } else if (map.open()) {
+                    map.close();
+                } else if (showHelp) {
+                    showHelp = false;
+                } else {
+                    paused = !paused;
+                }
+            }
             if (event.type == SDL_EVENT_MOUSE_WHEEL) {
-                zoom = std::clamp(zoom * (1 + event.wheel.y * 0.1), kZoomMin, kZoomMax);
+                if (inventory.held() == sim::ItemId::BuildingPlan) {
+                    const int step = event.wheel.y > 0 ? 1 : 3;
+                    buildKind = static_cast<sim::BuildKind>(
+                        (static_cast<int>(buildKind) + step) % 4);
+                } else {
+                    zoom = std::clamp(zoom * (1 + event.wheel.y * 0.1), kZoomMin, kZoomMax);
+                }
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
                 event.key.key <= SDLK_6) {
                 inventory.selectSlot(static_cast<int>(event.key.key - SDLK_1));
+            }
+            if (title) {
+                if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+                    if (event.key.key == SDLK_RETURN) title = false;
+                    if (event.key.key == SDLK_S) {
+                        sandbox = true;
+                        fillSandbox();
+                        title = false;
+                    }
+                    if (event.key.key == SDLK_ESCAPE) running = false;
+                }
+                continue;
             }
             if (typing) {
                 // While typing, the keyboard belongs to the line being typed.
@@ -438,6 +475,15 @@ int main(int argc, char** argv) {
                 buildKind = static_cast<sim::BuildKind>(
                     (static_cast<int>(buildKind) + 1) % 4);
             }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_G && !event.key.repeat) {
+                sim::ItemStack& held = inventory.hotbar()[inventory.activeSlot()];
+                if (held.id != sim::ItemId::None) {
+                    world.dropStack(held, player.x + SDL_cos(player.aim) * 36,
+                                    player.y + SDL_sin(player.aim) * 36);
+                    hud.notify(std::string("Dropped ") + sim::itemDef(held.id).name);
+                    held = sim::ItemStack{};
+                }
+            }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R && !event.key.repeat) {
                 sim::reload(player, inventory);
             }
@@ -496,6 +542,8 @@ int main(int argc, char** argv) {
         const std::uint64_t now = SDL_GetPerformanceCounter();
         double dt = static_cast<double>(now - last) / static_cast<double>(SDL_GetPerformanceFrequency());
         last = now;
+        // Paused, the island holds still; online there is nothing to pause.
+        if ((paused && !online) || title) dt = 0;
         // A frame that took a second - a dragged window, a sleeping laptop -
         // must not teleport anyone across the island.
         dt = std::min(dt, 0.1);
@@ -992,6 +1040,15 @@ int main(int argc, char** argv) {
                 }
             }
             sprites.draw(*node, sx, sy, static_cast<float>(scale), snowy, broadleaf, alpha);
+            if (node->hp < node->maxHp && node->hp > 0) {
+                // White in black, which reads on snow and on grass alike.
+                const float w = 32 * static_cast<float>(density);
+                const float h = 5 * static_cast<float>(density);
+                const float bx = sx - w / 2;
+                const float by = sy + static_cast<float>(node->radius * scale) * 0.9f;
+                paint.fillRect(bx - 2, by - 2, w + 4, h + 4, client::kInk);
+                paint.fillRect(bx, by, w * node->hp / node->maxHp, h, client::rgb(0xffffff));
+            }
         }
         drawAnimalsUpTo(1e9);
         for (const auto& [id, other] : net.others()) {
@@ -1050,6 +1107,28 @@ int main(int argc, char** argv) {
         for (const sim::Structure& piece : build.list()) {
             if (piece.kind == sim::BuildKind::Foundation) continue;
             client::drawBuilt(paint, piece, camX, camY, scale, width, height);
+            if (piece.hp < piece.maxHp) {
+                double cx = 0;
+                double cy = 0;
+                if (piece.kind == sim::BuildKind::Foundation) {
+                    cx = (piece.gx + 0.5) * sim::kBuildCell;
+                    cy = (piece.gy + 0.5) * sim::kBuildCell;
+                } else {
+                    double x0 = 0;
+                    double y0 = 0;
+                    double x1 = 0;
+                    double y1 = 0;
+                    sim::edgeSegment(piece.gx, piece.gy, piece.side, x0, y0, x1, y1);
+                    cx = (x0 + x1) * 0.5;
+                    cy = (y0 + y1) * 0.5;
+                }
+                const float w = 40 * static_cast<float>(density);
+                const float h = 5 * static_cast<float>(density);
+                const float bx = static_cast<float>((cx - camX) * scale) + width * 0.5f - w / 2;
+                const float by = static_cast<float>((cy - camY) * scale) + height * 0.5f;
+                paint.fillRect(bx - 2, by - 2, w + 4, h + 4, client::kInk);
+                paint.fillRect(bx, by, w * piece.hp / piece.maxHp, h, client::rgb(0xffffff));
+            }
         }
         if (planning) {
             client::drawGhost(paint, target, sim::BuildTier::Twig, refusal == nullptr, camX, camY,
@@ -1215,6 +1294,9 @@ int main(int argc, char** argv) {
             if (panel.container() == &crate.container) panel.close();
         }
 
+        for (const auto& [id, other] : net.others()) {
+            if (other.team != 0 && other.team == net.team()) map.addMate(other.x, other.y);
+        }
         map.draw(paint, world, build, player, width, height, static_cast<float>(density));
         panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
@@ -1228,6 +1310,52 @@ int main(int argc, char** argv) {
             SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
             SDL_RenderDebugText(renderer, (20 * density) / size,
                                 (height - 142 * density) / size, line.c_str());
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+
+        if (title) {
+            // Drawn over the island itself rather than a blank panel: the first
+            // thing you see should be the place you are about to be dropped on.
+            paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
+                           client::Color{10, 12, 10, 190});
+            const float big = 6.0f * static_cast<float>(density);
+            const char* name = "OXIDE";
+            const float nameW = static_cast<float>(SDL_strlen(name)) * 8 * big;
+            SDL_SetRenderScale(renderer, big, big);
+            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+            SDL_RenderDebugText(renderer, (width - nameW) * 0.5f / big, height * 0.3f / big, name);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+
+            const float small = 1.8f * static_cast<float>(density);
+            const char* tag = "an island, a rock, and whatever you make of them";
+            const float tagW = static_cast<float>(SDL_strlen(tag)) * 8 * small;
+            SDL_SetRenderScale(renderer, small, small);
+            SDL_SetRenderDrawColor(renderer, 160, 160, 150, 255);
+            SDL_RenderDebugText(renderer, (width - tagW) * 0.5f / small, height * 0.45f / small,
+                                tag);
+            // The keys in a column of their own, so the eye runs down them.
+            static const char* kKeys[] = {"ENTER", "S", "ESC"};
+            static const char* kWhat[] = {"play", "sandbox: everything to hand, nothing to lose",
+                                          "leave"};
+            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+            for (int i = 0; i < 3; ++i) {
+                const float y = (height * 0.55f + i * 34 * density) / small;
+                SDL_RenderDebugText(renderer, (width * 0.5f - 260 * density) / small, y, kKeys[i]);
+                SDL_RenderDebugText(renderer, (width * 0.5f - 130 * density) / small, y, kWhat[i]);
+            }
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+
+        if (paused && !online) {
+            paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
+                           client::Color{0, 0, 0, 140});
+            const float size = 3.0f * static_cast<float>(density);
+            const char* line = "PAUSED    esc to carry on";
+            const float textW = static_cast<float>(SDL_strlen(line)) * 8 * size;
+            SDL_SetRenderScale(renderer, size, size);
+            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size, height * 0.45f / size,
+                                line);
             SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
 
@@ -1278,7 +1406,8 @@ int main(int argc, char** argv) {
             SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
 
-        hud.draw(paint, inventory, static_cast<int>(std::lround(player.health)), width, height, panel.open() ? "" : prompt, static_cast<float>(density));
+        if (!title)
+            hud.draw(paint, inventory, static_cast<int>(std::lround(player.health)), width, height, panel.open() ? "" : prompt, static_cast<float>(density));
 
         fpsClock += dt;
         ++fpsFrames;

@@ -135,6 +135,14 @@ void MapScreen::draw(Paint& paint, const sim::World& world, const sim::BuildSyst
                py + std::sin(static_cast<float>(player.aim)) * 12 * uiScale, 2 * uiScale,
                rgb(0x7cc8ff));
 
+    // Your team, and nobody else: finding the rest is still the game.
+    for (const Mate& mate : mates_) {
+        paint.inkedCircle(x + static_cast<float>(mate.x) * scale,
+                          y + static_cast<float>(mate.y) * scale, 4 * uiScale, rgb(0x5fb85f),
+                          kInkFine);
+    }
+    mates_.clear();
+
     char square[8];
     squareOf(player.x, player.y, square, sizeof(square));
     char line[64];
