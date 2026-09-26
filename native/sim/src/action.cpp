@@ -174,6 +174,13 @@ FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, 
 	FireResult out;
 	const ItemId held = inventory.held();
 	const Gun& gun = itemDef(held).gun;
+	// A shotgun being fed shell by shell stops being fed the moment you pull
+	// the trigger: whatever is already in the tube goes off.
+	if (trigger && gun.singly && player.reloadLeft > 0 && player.loaded == held &&
+		player.rounds > 0) {
+		player.reloadLeft = 0;
+		player.reloadTotal = 0;
+	}
 	if (gun.damage <= 0 || player.swimming || player.sprinting) {
 		// Hands busy: swimming keeps you afloat and running keeps them moving.
 		player.bowDraw = 0;
@@ -263,6 +270,18 @@ void tickReload(Player& player, Inventory& inventory, double dt) {
 	player.reloadLeft = 0;
 	const Gun& gun = itemDef(player.loaded).gun;
 	if (gun.magazine <= 0) return;
+	if (gun.singly) {
+		// One shell, thumbed in. If there is room and there are shells, the
+		// hand goes back for another; otherwise the gun is up and ready.
+		if (player.rounds < gun.magazine && inventory.take(gun.ammo, 1) > 0) {
+			++player.rounds;
+		}
+		if (player.rounds < gun.magazine && inventory.count(gun.ammo) > 0) {
+			player.reloadTotal = gun.reloadSeconds;
+			player.reloadLeft = gun.reloadSeconds;
+		}
+		return;
+	}
 	// Topped up rather than swapped: what was left in the gun stays in it.
 	const int want = gun.magazine - player.rounds;
 	player.rounds += inventory.take(gun.ammo, want);

@@ -120,6 +120,15 @@ struct Gun {
 	 * Zero falls back to a sensible default.
 	 */
 	double muzzle;
+	/**
+	 * Whether it is fed a round at a time rather than a magazine at a time.
+	 *
+	 * A shotgun is thumbed full shell by shell, so `reloadSeconds` is the time
+	 * for one of them, a half-finished reload leaves you with half a tube, and
+	 * pulling the trigger stops the loading and fires what is in there. A
+	 * magazine gun is all or nothing.
+	 */
+	bool singly;
 };
 
 /** What eating, drinking or applying something does. */

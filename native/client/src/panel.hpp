@@ -66,6 +66,12 @@ public:
 	/** Whether the amount box is taking keys, so the game's own do not fire. */
 	bool typingAmount() const { return amountCaret_; }
 
+	/** Opens one crafting category, as a click on it would. */
+	void chooseCategory(int at) {
+		category_ = at;
+		selected_ = -1;
+	}
+
 	/** Looks at one pack slot, as a click on it would. */
 	void inspect(int packSlot) {
 		inspecting_ = packSlot;

@@ -52,6 +52,8 @@ struct CraftJob {
 	double left;
 	/** How many are still to be made, this one included. */
 	int count = 1;
+	/** How many were asked for, so the screen can show how far through it is. */
+	int ordered = 1;
 	/** Whether it cost anything, so a cancelled sandbox job refunds nothing. */
 	bool paid = true;
 };

@@ -439,6 +439,34 @@ int main() {
 					gap0);
 	}
 
+	// A shotgun fills shell by shell and a rifle fills all at once, and half a
+	// shotgun reload leaves you with half a tube rather than with nothing.
+	{
+		sim::Player gunner{};
+		sim::Inventory bag;
+		bag.hotbar()[1] = sim::ItemStack{sim::ItemId::PumpShotgun, 1};
+		bag.selectSlot(1);
+		bag.add(sim::ItemId::ShotgunShell, 20);
+		sim::reload(gunner, bag);
+		// Long enough for two shells and no more.
+		for (int i = 0; i < 90; ++i) sim::tickReload(gunner, bag, dt);
+		const int partway = gunner.rounds;
+		for (int i = 0; i < 600; ++i) sim::tickReload(gunner, bag, dt);
+		const int full = gunner.rounds;
+
+		sim::Player rifleman{};
+		sim::Inventory kit;
+		kit.hotbar()[1] = sim::ItemStack{sim::ItemId::Rifle, 1};
+		kit.selectSlot(1);
+		kit.add(sim::ItemId::RifleAmmo, 40);
+		sim::reload(rifleman, kit);
+		for (int i = 0; i < 90; ++i) sim::tickReload(rifleman, kit, dt);
+		const int riflePartway = rifleman.rounds;
+		for (int i = 0; i < 600; ++i) sim::tickReload(rifleman, kit, dt);
+		std::printf("reload: shotgun %d after a second and a half then %d, rifle %d then %d\n",
+					partway, full, riflePartway, rifleman.rounds);
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.

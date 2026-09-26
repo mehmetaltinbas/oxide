@@ -243,8 +243,15 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 	// laid out in points and drawn at twice that, so a flat 1.0 came out half a
 	// point wide and vanished. Reading kGlyphInk as "ink per twenty six pixels
 	// of icon" makes it hold at any size and any display.
-	const float ink = kGlyphInk * std::max(1.0f, u / 26.0f);
-	const float mark = kGlyphMark * std::max(1.0f, u / 26.0f);
+	//
+	// Measured against the picture's size IN WORLD UNITS, because Paint scales
+	// every stroke by the view as well. A gun in your hand is drawn larger as
+	// you zoom in, so working the pen out from its on-screen size and then
+	// letting Paint scale it again squared the zoom: at three times in, the
+	// held item's outline came out nine times heavy.
+	const float measure = std::max(1.0f, paint.inWorld(u) / 26.0f);
+	const float ink = kGlyphInk * measure;
+	const float mark = kGlyphMark * measure;
 	const float ca = std::cos(angle);
 	const float sa = std::sin(angle);
 	const auto P = [&](float ux, float uy) {

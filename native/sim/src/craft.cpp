@@ -61,10 +61,12 @@ const std::vector<Recipe>& table() {
 		 {{ItemId::Gunpowder, 80}, {ItemId::Metal, 30}, {ItemId::Cloth, 10}}, 3, 2, 8},
 		{ItemId::C4, 1,
 		 {{ItemId::Gunpowder, 200}, {ItemId::Metal, 100}, {ItemId::Cloth, 30}}, 3, 3, 14},
+		// Rounds before rockets: within a category the list runs from the thing
+		// you make every day to the thing you make once.
+		{ItemId::RifleAmmo, 12, {{ItemId::Gunpowder, 20}, {ItemId::Metal, 15}}, 2, 3, 3},
 		{ItemId::RocketLauncher, 1, {{ItemId::Metal, 300}, {ItemId::Scrap, 150}}, 2, 3, 12},
 		{ItemId::Rocket, 1,
 		 {{ItemId::Gunpowder, 100}, {ItemId::Metal, 50}, {ItemId::Cloth, 15}}, 3, 3, 8},
-		{ItemId::RifleAmmo, 12, {{ItemId::Gunpowder, 20}, {ItemId::Metal, 15}}, 2, 3, 3},
 		// Plate over everything, and the one thing high quality metal is for
 		// until the guns that need it arrive.
 		{ItemId::HeavyMetalSuit, 1, {{ItemId::HqMetal, 25}, {ItemId::Metal, 200}, {ItemId::Leather, 30}}, 3, 3, 16},
@@ -111,7 +113,7 @@ bool Crafting::queue(Inventory& inventory, const Recipe& recipe, int benchTier, 
 			inventory.take(recipe.cost[i].id, recipe.cost[i].count * count);
 		}
 	}
-	jobs_.push_back(CraftJob{nextId_++, &recipe, recipe.seconds, count, !free_});
+	jobs_.push_back(CraftJob{nextId_++, &recipe, recipe.seconds, count, count, !free_});
 	return true;
 }
 

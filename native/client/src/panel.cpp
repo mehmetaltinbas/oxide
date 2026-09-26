@@ -441,11 +441,21 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 		}
 		say(paint, midX + 42 * uiScale, ry + 3 * uiScale, 13 * uiScale,
 			locked ? ui::kDisabled : chosen ? ui::kAccentInk : ui::kInk, name, Face::BodyBold);
-		char state[32];
-		if (locked) {
-			SDL_snprintf(state, sizeof(state), "Workbench %d", recipe.bench);
+		// What bench it wants, always, whether or not you are standing at one:
+		// knowing a thing needs a bench two is how you decide to go and build
+		// one, and it was only said when you could not make it.
+		char state[64];
+		char bench[24];
+		if (recipe.bench <= 0) {
+			SDL_snprintf(bench, sizeof(bench), "No bench");
 		} else {
-			SDL_snprintf(state, sizeof(state), "%s", ready ? "Ready" : "Missing materials");
+			SDL_snprintf(bench, sizeof(bench), "Workbench %d", recipe.bench);
+		}
+		if (locked) {
+			SDL_snprintf(state, sizeof(state), "%s needed", bench);
+		} else {
+			SDL_snprintf(state, sizeof(state), "%s \xc2\xb7 %s", bench,
+						 ready ? "Ready" : "Missing materials");
 		}
 		say(paint, midX + 42 * uiScale, ry + 19 * uiScale, 11 * uiScale,
 			locked ? ui::kDisabled : ready ? ui::kOk : ui::kWarn, state);
@@ -491,8 +501,19 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 						 24 * uiScale);
 			say(paint, cx + 52 * uiScale, cy + 4 * uiScale, 12 * uiScale, ui::kInk,
 				sim::itemDef(job.recipe->out).name, Face::BodyBold);
-			// How far through it is, along the bottom of its chip.
-			const double done = 1 - job.left / job.recipe->seconds;
+			// How many of the order are still to come. An order for a hundred
+			// and fifty five that says nothing about how many are left is a
+			// bar creeping along for no reason you can see.
+			if (job.ordered > 1) {
+				char left[24];
+				SDL_snprintf(left, sizeof(left), "%d of %d left", job.count, job.ordered);
+				say(paint, cx + 52 * uiScale, cy + 18 * uiScale, 10 * uiScale, ui::kSubtle, left);
+			}
+			// How far through the whole order it is, along the bottom of the
+			// chip, rather than how far through the one under the hammer.
+			const double unit = 1 - job.left / job.recipe->seconds;
+			const double done =
+				(job.ordered - job.count + unit) / std::max(1, job.ordered);
 			paint.fillRect(cx + 8 * uiScale, cy + 28 * uiScale,
 						   static_cast<float>((cw - 16 * uiScale) * done), 3 * uiScale,
 						   ui::kAccent);
@@ -545,6 +566,9 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 	const float qy = l.y + l.h - 124 * uiScale;
 	say(paint, detX, qy - 18 * uiScale, 11 * uiScale, ui::kSubtle, "AMOUNT");
 	const float stepW = 34 * uiScale;
+	// Shift moves ten at a time, so reaching two hundred is twenty clicks
+	// rather than two hundred. The label says so while it is held.
+	const bool byTen = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
 	const auto stepper = [&](const char* label, float sx, bool enabled) {
 		const bool hovered = ui::inside(mouseX, mouseY, sx, qy, stepW, stepW) && enabled;
 		paint.fillRoundRect(sx, qy, stepW, stepW, ui::kRadiusSmall,
@@ -552,7 +576,7 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 		say(paint, sx + stepW * 0.5f, qy + 7 * uiScale, 15 * uiScale,
 			enabled ? ui::kInk : ui::kDisabled, label, Face::BodyBold, Align::Centre);
 	};
-	stepper("-", detX, amount_ > 1);
+	stepper(byTen ? "-10" : "-", detX, amount_ > 1);
 	// The number is a box you can type in, not only a readout between two
 	// buttons: asking for two hundred arrows with the plus key is not asking.
 	const float boxW = 58 * uiScale;
@@ -562,8 +586,11 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 	paint.outlineRoundRect(detX + 40 * uiScale, qy, boxW, stepW, ui::kRadiusSmall,
 						   amountCaret_ ? 1.5f * uiScale : 1,
 						   amountCaret_ ? ui::kAccentInk : ui::kHairline);
-	char amount[8];
-	SDL_snprintf(amount, sizeof(amount), "%d", amount_);
+	// Nought means the box has been cleared, and it is drawn empty rather than
+	// snapping back to one: you should be able to delete what you typed and
+	// start again without the field arguing with you.
+	char amount[8] = {0};
+	if (amount_ > 0) SDL_snprintf(amount, sizeof(amount), "%d", amount_);
 	const float typed = widthOf(paint, amount, 15 * uiScale, Face::BodyBold);
 	say(paint, detX + 69 * uiScale, qy + 7 * uiScale, 15 * uiScale, ui::kInk, amount,
 		Face::BodyBold, Align::Centre);
@@ -572,16 +599,14 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 		paint.fillRect(detX + 69 * uiScale + typed * 0.5f + 3 * uiScale, qy + 8 * uiScale,
 					   1.5f * uiScale, 18 * uiScale, ui::kAccentInk);
 	}
-	stepper("+", detX + 104 * uiScale, amount_ < std::min(sim::Crafting::kBatchMax, possible));
+	stepper(byTen ? "+10" : "+", detX + 104 * uiScale,
+			amount_ < std::min(sim::Crafting::kBatchMax, possible));
 	const float maxX = detX + 144 * uiScale;
 	const bool maxHover = ui::inside(mouseX, mouseY, maxX, qy, 52 * uiScale, stepW);
 	paint.fillRoundRect(maxX, qy, 52 * uiScale, stepW, ui::kRadiusSmall,
 						maxHover ? ui::kHover : ui::kSurfaceAlt);
 	say(paint, maxX + 26 * uiScale, qy + 7 * uiScale, 13 * uiScale, ui::kInk, "max",
 		Face::BodyBold, Align::Centre);
-	char possibleLine[32];
-	SDL_snprintf(possibleLine, sizeof(possibleLine), "%d possible", possible);
-	say(paint, detX + 210 * uiScale, qy + 9 * uiScale, 11 * uiScale, ui::kSubtle, possibleLine);
 
 	const float buttonY = qy + 46 * uiScale;
 	const bool can = possible >= amount_ && amount_ > 0;
@@ -895,14 +920,18 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 	const float stepW = 34 * uiScale;
 	const int possible = sim::craftableCount(inventory, recipe, bench_, sandbox_);
 	const float buttonY = qy + 46 * uiScale;
-	amountCaret_ = ui::inside(x, y, detX + 40 * uiScale, qy, 58 * uiScale, stepW);
+	const bool onBox = ui::inside(x, y, detX + 40 * uiScale, qy, 58 * uiScale, stepW);
+	if (amountCaret_ && !onBox && amount_ < 1) amount_ = 1;
+	amountCaret_ = onBox;
 	if (amountCaret_) return true;
+	const int step = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0 ? 10 : 1;
 	if (ui::inside(x, y, detX, qy, stepW, stepW)) {
-		amount_ = std::max(1, amount_ - 1);
+		amount_ = std::max(1, amount_ - step);
 		return true;
 	}
 	if (ui::inside(x, y, detX + 104 * uiScale, qy, stepW, stepW)) {
-		amount_ = std::min(std::min(sim::Crafting::kBatchMax, std::max(1, possible)), amount_ + 1);
+		const int ceiling = std::min(sim::Crafting::kBatchMax, std::max(1, possible));
+		amount_ = std::min(ceiling, std::max(1, amount_) + step);
 		return true;
 	}
 	if (ui::inside(x, y, detX + 144 * uiScale, qy, 52 * uiScale, stepW)) {
@@ -934,8 +963,9 @@ bool Panel::typeAmount(SDL_Keycode key) {
 		return true;
 	}
 	if (key == SDLK_BACKSPACE) {
+		// All the way to empty. Clearing the field is how you replace what is
+		// in it, and a box that refuses to go below one cannot be replaced.
 		amount_ /= 10;
-		if (amount_ < 1) amount_ = 1;
 		return true;
 	}
 	if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_ESCAPE) {

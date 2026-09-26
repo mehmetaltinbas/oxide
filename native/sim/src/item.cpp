@@ -73,9 +73,9 @@ constexpr ItemDef kItems[] = {
 	 {42, 0.34, 900, 640, 0.05, ItemId::PistolAmmo, 6, 3.0, 1, 22}},
 	// A cone of pellets: it kills up close and falls apart past short range.
 	{ItemId::Waterpipe, "Waterpipe Shotgun", "One shell, a long reload, and a very bad day for whoever is in front of it.", ItemCategory::Weapon, 1, kNone,
-	 {14, 1.0, 820, 260, 0.26, ItemId::ShotgunShell, 1, 6.0, 9, 32}},
+	 {14, 1.0, 820, 260, 0.26, ItemId::ShotgunShell, 1, 2.4, 9, 32, true}},
 	{ItemId::PumpShotgun, "Pump Shotgun", "Six shells, one a second. Nothing clears a room faster.", ItemCategory::Weapon, 1, kNone,
-	 {13, 1.05, 860, 300, 0.2, ItemId::ShotgunShell, 6, 5.5, 8, 34}},
+	 {13, 1.05, 860, 300, 0.2, ItemId::ShotgunShell, 6, 0.62, 8, 34, true}},
 	{ItemId::Rifle, "Semi-Automatic Rifle", "The gun that decides most fights.", ItemCategory::Weapon, 1, kNone,
 	 {62, 0.19, 1250, 950, 0.035, ItemId::RifleAmmo, 16, 4.0, 1, 35}},
 	// Rust's AK kicks hard, which a top-down game has no camera to show, so

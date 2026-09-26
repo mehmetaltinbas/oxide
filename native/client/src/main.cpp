@@ -606,7 +606,7 @@ int main(int argc, char** argv) {
 			panel.toggleInventory();
 			panel.inspect(0);
 		}
-		crafting.queue(inventory, sim::recipes()[0], 0);
+		crafting.queue(inventory, sim::recipes()[0], 0, 4);
 	}
 
 	client::Terrain terrain(renderer);
