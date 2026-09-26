@@ -13,17 +13,17 @@ namespace client {
 
 /** The pen. Not pure black: a very dark green-black sits better on foliage. */
 constexpr Color kInk = rgb(0x14110d);
-constexpr float kInkWidth = 1.0f;
-constexpr float kInkMark = 2.2f;
+constexpr float kInkWidth = 1.5f;
+constexpr float kInkMark = 1.5f;
 constexpr float kInkFine = 1.5f;
 /**
  * The pen an item's picture is drawn with: the one number to turn if the icons
  * look too heavy or too faint. It is its own value rather than the world's pen
  * because a glyph is read at twenty pixels and a tree at two hundred.
  */
-constexpr float kGlyphInk = 2.6f;
+constexpr float kGlyphInk = 1.0f;
 /** The thin mark inside a glyph: stitching, a crease, a rivet line. */
-constexpr float kGlyphMark = 1.7f;
+constexpr float kGlyphMark = 1.0f;
 
 /** Hatching is finer than a mark, and a stipple dot finer still. */
 constexpr float kInkHatch = 1.7f;

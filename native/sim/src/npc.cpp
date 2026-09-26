@@ -18,7 +18,7 @@ constexpr NpcGun kNoGun{0, 0, 0, 0, 0};
  */
 constexpr NpcDef kDefs[kNpcKindCount] = {
 	// Bottom of the chain: quick, useless, and something to practise a bow on.
-	{NpcKind::Chicken, "Chicken", 15, 108, 7, 2, 18, 1.4, false, false, kNoGun,
+	{NpcKind::Chicken, "Chicken", 15, 104, 7, 2, 18, 1.4, false, false, kNoGun,
 	 {{ItemId::MeatRaw, 1, 2}, {ItemId::Bone, 1, 2}, {ItemId::AnimalFat, 0, 1}},
 	 3,
 	 {Biome::Grass, Biome::Forest},
@@ -27,9 +27,10 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 {},
 	 0,
 	 true},
-	// The meat animal. Fast enough that you need a bow or a plan, and worth
-	// the trouble: one deer is a full day of food and most of a set of hide.
-	{NpcKind::Deer, "Deer", 120, 178, 15, 8, 26, 1.4, false, false, kNoGun,
+	// The meat animal. A sprint is 185 and a deer is 172, so you can run one
+	// down on foot and you will arrive with nothing left; a bow is the sane
+	// way. One deer is a full day of food and most of a set of hide.
+	{NpcKind::Deer, "Deer", 120, 172, 15, 8, 26, 1.4, false, false, kNoGun,
 	 {{ItemId::MeatRaw, 5, 9},
 	  {ItemId::Leather, 14, 24},
 	  {ItemId::Bone, 6, 11},
@@ -43,7 +44,7 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 true},
 	// The desert's own, and the reason the sand is not a free walk. Hunts in
 	// the open and backs off a bear.
-	{NpcKind::Hyena, "Hyena", 95, 150, 12, 18, 26, 0.85, true, false, kNoGun,
+	{NpcKind::Hyena, "Hyena", 95, 176, 12, 18, 26, 0.85, true, false, kNoGun,
 	 {{ItemId::MeatRaw, 2, 4},
 	  {ItemId::Leather, 5, 10},
 	  {ItemId::Bone, 4, 8},
@@ -55,8 +56,9 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 {NpcKind::Chicken, NpcKind::Deer},
 	 2,
 	 true},
-	// Open country and tundra. Fast, and it does not wait to be provoked.
-	{NpcKind::Wolf, "Wolf", 80, 155, 13, 22, 28, 0.9, true, false, kNoGun,
+	// Open country and tundra. At 184 it runs down a deer and very nearly runs
+	// down you: a sprint just about holds it off, and nothing else does.
+	{NpcKind::Wolf, "Wolf", 80, 184, 13, 22, 28, 0.9, true, false, kNoGun,
 	 {{ItemId::MeatRaw, 2, 4},
 	  {ItemId::Leather, 6, 12},
 	  {ItemId::Bone, 3, 6},

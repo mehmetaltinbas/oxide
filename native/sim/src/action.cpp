@@ -133,6 +133,11 @@ SwingResult swing(World& world, NpcSystem& npcs, BuildSystem& build, Player& pla
 
 	out.broke = world.hurtNode(*node, melee.damage);
 	for (int i = 0; i < def.yieldCount; ++i) {
+		if (def.yields[i].chance < 1) {
+			// The rare thing in the rock, on its own roll.
+			Rng rng(static_cast<std::uint32_t>(node->id * 2654435761u + node->hp * 40503u));
+			if (rng.unit() >= def.yields[i].chance) continue;
+		}
 		const int amount = std::max(1, static_cast<int>(std::lround(def.yields[i].per * mult * 0.35)));
 		const int left = inventory.add(def.yields[i].id, amount);
 		if (left > 0) {

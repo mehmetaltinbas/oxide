@@ -1,5 +1,7 @@
 #include "held.hpp"
 
+#include <SDL3/SDL.h>
+
 #include <algorithm>
 #include <cmath>
 #include <initializer_list>
@@ -52,6 +54,7 @@ MeleeStyle meleeStyleOf(sim::ItemId item) {
 		case sim::ItemId::Hatchet:
 		case sim::ItemId::Pickaxe:
 		case sim::ItemId::Hammer: return MeleeStyle::Chop;
+		case sim::ItemId::Torch:
 		case sim::ItemId::Spear:
 		case sim::ItemId::Bow:
 		case sim::ItemId::Revolver:
@@ -164,6 +167,22 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
 				inked(paint, {tool.at(3, 2.8f), tool.at(8, 2.8f), tool.at(7, 7.5f), tool.at(4, 7.5f)},
 					  rgb(0x3f434a));
 			}
+			break;
+		}
+		case sim::ItemId::Torch: {
+			// Held out in front, burning. The flame flickers off the clock,
+			// which is what stops it reading as an orange leaf.
+			handle(paint, tool, -3, 9, 1.2f);
+			inked(paint, {tool.at(9, -2.4f), tool.at(13, -2.0f), tool.at(13, 2.0f),
+						  tool.at(9, 2.4f)},
+				  rgb(0x6a5236));
+			const float lick = 1.0f + 0.14f * std::sin(static_cast<float>(SDL_GetTicks()) * 0.012f);
+			paint.fillPoly({tool.at(13, -3.4f * lick), tool.at(21 * lick, 0),
+							tool.at(13, 3.4f * lick)},
+						   rgb(0xff8c2e));
+			paint.fillPoly({tool.at(13.5f, -1.8f * lick), tool.at(17.5f * lick, 0),
+							tool.at(13.5f, 1.8f * lick)},
+						   rgb(0xffd98a));
 			break;
 		}
 		case sim::ItemId::Rock: {
@@ -302,6 +321,22 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
 				  rgb(0xf2ea9a), rgb(0xa89a2f));
 			break;
 		case sim::ItemId::Charcoal: pile(rgb(0x4a4a4a), rgb(0x2a2a2a)); break;
+		case sim::ItemId::HqMetalOre:
+			// The same rock as metal ore, shot through with something brighter.
+			pile(rgb(0x6f7c86), rgb(0x3f484f));
+			plainDisc(-0.05f, -0.05f, 0.055f, rgb(0x9fe4ff));
+			plainDisc(0.14f, 0.12f, 0.045f, rgb(0x9fe4ff));
+			plainDisc(-0.17f, 0.14f, 0.035f, rgb(0x7ec8e8));
+			break;
+		case sim::ItemId::HqMetal:
+			// Milled bar stock, stacked: flat, bright and squared off, which is
+			// what says refined next to a pile of chunks.
+			edged(pts({{-0.3f, 0.02f}, {0.18f, -0.14f}, {0.3f, 0.02f}, {-0.18f, 0.18f}}),
+				  rgb(0xcfe6f2), rgb(0x7a94a4));
+			edged(pts({{-0.3f, -0.14f}, {0.18f, -0.3f}, {0.3f, -0.14f}, {-0.18f, 0.02f}}),
+				  rgb(0xeaf6ff), rgb(0x7a94a4));
+			detail(-0.1f, -0.16f, 0.12f, -0.23f, 0.03f);
+			break;
 		case sim::ItemId::Cloth:
 			// A folded bolt of fabric.
 			edged(pts({{-0.3f, -0.14f}, {0.3f, -0.22f}, {0.3f, 0.06f}, {-0.3f, 0.14f}}),
@@ -433,6 +468,17 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
 			haft(0.0f, 0.34f, 0.0f, -0.12f);
 			box(-0.24f, -0.3f, 0.48f, 0.2f, rgb(0xd8c08a));
 			box(-0.24f, -0.3f, 0.12f, 0.2f, rgb(0xb09a63));
+			break;
+		case sim::ItemId::Torch:
+			// A stick with a rag alight on the end of it.
+			haft(-0.08f, 0.34f, 0.02f, -0.02f, 0.075f);
+			edged(pts({{0.02f, -0.02f}, {0.12f, -0.08f}, {0.1f, -0.2f}, {-0.06f, -0.2f},
+					   {-0.08f, -0.08f}}),
+				  rgb(0x6a5236), rgb(0x3f3020));
+			fill(pts({{0.02f, -0.36f}, {0.14f, -0.18f}, {0.02f, -0.1f}, {-0.1f, -0.18f}}),
+				 rgb(0xff8c2e));
+			fill(pts({{0.02f, -0.28f}, {0.08f, -0.18f}, {0.02f, -0.12f}, {-0.04f, -0.18f}}),
+				 rgb(0xffd98a));
 			break;
 		case sim::ItemId::BuildingPlan:
 			// A rolled blueprint with a framing square on it.
@@ -573,6 +619,30 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
 					   {0.2f, -0.02f}, {0.2f, 0.28f}, {-0.2f, 0.28f}, {-0.2f, -0.02f}}),
 				  rgb(0xa3714a), rgb(0x6d4a2c));
 			detail(0, -0.26f, 0, 0.28f, 0.03f);
+			break;
+		case sim::ItemId::MetalSuit:
+			// A road sign strapped over a jacket: the sign is the picture.
+			edged(pts({{-0.3f, -0.14f}, {-0.12f, -0.26f}, {0.12f, -0.26f}, {0.3f, -0.14f},
+					   {0.2f, -0.02f}, {0.2f, 0.28f}, {-0.2f, 0.28f}, {-0.2f, -0.02f}}),
+				  rgb(0x7a6a58), rgb(0x4a4038));
+			edged(pts({{0, -0.16f}, {0.2f, 0.04f}, {0, 0.24f}, {-0.2f, 0.04f}}), rgb(0xd8d2c4),
+				  rgb(0x8f8a7e));
+			edged(pts({{0, -0.08f}, {0.12f, 0.04f}, {0, 0.16f}, {-0.12f, 0.04f}}), rgb(0xc2452f),
+				  rgb(0x7a1c1c));
+			break;
+		case sim::ItemId::HeavyMetalSuit:
+			// Full plate: a chest piece with a mask over it and rivets down it.
+			edged(pts({{-0.3f, -0.1f}, {-0.12f, -0.22f}, {0.12f, -0.22f}, {0.3f, -0.1f},
+					   {0.22f, 0.02f}, {0.22f, 0.28f}, {-0.22f, 0.28f}, {-0.22f, 0.02f}}),
+				  rgb(0xa9b6c0), rgb(0x5d6a74));
+			edged(pts({{-0.15f, -0.3f}, {0.15f, -0.3f}, {0.15f, -0.08f}, {0, 0.0f},
+					   {-0.15f, -0.08f}}),
+				  rgb(0x8d9aa4), rgb(0x4a5560));
+			box(-0.1f, -0.24f, 0.2f, 0.05f, rgb(0x2a3138));
+			plainDisc(-0.16f, 0.1f, 0.03f, rgb(0x5d6a74));
+			plainDisc(0.16f, 0.1f, 0.03f, rgb(0x5d6a74));
+			plainDisc(-0.16f, 0.21f, 0.03f, rgb(0x5d6a74));
+			plainDisc(0.16f, 0.21f, 0.03f, rgb(0x5d6a74));
 			break;
 		case sim::ItemId::Hazmat:
 			edged(pts({{-0.28f, -0.1f}, {-0.1f, -0.26f}, {0.1f, -0.26f}, {0.28f, -0.1f},

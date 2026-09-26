@@ -296,8 +296,10 @@ int main() {
 	int shots = 0;
 	int landed = 0;
 	if (mark) {
-		player.aim = std::atan2(mark->y - player.y, mark->x - player.x);
 		for (int frame = 0; frame < 60 * 20; ++frame) {
+			// Tracked rather than aimed once: the skittish animals run now, and
+			// a check that fires at where a deer used to be proves nothing.
+			player.aim = std::atan2(mark->y - player.y, mark->x - player.x);
 			player.attackTimer = std::max(0.0, player.attackTimer - dt);
 			const sim::FireResult shot = sim::fire(player, inventory, projectiles, true, false, dt);
 			if (shot.fired) ++shots;
@@ -371,5 +373,108 @@ int main() {
 				target->y, felled ? "felled" : "still standing", blows,
 				inventory.count(sim::ItemId::Wood), inventory.count(sim::ItemId::Stone),
 				world.drops().size());
+	// Every animal standing in a country it belongs to, which is the whole of
+	// what "a deer lives in the trees" means once it is in the data.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::NpcSystem wild;
+		wild.populate(island, 12345);
+		int wrong = 0;
+		int counts[sim::kNpcKindCount] = {};
+		for (const sim::Npc& npc : wild.list()) {
+			++counts[static_cast<int>(npc.kind)];
+			if (!sim::livesIn(sim::npcDef(npc.kind), island.biomeAt(npc.x, npc.y))) ++wrong;
+		}
+		std::printf("wildlife:");
+		for (int i = 0; i < 5; ++i) {
+			std::printf(" %s %d", sim::npcDef(static_cast<sim::NpcKind>(i)).name, counts[i]);
+		}
+		std::printf(", %d in the wrong country\n", wrong);
+	}
+
+	// The food chain: a wolf put beside a deer goes for it, and the deer runs.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem empty;
+		sim::Projectiles none;
+		sim::NpcSystem wild;
+		wild.mutableList().clear();
+		sim::Player watcher{};
+		watcher.x = 10368;
+		watcher.y = 10368;
+		watcher.alive = true;
+		const auto put = [&](sim::NpcKind kind, double x, double y) {
+			sim::Npc npc{};
+			npc.id = static_cast<int>(kind) + 1;
+			npc.kind = kind;
+			npc.x = x;
+			npc.y = y;
+			npc.hp = sim::npcDef(kind).hp;
+			npc.homeX = x;
+			npc.homeY = y;
+			npc.leash = 4000;
+			wild.mutableList().push_back(npc);
+		};
+		put(sim::NpcKind::Wolf, 10368 + 300, 10368);
+		put(sim::NpcKind::Deer, 10368 + 460, 10368);
+		const double gap0 = 160;
+		bool chased = false;
+		bool bled = false;
+		for (int i = 0; i < 60 * 20; ++i) {
+			wild.update(island, empty, none, dt, watcher);
+			const sim::NpcState state = wild.list()[0].state;
+			if (state == sim::NpcState::Chase || state == sim::NpcState::Attack) chased = true;
+			if (wild.list().size() < 2 || wild.list()[1].hp < sim::npcDef(sim::NpcKind::Deer).hp) {
+				bled = true;
+			}
+		}
+		const sim::Npc& wolf = wild.list()[0];
+		std::printf("chain: wolf %s the deer, %s it, gap %.0f from %.0f\n",
+					chased ? "went for" : "IGNORED", bled ? "caught" : "never caught",
+					wild.list().size() > 1
+						? std::hypot(wild.list()[1].x - wolf.x, wild.list()[1].y - wolf.y)
+						: 0.0,
+					gap0);
+	}
+
+	// Nothing walks through a barrel, whoever it is: the one collision routine.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem empty;
+		sim::Projectiles none;
+		const sim::ResourceNode* wall = nullptr;
+		for (const sim::ResourceNode& node : island.nodes()) {
+			if (node.kind != sim::NodeKind::Barrel) continue;
+			wall = &node;
+			break;
+		}
+		double through = -1;
+		if (wall) {
+			sim::NpcSystem wild;
+			wild.mutableList().clear();
+			sim::Npc npc{};
+			npc.id = 1;
+			npc.kind = sim::NpcKind::Bear;
+			npc.x = wall->x - 90;
+			npc.y = wall->y;
+			npc.hp = sim::npcDef(npc.kind).hp;
+			npc.homeX = npc.x;
+			npc.homeY = npc.y;
+			npc.leash = 4000;
+			wild.mutableList().push_back(npc);
+			sim::Player bait{};
+			bait.x = wall->x + 90;
+			bait.y = wall->y;
+			bait.alive = true;
+			for (int i = 0; i < 60 * 8; ++i) wild.update(island, empty, none, dt, bait);
+			through = wild.list()[0].x - wall->x;
+		}
+		std::printf("collide: a bear walking at a barrel stopped %.0f short of its middle\n",
+					-through);
+	}
+
 	return felled ? 0 : 1;
 }

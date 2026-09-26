@@ -25,6 +25,15 @@ enum class Work : std::uint8_t { Chop, Mine, Pick, Break };
 struct NodeYield {
 	ItemId id;
 	int per;
+	/**
+	 * How often a blow gives any of it at all.
+	 *
+	 * One for the things a node is made of, and a small number for the rare
+	 * thing hiding in it: high quality metal comes out of a metal node a few
+	 * pieces at a time and not every swing, which is what makes it rare
+	 * without needing a second kind of node for it.
+	 */
+	double chance;
 };
 
 /** What one kind of them is worth and how tough it is. */
@@ -34,7 +43,7 @@ struct NodeDef {
 	int hp;
 	double radius;
 	Work prefers;
-	NodeYield yields[2];
+	NodeYield yields[3];
 	int yieldCount;
 	/**
 	 * Whether it is smashed rather than worked: nothing comes off it until it

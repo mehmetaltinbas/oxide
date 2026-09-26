@@ -33,6 +33,9 @@ const std::vector<Recipe>& table() {
 		{ItemId::Bandage, 2, {{ItemId::Cloth, 8}}, 1, 0, 2},
 		{ItemId::Clothing, 1, {{ItemId::Leather, 30}, {ItemId::Cloth, 20}}, 2, 0, 5},
 		{ItemId::LowGrade, 4, {{ItemId::AnimalFat, 3}, {ItemId::Cloth, 1}}, 2, 0, 2},
+		// Light you can carry: the whole of the first night, for a stick and a
+		// rag, and no bench for it.
+		{ItemId::Torch, 1, {{ItemId::Wood, 20}, {ItemId::Cloth, 5}}, 2, 0, 2},
 
 		{ItemId::Arrow, 8, {{ItemId::Wood, 40}, {ItemId::Stone, 15}}, 2, 1, 3},
 		{ItemId::Lock, 1, {{ItemId::Metal, 100}}, 1, 1, 4},
@@ -45,6 +48,9 @@ const std::vector<Recipe>& table() {
 		{ItemId::Revolver, 1, {{ItemId::Metal, 150}, {ItemId::Scrap, 75}}, 2, 2, 8},
 		{ItemId::PumpShotgun, 1, {{ItemId::Metal, 200}, {ItemId::Scrap, 120}}, 2, 2, 8},
 		{ItemId::Hazmat, 1, {{ItemId::Cloth, 60}, {ItemId::Scrap, 100}, {ItemId::Metal, 40}}, 3, 2, 10},
+		// Road signs strapped over hide: the first real armour, and the last
+		// one you can make without a trip to a monument.
+		{ItemId::MetalSuit, 1, {{ItemId::Metal, 120}, {ItemId::Scrap, 60}, {ItemId::Leather, 20}}, 3, 2, 10},
 		{ItemId::PistolAmmo, 12, {{ItemId::Gunpowder, 10}, {ItemId::Metal, 10}}, 2, 2, 3},
 
 		{ItemId::Workbench3, 1, {{ItemId::Metal, 1000}, {ItemId::Scrap, 500}}, 2, 2, 14},
@@ -59,6 +65,9 @@ const std::vector<Recipe>& table() {
 		{ItemId::Rocket, 1,
 		 {{ItemId::Gunpowder, 100}, {ItemId::Metal, 50}, {ItemId::Cloth, 15}}, 3, 3, 8},
 		{ItemId::RifleAmmo, 12, {{ItemId::Gunpowder, 20}, {ItemId::Metal, 15}}, 2, 3, 3},
+		// Plate over everything, and the one thing high quality metal is for
+		// until the guns that need it arrive.
+		{ItemId::HeavyMetalSuit, 1, {{ItemId::HqMetal, 25}, {ItemId::Metal, 200}, {ItemId::Leather, 30}}, 3, 3, 16},
 	};
 	return all;
 }

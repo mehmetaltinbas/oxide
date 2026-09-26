@@ -49,11 +49,6 @@ class Hud {
 public:
 	void say(const std::string& text, double x, double y, Color color);
 
-	/**
-	 * A line of chat with yourself: what just happened, in the corner, where
-	 * it does not sit on top of the thing it is about.
-	 */
-	void notify(const std::string& text);
 	void update(double dt);
 
 	/** The popups, in world coordinates, drawn with the world. */
@@ -86,7 +81,6 @@ public:
 
 private:
 	std::vector<Popup> popups_;
-	std::vector<Popup> notices_;
 	int carried_ = -1;
 	int loaded_ = 0;
 	double reloading_ = 0;

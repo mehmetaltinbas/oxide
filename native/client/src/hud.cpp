@@ -59,17 +59,7 @@ void Hud::setVitals(double calories, double hydration, double temperature, doubl
 	applying_ = applying;
 }
 
-void Hud::notify(const std::string& text) {
-	// Newest at the bottom, and never more than a handful at once.
-	notices_.push_back(Popup{text, 0, 0, 4.0, kText});
-	if (notices_.size() > 5) notices_.erase(notices_.begin());
-}
-
 void Hud::update(double dt) {
-	for (Popup& p : notices_) p.life -= dt;
-	notices_.erase(std::remove_if(notices_.begin(), notices_.end(),
-								  [](const Popup& p) { return p.life <= 0; }),
-				   notices_.end());
 	for (Popup& p : popups_) p.life -= dt;
 	popups_.erase(std::remove_if(popups_.begin(), popups_.end(),
 								 [](const Popup& p) { return p.life <= 0; }),
@@ -138,9 +128,10 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 			lettering_->draw(count, x + slot - 5 * uiScale, y0 + slot - 18 * uiScale,
 							 11 * uiScale, ui::kInk, Face::BodyBold, Align::Right);
 		}
-		// A gun reads "in the gun / in the pack"; a bow just has its arrows.
+		// A gun reads "in the gun / in the pack", and only the one actually in
+		// your hand: a rifle on the belt used to print the pistol's rounds.
 		const sim::Gun& gun = sim::itemDef(stack.id).gun;
-		if (gun.damage > 0 && lettering_) {
+		if (gun.damage > 0 && active && carried_ >= 0 && lettering_) {
 			char ammo[16];
 			if (gun.magazine > 0) {
 				SDL_snprintf(ammo, sizeof(ammo), "%d/%d", loaded_, std::max(0, carried_ - loaded_));
@@ -217,16 +208,6 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 		}
 	}
 
-	if (applying_ > 0) {
-		// What is being applied, running down over the belt.
-		const float w = 200 * uiScale;
-		const float h = 8 * uiScale;
-		const float px = (width - w) * 0.5f;
-		const float py = y0 - 30 * uiScale;
-		paint.fillRect(px - 2, py - 2, w + 4, h + 4, kInk);
-		paint.fillRect(px, py, static_cast<float>(w * (1 - applying_)), h, rgb(0x8cf08c));
-	}
-
 	if (carried_ >= 0) {
 		// Over on the right, where the belt ends: what is in the gun and what
 		// is left in the pack for it.
@@ -238,30 +219,6 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 			lettering_->draw(ammo, ax, ay, 20 * uiScale, rgb(0xffffff), Face::Display);
 		}
 	}
-	if (reloading_ > 0 || bowDraw_ > 0) {
-		// A sliver over the belt: the reload running down, or the draw coming
-		// up to full.
-		const float w = 200 * uiScale;
-		const float h = 8 * uiScale;
-		const float px = (width - w) * 0.5f;
-		const float py = y0 - 18 * uiScale;
-		const double progress = reloading_ > 0 ? 1 - reloading_ : std::min(1.0, bowDraw_);
-		paint.fillRect(px - 2, py - 2, w + 4, h + 4, kInk);
-		paint.fillRect(px, py, static_cast<float>(w * progress), h, rgb(0xe8c87a));
-	}
-
-	// What just happened, stacked in the top left under the frame counter.
-	for (std::size_t i = 0; i < notices_.size(); ++i) {
-		const Popup& notice = notices_[i];
-		const std::uint8_t fade =
-			static_cast<std::uint8_t>(255 * std::min(1.0, notice.life / 0.8));
-		if (lettering_) {
-			lettering_->drawInked(notice.text, 20 * uiScale, 36 * uiScale + i * 20 * uiScale,
-								  13 * uiScale, Color{kText.r, kText.g, kText.b, fade},
-								  Face::Body, Align::Left, 1);
-		}
-	}
-
 	if (prompt && prompt[0]) {
 		// One line, over the belt: what the key under your finger would do.
 		const float size = 16 * uiScale;

@@ -482,6 +482,8 @@ void BuildSystem::updateDeployables(World& world, double dt) {
 				d.container.add(ItemId::Metal, 1);
 			} else if (d.container.take(ItemId::SulfurOre, 1) > 0) {
 				d.container.add(ItemId::Sulfur, 1);
+			} else if (d.container.take(ItemId::HqMetalOre, 1) > 0) {
+				d.container.add(ItemId::HqMetal, 1);
 			}
 			Rng rng(smeltRolls_ += 0x9e3779b9u);
 			if (rng.unit() < kCharcoalChance) d.container.add(ItemId::Charcoal, 1);

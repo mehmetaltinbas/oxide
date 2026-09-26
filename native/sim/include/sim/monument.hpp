@@ -30,7 +30,7 @@ struct MonumentDef {
 	/** The military base is held by soldiers rather than scientists. */
 	bool soldiers;
 	int crates;
-	LootEntry loot[8];
+	LootEntry loot[9];
 	int lootCount;
 	/** How many of it an island gets. */
 	int count;

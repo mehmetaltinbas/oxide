@@ -40,8 +40,10 @@ int takeFrom(ItemStack* slots, int slotCount, ItemId id, int count, int& taken) 
 }  // namespace
 
 Inventory::Inventory() {
-	// You wake up on the beach with a rock, as in the other game.
+	// You wake up on the beach with a rock and a torch: something to hit the
+	// island with, and something to get through the first night by.
 	hotbar_[0] = ItemStack{ItemId::Rock, 1};
+	hotbar_[1] = ItemStack{ItemId::Torch, 1};
 }
 
 void Inventory::selectSlot(int slot) {

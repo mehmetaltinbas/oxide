@@ -27,9 +27,9 @@ constexpr Population kWildlife[5] = {
 };
 
 /** How far off an animal notices another one worth chasing or running from. */
-constexpr double kSightRange = 340;
+constexpr double kSightRange = 420;
 /** How long it holds on to that thought after losing sight of it. */
-constexpr double kMindSeconds = 4.0;
+constexpr double kMindSeconds = 6.0;
 
 /** Everything killed comes back a day later, as every other resource does. */
 constexpr double kRegrowthSeconds = 3600;

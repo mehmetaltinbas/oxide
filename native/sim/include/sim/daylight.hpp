@@ -12,10 +12,17 @@ namespace sim {
  * stretch of work and nightfall is something you plan around.
  */
 inline constexpr double kDaySeconds = 3600;
-/** How deep the dark gets, and how much of the cycle counts as night. */
-inline constexpr double kNightDarkness = 0.86;
-inline constexpr double kNightFraction = 0.3;
-inline constexpr double kTwilight = 0.13;
+/**
+ * How deep the dark gets, and how much of the hour is night.
+ *
+ * A quarter of the cycle, so forty five minutes of daylight and fifteen of
+ * dark, with twilight either side of it. Rust runs about the same ratio: night
+ * has to be long enough to be a thing you prepare for and short enough that
+ * you are not sitting in a base waiting it out.
+ */
+inline constexpr double kNightDarkness = 0.985;
+inline constexpr double kNightFraction = 0.25;
+inline constexpr double kTwilight = 0.07;
 
 /** Where in the day we are, nought to one. */
 inline double dayFraction(double clock) {

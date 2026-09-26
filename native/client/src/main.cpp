@@ -49,7 +49,7 @@ namespace {
 
 constexpr int kWindowWidth = 1280;
 constexpr int kWindowHeight = 720;
-constexpr double kZoomMin = 0.82;
+constexpr double kZoomMin = 0.80;
 constexpr double kZoomMax = 1.8;
 
 /** Where you wake up: on a beach, as in the other game. */
@@ -469,8 +469,6 @@ int main(int argc, char** argv) {
 		actions.drop = [&](sim::ItemStack stack) {
 			world.dropStack(stack, player.x + SDL_cos(player.aim) * 34,
 							player.y + SDL_sin(player.aim) * 34);
-			hud.notify(std::string("Dropped ") + std::to_string(stack.count) + " " +
-					   sim::itemDef(stack.id).name + ".");
 		};
 		actions.consume = [&](sim::ItemId id) {
 			if (sim::consume(player, inventory, id)) {
@@ -482,19 +480,16 @@ int main(int argc, char** argv) {
 			const sim::ItemStack was = inventory.worn();
 			inventory.worn() = sim::ItemStack{id, 1};
 			if (was.id != sim::ItemId::None) inventory.add(was.id, was.count);
-			hud.notify(std::string("Put on the ") + sim::itemDef(id).name + ".");
 		};
 		actions.takeOff = [&] {
 			const sim::ItemStack was = inventory.worn();
 			if (was.id == sim::ItemId::None) return;
 			if (inventory.add(was.id, was.count) != 0) return;
 			inventory.worn() = sim::ItemStack{};
-			hud.notify(std::string("Took off the ") + sim::itemDef(was.id).name + ".");
 		};
 		panel.useActions(std::move(actions));
 	}
 	client::MapScreen map(renderer);
-	if (loaded) hud.notify("Carried on where you left off.");
 	if (clearAround) {
 		world.clearNaturalIn(player.x - 400, player.y - 400, player.x + 400, player.y + 400);
 	}
@@ -525,7 +520,6 @@ int main(int argc, char** argv) {
 		hud.say("-22", player.x, player.y - 70, client::rgb(0xffd9d9));
 		hud.say("Killed a Boar", player.x - 10, player.y + 60, client::rgb(0xefeadd));
 	}
-	if (sandbox) hud.notify("Sandbox. Every recipe is open and costs nothing.");
 	if (showMap) map.toggle();
 	// What the building plan would put down, cycled with B.
 	sim::BuildKind buildKind = sim::BuildKind::Foundation;
@@ -672,7 +666,6 @@ int main(int argc, char** argv) {
 				net.inviteFrom() != 0 && !event.key.repeat) {
 				net.sendInviteReply(net.inviteFrom(), false);
 				net.clearInvite();
-				hud.notify("Turned them down.");
 			}
 			if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_T && online &&
 				!event.key.repeat) {
@@ -688,9 +681,7 @@ int main(int argc, char** argv) {
 				}
 				if (nearest) {
 					net.sendInvite(nearest);
-					hud.notify("Asked them to team up.");
 				} else {
-					hud.notify("Nobody close enough to ask.");
 				}
 			}
 			if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_Y && online &&
@@ -703,13 +694,10 @@ int main(int argc, char** argv) {
 				const double hours = event.key.key == SDLK_RIGHTBRACKET ? 1 : -1;
 				clock += hours * sim::kDaySeconds / 24;
 				if (clock < 0) clock += sim::kDaySeconds;
-				hud.notify(hours > 0 ? "Clock moved forward 1h." : "Clock moved back 1h.");
 			}
 			if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
 				(event.key.key == SDLK_MINUS || event.key.key == SDLK_EQUALS)) {
 				audio.setVolume(audio.volume() + (event.key.key == SDLK_EQUALS ? 0.1 : -0.1));
-				hud.notify("Volume " + std::to_string(static_cast<int>(audio.volume() * 100)) +
-						   "%");
 			}
 			if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F11 &&
 				!event.key.repeat) {
@@ -767,8 +755,6 @@ int main(int argc, char** argv) {
 								  world.dropStack(stack,
 												  player.x + SDL_cos(player.aim) * 34,
 												  player.y + SDL_sin(player.aim) * 34);
-								  hud.notify(std::string("Dropped ") +
-											 sim::itemDef(stack.id).name + ".");
 							  });
 			}
 			if (event.type == SDL_EVENT_KEY_DOWN &&
@@ -782,7 +768,6 @@ int main(int argc, char** argv) {
 				if (held.id != sim::ItemId::None) {
 					world.dropStack(held, player.x + SDL_cos(player.aim) * 36,
 									player.y + SDL_sin(player.aim) * 36);
-					hud.notify(std::string("Dropped ") + sim::itemDef(held.id).name);
 					held = sim::ItemStack{};
 				}
 			}
@@ -910,8 +895,6 @@ int main(int argc, char** argv) {
 				player.y += dy * pull;
 			}
 			const std::string refused = net.takeRefusal();
-			if (!refused.empty()) hud.notify(refused);
-			while (chatSeen < net.chat().size()) hud.notify(net.chat()[chatSeen++]);
 		}
 		world.update(dt);
 		hud.update(dt);
@@ -1020,7 +1003,6 @@ int main(int argc, char** argv) {
 					player.y = bag->y;
 				}
 				inventory = sim::Inventory();
-				hud.notify(bag ? "Woke up in your bag." : "Woke up on the beach with nothing.");
 				wakeIn = 0;
 			}
 		}
@@ -1259,13 +1241,13 @@ int main(int argc, char** argv) {
 			if (piece &&
 				SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
 						 (cursorY - player.y) * (cursorY - player.y)) > 140) {
-				hud.notify("Too far to work on that.");
+				hud.say("Too far to work on that.", player.x, player.y - 30, client::rgb(0xefeadd));
 			} else if (piece && piece->hp < piece->maxHp) {
 				// Mending costs wood by how much of it is gone.
 				const int cost = std::max(1, static_cast<int>(
 												 SDL_ceil((piece->maxHp - piece->hp) * 0.06)));
 				if (inventory.count(sim::ItemId::Wood) < cost) {
-					hud.notify("Need " + std::to_string(cost) + " wood to repair.");
+					hud.say("Need " + std::to_string(cost) + " wood to repair.", player.x, player.y - 30, client::rgb(0xefeadd));
 				} else {
 					inventory.take(sim::ItemId::Wood, cost);
 					piece->hp = piece->maxHp;
@@ -1276,15 +1258,14 @@ int main(int argc, char** argv) {
 			} else if (piece) {
 				sim::BuildTier up = sim::BuildTier::Twig;
 				if (!build.nextTier(*piece, up)) {
-					hud.notify("Already sheet metal.");
+					hud.say("Already sheet metal.", player.x, player.y - 30, client::rgb(0xefeadd));
 				} else if (build.upgrade(*piece, inventory)) {
-					hud.notify(std::string("Upgraded to ") + sim::tierDef(up).name + ".");
+					hud.say(std::string("Upgraded to ") + sim::tierDef(up).name + ".", player.x, player.y - 30, client::rgb(0xefeadd));
 					audio.build();
 					specks.burst(cursorX, cursorY, 12, client::rgb(0x9aa8b4), 110, 0.5, 3);
 				} else {
 					const sim::Cost& cost = sim::tierDef(up).cost;
-					hud.notify("Need " + std::to_string(cost.count) + " " +
-							   sim::itemDef(cost.id).name + ".");
+					hud.say("Need " + std::to_string(cost.count) + " " + sim::itemDef(cost.id).name + ".", player.x, player.y - 30, client::rgb(0xefeadd));
 				}
 			}
 			player.attackTimer = 0.35;
@@ -1296,7 +1277,6 @@ int main(int argc, char** argv) {
 			const sim::ItemStack was = inventory.worn();
 			if (inventory.add(was.id, was.count) == 0) {
 				inventory.worn() = sim::ItemStack{};
-				hud.notify(std::string("Took off the ") + sim::itemDef(was.id).name + ".");
 			}
 			player.attackTimer = 0.4;
 		}
@@ -1308,7 +1288,6 @@ int main(int argc, char** argv) {
 			if (inventory.take(inHand, 1) > 0) {
 				inventory.worn() = sim::ItemStack{inHand, 1};
 				if (was.id != sim::ItemId::None) inventory.add(was.id, was.count);
-				hud.notify(std::string("Wearing ") + sim::itemDef(inHand).name + ".");
 			}
 			player.attackTimer = 0.4;
 		}
@@ -1326,7 +1305,6 @@ int main(int argc, char** argv) {
 				char fuse[64];
 				SDL_snprintf(fuse, sizeof(fuse), "%s thrown. %.1fs.", sim::itemDef(inHand).name,
 							 sim::itemDef(inHand).boom.fuse);
-				hud.notify(fuse);
 			}
 			player.attackTimer = 0.5;
 		}
@@ -1637,6 +1615,40 @@ int main(int argc, char** argv) {
 		}
 		if (!playerDrawn) drawPlayer();
 
+		// The one progress indicator, and it sits beside you rather than over
+		// the belt: a timer you have to look away from is a timer you do not
+		// watch. A bandage, a syringe and a magazine change all use it, always
+		// the same size, so a three second job visibly runs faster than a five
+		// second one instead of the two looking identical.
+		{
+			double progress = -1;
+			client::Color arc = client::rgb(0xffffff);
+			if (player.useTotal > 0 && player.useLeft > 0) {
+				progress = 1 - player.useLeft / player.useTotal;
+			} else if (player.reloadTotal > 0 && player.reloadLeft > 0) {
+				progress = 1 - player.reloadLeft / player.reloadTotal;
+			} else if (player.bowDraw > 0) {
+				progress = std::min(1.0, player.bowDraw / sim::kBowDrawSeconds);
+			}
+			if (progress >= 0) {
+				const float px = static_cast<float>((player.x - camX) * scale) + width * 0.5f;
+				const float py = static_cast<float>((player.y - camY) * scale) + height * 0.5f;
+				const float rr = 20 * static_cast<float>(scale);
+				const float from = -0.8f;
+				const float to = 0.8f;
+				const auto sweep = [&](float upTo, float thick, client::Color color) {
+					std::vector<client::Point> along;
+					for (int i = 0; i <= 16; ++i) {
+						const float a = from + (upTo - from) * (static_cast<float>(i) / 16);
+						along.push_back({px + std::cos(a) * rr, py + std::sin(a) * rr});
+					}
+					paint.outlinePoly(along, thick, color, false);
+				};
+				sweep(to, 4, client::Color{8, 10, 12, 140});
+				sweep(from + (to - from) * static_cast<float>(progress), 2.5f, arc);
+			}
+		}
+
 		for (const sim::Deployable& thing : build.deployables()) {
 			if (thing.kind == sim::DeployKind::SleepingBag) continue;
 			if (hidden(thing.x, thing.y)) continue;
@@ -1787,8 +1799,11 @@ int main(int argc, char** argv) {
 					paint.fillCircle(sx, sy, r * t, client::Color{255, 220, 165, a});
 				}
 			};
-			// No light on the player: a torchless survivor casts none, and the
-			// halo round him read as a bug rather than as a lamp.
+			// A survivor casts no light of their own. A torch in the hand does,
+			// which is the whole point of carrying one.
+			if (player.alive && inventory.held() == sim::ItemId::Torch) {
+				glow(player.x, player.y, 210);
+			}
 			for (const sim::Deployable& thing : build.deployables()) {
 				if (thing.lit) glow(thing.x, thing.y, 250);
 			}
@@ -1887,7 +1902,7 @@ int main(int argc, char** argv) {
 		map.draw(paint, world, build, player, width, height, static_cast<float>(density));
 		panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
 		panel.setSandbox(sandbox);
-		if (panel.takeQueueFull()) hud.notify("Crafting queue is full.");
+		hud.say("Crafting queue is full.", player.x, player.y - 30, client::rgb(0xefeadd));
 		panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
 		if (typing) {
 			const std::string line = "say: " + typed + "_";
