@@ -29,13 +29,20 @@ const std::vector<Recipe>& recipes();
 bool canAfford(const Inventory& inventory, const Recipe& recipe);
 
 /** How many of it the pack could pay for, at the bench you are standing at. */
-int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTier);
+/**
+ * How many of a thing could be made now. In sandbox, where a recipe costs
+ * nothing and needs no bench, the answer is however many the queue will hold.
+ */
+int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTier,
+                   bool free = false);
 
 /** One thing being made: what, and how long is left of it. */
 struct CraftJob {
     int id;
     const Recipe* recipe;
     double left;
+    /** Whether it cost anything, so a cancelled sandbox job refunds nothing. */
+    bool paid = true;
 };
 
 /**
@@ -50,6 +57,15 @@ public:
     /** How many jobs may be waiting at once. */
     static constexpr int kQueueMax = 8;
 
+    /**
+     * Sandbox: any recipe, at any bench, for nothing.
+     *
+     * The one thing it does not do is hand out ammunition, which is still made
+     * a box at a time and still runs out in a fight.
+     */
+    void setFree(bool free) { free_ = free; }
+    bool isFree() const { return free_; }
+
     /** Queues one, taking its cost. Says whether it went on. */
     bool queue(Inventory& inventory, const Recipe& recipe, int benchTier);
     /** Takes one back off and returns what it cost. */
@@ -63,6 +79,7 @@ public:
 private:
     std::vector<CraftJob> jobs_;
     int nextId_ = 1;
+    bool free_ = false;
 };
 
 }  // namespace sim

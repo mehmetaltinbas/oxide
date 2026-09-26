@@ -74,7 +74,8 @@ bool canAfford(const Inventory& inventory, const Recipe& recipe) {
     return true;
 }
 
-int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTier) {
+int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTier, bool free) {
+    if (free) return Crafting::kQueueMax;
     if (recipe.bench > benchTier) return 0;
     int most = 9999;
     for (int i = 0; i < recipe.costCount; ++i) {
@@ -86,12 +87,14 @@ int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTi
 bool Crafting::queue(Inventory& inventory, const Recipe& recipe, int benchTier) {
     if (static_cast<int>(jobs_.size()) >= kQueueMax) return false;
     // What you can make is what you are standing next to.
-    if (recipe.bench > benchTier) return false;
-    if (!canAfford(inventory, recipe)) return false;
-    for (int i = 0; i < recipe.costCount; ++i) {
-        inventory.take(recipe.cost[i].id, recipe.cost[i].count);
+    if (!free_) {
+        if (recipe.bench > benchTier) return false;
+        if (!canAfford(inventory, recipe)) return false;
+        for (int i = 0; i < recipe.costCount; ++i) {
+            inventory.take(recipe.cost[i].id, recipe.cost[i].count);
+        }
     }
-    jobs_.push_back(CraftJob{nextId_++, &recipe, recipe.seconds});
+    jobs_.push_back(CraftJob{nextId_++, &recipe, recipe.seconds, !free_});
     return true;
 }
 
@@ -99,6 +102,10 @@ void Crafting::cancel(Inventory& inventory, int jobId) {
     const auto it = std::find_if(jobs_.begin(), jobs_.end(),
                                  [jobId](const CraftJob& job) { return job.id == jobId; });
     if (it == jobs_.end()) return;
+    if (!it->paid) {
+        jobs_.erase(it);
+        return;
+    }
     for (int i = 0; i < it->recipe->costCount; ++i) {
         inventory.add(it->recipe->cost[i].id, it->recipe->cost[i].count);
     }

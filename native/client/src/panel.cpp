@@ -432,7 +432,7 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
     }
 
     // How many, and the button that starts them.
-    const int possible = sim::craftableCount(inventory, recipe, bench_);
+    const int possible = sim::craftableCount(inventory, recipe, bench_, sandbox_);
     const float qy = l.y + l.h - 124 * uiScale;
     say(paint, detX, qy - 18 * uiScale, 11 * uiScale, ui::kSubtle, "AMOUNT");
     const float stepW = 34 * uiScale;
@@ -715,7 +715,7 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
     const float detW = l.x + l.w - detX - 24 * uiScale - queueW - 24 * uiScale;
     const float qy = l.y + l.h - 124 * uiScale;
     const float stepW = 34 * uiScale;
-    const int possible = sim::craftableCount(inventory, recipe, bench_);
+    const int possible = sim::craftableCount(inventory, recipe, bench_, sandbox_);
     if (ui::inside(x, y, detX, qy, stepW, stepW)) {
         amount_ = std::max(1, amount_ - 1);
         return true;

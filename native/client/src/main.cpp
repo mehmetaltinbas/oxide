@@ -123,6 +123,8 @@ int main(int argc, char** argv) {
     /** The pack open with something in it, for a look at the screen itself. */
     bool showPanel = false;
     bool showCraft = false;
+    /** Seconds left of the note that says multiplayer is not here yet. */
+    double titleNotice = 0;
     /** The island's own map, opened for a look at it. */
     bool showMap = false;
     bool showTitle = false;
@@ -360,7 +362,7 @@ int main(int argc, char** argv) {
                              benchFrames > 0 || showBase || poseDraw >= 0 || poseSwing >= 0 ||
                              showPopups || clearAround;
     bool loaded = false;
-    if (!online && !sandbox && !asGenerated) {
+    if (!online && !asGenerated) {
         sim::Session session;
         if (sim::loadSession(savePath, session, world, build) && session.seed == seed) {
             player = session.player;
@@ -381,18 +383,12 @@ int main(int argc, char** argv) {
         inventory.add(sim::ItemId::Arrow, 20);
         inventory.selectSlot(1);
     }
+    sim::Crafting crafting;
     const auto fillSandbox = [&] {
-        // Every bench to hand and a bag of everything, so the whole game can
-        // be looked at without playing through it first.
-        inventory.add(sim::ItemId::Workbench3, 1);
-        inventory.add(sim::ItemId::BuildingPlan, 1);
-        inventory.add(sim::ItemId::Hatchet, 1);
-        inventory.add(sim::ItemId::Wood, 5000);
-        inventory.add(sim::ItemId::Stone, 5000);
-        inventory.add(sim::ItemId::Metal, 5000);
-        inventory.add(sim::ItemId::Scrap, 2000);
-        inventory.add(sim::ItemId::Cloth, 1000);
-        inventory.add(sim::ItemId::Gunpowder, 2000);
+        // Nothing is handed out: in sandbox the whole recipe book is open and
+        // costs nothing, so anything you want is a few seconds at the bench.
+        // Ammunition included, which is why it still runs out in a fight.
+        crafting.setFree(true);
     };
     if (sandbox) fillSandbox();
     if (armed) {
@@ -453,7 +449,6 @@ int main(int argc, char** argv) {
 
     sim::Projectiles projectiles;
     sim::Explosives explosives;
-    sim::Crafting crafting;
     client::Hud hud;
     client::Particles specks;
     client::Audio audio;
@@ -470,7 +465,7 @@ int main(int argc, char** argv) {
         hud.say("-22", player.x, player.y - 70, client::rgb(0xffd9d9));
         hud.say("Killed a Boar", player.x - 10, player.y + 60, client::rgb(0xefeadd));
     }
-    if (sandbox) hud.notify("Sandbox. Nothing costs anything and nothing can kill you.");
+    if (sandbox) hud.notify("Sandbox. Every recipe is open and costs nothing.");
     if (showMap) map.toggle();
     // What the building plan would put down, cycled with B.
     sim::BuildKind buildKind = sim::BuildKind::Foundation;
@@ -580,12 +575,15 @@ int main(int argc, char** argv) {
             }
             if (title) {
                 if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-                    if (event.key.key == SDLK_RETURN) title = false;
-                    if (event.key.key == SDLK_S) {
+                    // Two ways in, and only one of them opens yet: enter or S
+                    // drops you on your island, M is the online game, which is
+                    // not built.
+                    if (event.key.key == SDLK_RETURN || event.key.key == SDLK_S) {
                         sandbox = true;
                         fillSandbox();
                         title = false;
                     }
+                    if (event.key.key == SDLK_M) titleNotice = 3.0;
                     if (event.key.key == SDLK_ESCAPE) running = false;
                 }
                 continue;
@@ -869,7 +867,7 @@ int main(int argc, char** argv) {
         // Nothing warms you yet: the campfire arrives with the deployables.
         build.updateDeployables(world, dt);
         specks.update(dt);
-        if (!online && !sandbox) {
+        if (!online) {
             sinceSave += dt;
             if (sinceSave > 20) {
                 sinceSave = 0;
@@ -913,17 +911,6 @@ int main(int argc, char** argv) {
         const double dark = sim::darkness(clock);
         sim::updateSurvival(world, player, inventory, dt, sim::nightness(clock),
                             build.warmthAt(player.x, player.y));
-        if (sandbox) {
-            // Topped up every tick, so the bars read normally and nothing else
-            // in the game has to know this mode exists.
-            player.health = sim::PlayerVitals::kMaxHealth;
-            player.calories = sim::PlayerVitals::kMaxCalories;
-            player.hydration = sim::PlayerVitals::kMaxHydration;
-            player.temperature = sim::PlayerVitals::kComfortTemp;
-            player.radiation = 0;
-            player.bleeding = 0;
-            player.alive = true;
-        }
         sim::updateUse(player, inventory, dt, player.sprinting);
 
         if (!player.alive && !dead) {
@@ -1852,16 +1839,32 @@ int main(int argc, char** argv) {
             lettering.draw("an island, a rock, and whatever you make of them", width * 0.5f,
                            height * 0.45f, 20 * density, client::Color{160, 160, 150, 255},
                            client::Face::Body, client::Align::Centre);
-            // The keys in a column of their own, so the eye runs down them.
-            static const char* kKeys[] = {"ENTER", "S", "ESC"};
-            static const char* kWhat[] = {"play", "sandbox: everything to hand, nothing to lose",
-                                          "leave"};
+            // Two modes, in a column of their own so the eye runs down them.
+            // Multiplayer is listed and not yet built, which is what the grey
+            // and the line under it say.
+            struct Mode {
+                const char* key;
+                const char* what;
+                bool ready;
+            };
+            static const Mode kModes[] = {
+                {"S", "Sandbox: your own island, every recipe open", true},
+                {"M", "Multiplayer: not built yet", false},
+                {"ESC", "Leave", true},
+            };
             for (int i = 0; i < 3; ++i) {
                 const float y = height * 0.55f + i * 36 * density;
-                lettering.draw(kKeys[i], width * 0.5f - 260 * density, y, 20 * density,
-                               client::rgb(0xefeadd), client::Face::Display);
-                lettering.draw(kWhat[i], width * 0.5f - 130 * density, y, 18 * density,
-                               client::rgb(0xefeadd));
+                const client::Color ink = kModes[i].ready ? client::rgb(0xefeadd)
+                                                          : client::Color{120, 120, 112, 255};
+                lettering.draw(kModes[i].key, width * 0.5f - 260 * density, y, 20 * density, ink,
+                               client::Face::Display);
+                lettering.draw(kModes[i].what, width * 0.5f - 190 * density, y, 18 * density, ink);
+            }
+            if (titleNotice > 0) {
+                titleNotice -= 1.0 / 60;
+                lettering.draw("Multiplayer is not in this build yet.", width * 0.5f,
+                               height * 0.55f + 3 * 36 * density + 14 * density, 16 * density,
+                               client::rgb(0xd8483a), client::Face::Body, client::Align::Centre);
             }
         }
 
@@ -2032,7 +2035,7 @@ int main(int argc, char** argv) {
         SDL_RenderPresent(renderer);
     }
 
-    if (!online && !sandbox && benchFrames <= 0 && !shotPath) {
+    if (!online && benchFrames <= 0 && !shotPath) {
         // On the way out, so quitting never costs you the last twenty seconds.
         sim::Session session;
         session.seed = seed;
