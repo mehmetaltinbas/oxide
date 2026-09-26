@@ -209,10 +209,14 @@ FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, 
 	out.y = player.y;
 	out.angle = player.aim;
 
-	// The muzzle sits out in front of the chest, not in the middle of it.
-	const double muzzle = 18;
-	const double mx = player.x + std::cos(player.aim) * muzzle;
-	const double my = player.y + std::sin(player.aim) * muzzle;
+	// The end of the barrel as it is drawn, and a little to the right, because
+	// a gun is held in a hand and a hand is not in the middle of a chest.
+	const double muzzle = gun.muzzle > 0 ? gun.muzzle : 18;
+	constexpr double kHandOffset = 5;
+	const double mx = player.x + std::cos(player.aim) * muzzle +
+					  std::cos(player.aim + 1.5707963267948966) * kHandOffset;
+	const double my = player.y + std::sin(player.aim) * muzzle +
+					  std::sin(player.aim + 1.5707963267948966) * kHandOffset;
 	if (held == ItemId::RocketLauncher) {
 		projectiles.spawnRocket(mx, my, player.aim, gun, itemDef(held).boom);
 		out.rounds = 1;

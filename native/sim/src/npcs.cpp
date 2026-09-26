@@ -37,6 +37,8 @@ constexpr double kMindSeconds = 6.0;
  * the distance.
  */
 constexpr double kSkittishRange = 260;
+/** How long a frightened animal keeps running after it is hurt. */
+constexpr double kAlarmSeconds = 7.0;
 
 /** Everything killed comes back a day later, as every other resource does. */
 constexpr double kRegrowthSeconds = 3600;
@@ -131,10 +133,20 @@ void NpcSystem::hurt(World& world, Npc& npc, double amount, double fromX, double
 		return;
 	}
 	npc.flash = 0.12;
-	// Anything that is hit fights back, whether or not it started hostile.
+	npc.shoreWait = 0;
+	// Frightened either way, and for long enough to get clear: an arrow out of
+	// nowhere has to send a deer running even though whoever loosed it is too
+	// far off to see.
+	npc.alarm = kAlarmSeconds;
+	if (npcDef(npc.kind).skittish) {
+		// Away from it.
+		npc.state = NpcState::Flee;
+		npc.facing = std::atan2(npc.y - fromY, npc.x - fromX);
+		return;
+	}
+	// Anything else fights back, whether or not it started hostile.
 	npc.state = NpcState::Chase;
 	npc.facing = std::atan2(fromY - npc.y, fromX - npc.x);
-	npc.shoreWait = 0;
 }
 
 void NpcSystem::drop(World& world, const Npc& npc) {
@@ -346,7 +358,9 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 
 		const double toPlayer = dist(npc.x, npc.y, player.x, player.y);
 		const double fromHome = dist(npc.x, npc.y, npc.homeX, npc.homeY);
-		const bool provoked = npc.state == NpcState::Chase || npc.state == NpcState::Attack;
+		npc.alarm = std::max(0.0, npc.alarm - dt);
+		const bool provoked =
+			npc.state == NpcState::Chase || npc.state == NpcState::Attack || npc.alarm > 0;
 		// Nothing fights a corpse: while you are waiting to wake up, the
 		// island leaves you alone.
 		const bool wantsFight = (def.hostile || provoked) && player.alive;

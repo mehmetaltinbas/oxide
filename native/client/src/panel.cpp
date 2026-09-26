@@ -207,14 +207,39 @@ int Panel::actionsFor(sim::ItemId id, bool worn, Action out[4]) const {
 	return n;
 }
 
-void Panel::queueButton(const Layout& l, float uiScale, int row, int which, float& bx, float& by,
-						float& bw) const {
+void Panel::queueChip(const Layout& l, float uiScale, int row, float& cx, float& cy, float& cw,
+					  float& ch) const {
 	const float queueW = 218 * uiScale;
-	const float queueX = l.x + l.w - queueW - 20 * uiScale;
-	const float listY = l.y + 88 * uiScale;
+	cx = l.x + l.w - queueW - 20 * uiScale;
+	cy = l.y + 88 * uiScale + row * 42 * uiScale;
+	cw = queueW - 20 * uiScale;
+	ch = 36 * uiScale;
+}
+
+int Panel::queueRowUnder(const Layout& l, float uiScale, int rows, float x, float y) const {
+	for (int i = 0; i < rows; ++i) {
+		float cx = 0;
+		float cy = 0;
+		float cw = 0;
+		float ch = 0;
+		queueChip(l, uiScale, i, cx, cy, cw, ch);
+		// The gap between chips counts as the chip above it, so a drag never
+		// falls between two rows and lands nowhere.
+		if (y >= cy - 3 * uiScale && y < cy + 42 * uiScale && x >= cx && x <= cx + cw) return i;
+	}
+	return -1;
+}
+
+void Panel::queueButton(const Layout& l, float uiScale, int row, float& bx, float& by,
+						float& bw) const {
+	float cx = 0;
+	float cy = 0;
+	float cw = 0;
+	float ch = 0;
+	queueChip(l, uiScale, row, cx, cy, cw, ch);
 	bw = 16 * uiScale;
-	bx = queueX + queueW - 20 * uiScale - (3 - which) * (bw + 3 * uiScale);
-	by = listY + row * 42 * uiScale + 3 * uiScale;
+	bx = cx + cw - bw - 8 * uiScale;
+	by = cy + (ch - bw) * 0.5f;
 }
 
 void Panel::actionBox(const Layout& l, float uiScale, int index, int count, float& bx, float& by,
@@ -444,39 +469,48 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 	} else {
 		for (std::size_t i = 0; i < crafting.jobs().size(); ++i) {
 			const sim::CraftJob& job = crafting.jobs()[i];
-			const float jy = listY + i * 42 * uiScale;
-			paint.fillRoundRect(queueX, jy, queueW - 20 * uiScale, 36 * uiScale,
-								ui::kRadiusMedium, ui::kSurfaceAlt);
-			drawItemIcon(paint, job.recipe->out, queueX + 20 * uiScale, jy + 18 * uiScale,
+			float cx = 0;
+			float cy = 0;
+			float cw = 0;
+			float ch = 0;
+			queueChip(l, uiScale, static_cast<int>(i), cx, cy, cw, ch);
+			const bool held = dragJob_ == job.id;
+			// The one being carried follows the mouse and rides above the rest.
+			if (held) cy = mouseY - dragJobY_;
+			const bool hovered = ui::inside(mouseX, mouseY, cx, cy, cw, ch);
+			paint.fillRoundRect(cx, cy, cw, ch, ui::kRadiusMedium,
+								held ? ui::kSelected : hovered ? ui::kHover : ui::kSurfaceAlt);
+			if (held) paint.outlineRoundRect(cx, cy, cw, ch, ui::kRadiusMedium, 1.5f * uiScale,
+											 ui::kAccentInk);
+			// The grip: three lines that say this is a thing you can pick up.
+			for (int g = 0; g < 3; ++g) {
+				paint.fillRect(cx + 7 * uiScale, cy + (12 + g * 5) * uiScale, 7 * uiScale,
+							   1.5f * uiScale, ui::kFaint);
+			}
+			drawItemIcon(paint, job.recipe->out, cx + 32 * uiScale, cy + 18 * uiScale,
 						 24 * uiScale);
-			say(paint, queueX + 40 * uiScale, jy + 4 * uiScale, 12 * uiScale, ui::kInk,
+			say(paint, cx + 52 * uiScale, cy + 4 * uiScale, 12 * uiScale, ui::kInk,
 				sim::itemDef(job.recipe->out).name, Face::BodyBold);
 			// How far through it is, along the bottom of its chip.
 			const double done = 1 - job.left / job.recipe->seconds;
-			paint.fillRect(queueX + 8 * uiScale, jy + 28 * uiScale,
-						   static_cast<float>((queueW - 36 * uiScale) * done), 3 * uiScale,
+			paint.fillRect(cx + 8 * uiScale, cy + 28 * uiScale,
+						   static_cast<float>((cw - 16 * uiScale) * done), 3 * uiScale,
 						   ui::kAccent);
-			// The three handles on every job: up, down and off. The queue is
-			// something you arrange, not a line you are stuck with.
-			for (int k = 0; k < 3; ++k) {
-				float bx = 0;
-				float by = 0;
-				float bw = 0;
-				const bool last = i + 1 == crafting.jobs().size();
-				if ((k == 0 && i == 0) || (k == 1 && last)) continue;
-				queueButton(l, uiScale, static_cast<int>(i), k, bx, by, bw);
-				const bool hovered = ui::inside(mouseX, mouseY, bx, by, bw, bw);
-				paint.fillRoundRect(bx, by, bw, bw, ui::kRadiusSmall,
-									hovered ? ui::kHover : ui::kSurfaceAlt);
-				say(paint, bx + bw * 0.5f, by + bw * 0.16f, 12 * uiScale,
-					k == 2 ? ui::kWarn : ui::kSubtle, k == 0 ? "\xe2\x96\xb2"
-										: k == 1 ? "\xe2\x96\xbc"
-												 : "\xc3\x97",
-					Face::BodyBold, Align::Centre);
-			}
+			// Cancelling stays a button: throwing a job away should take a
+			// deliberate click rather than a slip of the hand.
+			float bx = 0;
+			float by = 0;
+			float bw = 0;
+			queueButton(l, uiScale, static_cast<int>(i), bx, by, bw);
+			if (held) by = cy + (ch - bw) * 0.5f;
+			const bool onX = ui::inside(mouseX, mouseY, bx, by, bw, bw);
+			paint.fillRoundRect(bx, by, bw, bw, ui::kRadiusSmall,
+								onX ? Color{194, 69, 47, 90} : ui::kSurfaceAlt);
+			say(paint, bx + bw * 0.5f, by + bw * 0.16f, 12 * uiScale, ui::kWarn, "\xc3\x97",
+				Face::BodyBold, Align::Centre);
 		}
 		say(paint, queueX, l.y + l.h - 30 * uiScale, 11 * uiScale, ui::kFaint,
-			"arrows reorder \xc2\xb7 \xc3\x97 cancels and refunds");
+			"drag to reorder \xc2\xb7 \xc3\x97 cancels and refunds");
 	}
 
 	if (selected_ < 0 || selected_ >= static_cast<int>(all.size())) {
@@ -822,24 +856,14 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 	const float queueX = l.x + l.w - queueW - 20 * uiScale;
 	for (std::size_t i = 0; i < crafting.jobs().size(); ++i) {
 		const int id = crafting.jobs()[i].id;
-		bool handled = false;
-		for (int k = 0; k < 3; ++k) {
-			float bx = 0;
-			float by = 0;
-			float bw = 0;
-			queueButton(l, uiScale, static_cast<int>(i), k, bx, by, bw);
-			if (!ui::inside(x, y, bx, by, bw, bw)) continue;
-			if (k == 0) {
-				crafting.reorder(id, -1);
-			} else if (k == 1) {
-				crafting.reorder(id, 1);
-			} else {
-				crafting.cancel(inventory, id);
-			}
-			handled = true;
-			break;
+		float bx = 0;
+		float by = 0;
+		float bw = 0;
+		queueButton(l, uiScale, static_cast<int>(i), bx, by, bw);
+		if (ui::inside(x, y, bx, by, bw, bw)) {
+			crafting.cancel(inventory, id);
+			return true;
 		}
-		if (handled) return true;
 		if (!ui::inside(x, y, queueX, listY + i * 42 * uiScale, queueW - 20 * uiScale,
 						36 * uiScale)) {
 			continue;
@@ -927,12 +951,36 @@ bool Panel::slotAt(float x, float y, const Layout& l, int width, int height, flo
 	return false;
 }
 
-void Panel::press(sim::Inventory& inventory, float x, float y, int width, int height,
-				  float uiScale) {
+void Panel::press(sim::Inventory& inventory, sim::Crafting& crafting, float x, float y, int width,
+				  int height, float uiScale) {
 	(void)inventory;
 	if (!open_ || drag_.id != sim::ItemId::None) return;
 	pressFrom_ = From::None;
+	dragJob_ = -1;
 	const Layout l = layoutOf(width, height, uiScale);
+	if (tab_ == Tab::Craft) {
+		// A job picked up to move it. The cancel button is checked first by
+		// click(), which runs alongside this, so a press on it never drags.
+		const int row = queueRowUnder(l, uiScale, static_cast<int>(crafting.jobs().size()), x, y);
+		if (row >= 0) {
+			float bx = 0;
+			float by = 0;
+			float bw = 0;
+			queueButton(l, uiScale, row, bx, by, bw);
+			if (!ui::inside(x, y, bx, by, bw, bw)) {
+				float cx = 0;
+				float cy = 0;
+				float cw = 0;
+				float ch = 0;
+				queueChip(l, uiScale, row, cx, cy, cw, ch);
+				dragJob_ = crafting.jobs()[static_cast<std::size_t>(row)].id;
+				dragJobRow_ = row;
+				// Where on the chip it was taken hold of, so it does not jump.
+				dragJobY_ = y - cy;
+			}
+		}
+		return;
+	}
 	From from = From::None;
 	int slot = 0;
 	if (!slotAt(x, y, l, width, height, uiScale, from, slot)) return;
@@ -1016,8 +1064,36 @@ void Panel::sendAcross(sim::Inventory& inventory, From from, int slot) {
 	}
 }
 
-void Panel::release(sim::Inventory& inventory, float x, float y, int width, int height,
-					float uiScale, const std::function<void(sim::ItemStack)>& dropped) {
+void Panel::release(sim::Inventory& inventory, sim::Crafting& crafting, float x, float y,
+					int width, int height, float uiScale,
+					const std::function<void(sim::ItemStack)>& dropped) {
+	if (dragJob_ >= 0) {
+		// Dropped wherever it was let go: the queue closes up round it.
+		const Layout l = layoutOf(width, height, uiScale);
+		const int rows = static_cast<int>(crafting.jobs().size());
+		int to = queueRowUnder(l, uiScale, rows, x, y);
+		if (to < 0) {
+			// Let go above or below the list: the top or the bottom of it.
+			float cx = 0;
+			float cy = 0;
+			float cw = 0;
+			float ch = 0;
+			queueChip(l, uiScale, 0, cx, cy, cw, ch);
+			to = y < cy ? 0 : rows - 1;
+		}
+		// Moved one place at a time, because that is what reorder does and it
+		// keeps the job at the front holding on to the seconds it has run.
+		while (to > dragJobRow_) {
+			crafting.reorder(dragJob_, 1);
+			++dragJobRow_;
+		}
+		while (to < dragJobRow_) {
+			crafting.reorder(dragJob_, -1);
+			--dragJobRow_;
+		}
+		dragJob_ = -1;
+		return;
+	}
 	if (drag_.id == sim::ItemId::None) {
 		// Pressed and let go without moving: that is a click, and a click on a
 		// slot is a question about what is in it.

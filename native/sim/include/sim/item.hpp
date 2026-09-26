@@ -111,6 +111,15 @@ struct Gun {
 	double reloadSeconds;
 	/** More than one means a cone of them: a shotgun. */
 	int pellets;
+	/**
+	 * How far out in front of you the round appears, in world units.
+	 *
+	 * The end of the barrel as it is actually drawn, not the middle of your
+	 * chest: a long gun's muzzle is most of its own length past your hand, and
+	 * rounds coming out of your ribs was the giveaway that this was a guess.
+	 * Zero falls back to a sensible default.
+	 */
+	double muzzle;
 };
 
 /** What eating, drinking or applying something does. */

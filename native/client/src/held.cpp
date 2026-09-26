@@ -254,10 +254,15 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 		paint.outlinePoly(shape, kGlyphInk, kInk);
 	};
 	// The same, with the shape's own edge colour drawn back over the pen.
+	// The shape's own edge colour, with the pen laid UNDER it rather than over.
+	// It was the other way round, and since the colour is the wider of the two
+	// it painted over every black line in the sheet: the ink was being drawn
+	// and then hidden, which is why turning kGlyphInk up did nothing.
 	const auto edged = [&](const std::vector<Point>& shape, Color color, Color edge) {
 		paint.fillPoly(shape, color);
-		paint.outlinePoly(shape, kGlyphInk, kInk);
-		paint.outlinePoly(shape, paint.inWorld(0.045f * u), edge);
+		const float own = paint.inWorld(0.045f * u);
+		paint.outlinePoly(shape, own + kGlyphInk * 2, kInk);
+		paint.outlinePoly(shape, own, edge);
 	};
 	const auto box = [&](float ux, float uy, float uw, float uh, Color color) {
 		fill(pts({{ux, uy}, {ux + uw, uy}, {ux + uw, uy + uh}, {ux, uy + uh}}), color);
@@ -671,7 +676,9 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			edged(pts({{-0.15f, -0.3f}, {0.15f, -0.3f}, {0.15f, -0.08f}, {0, 0.0f},
 					   {-0.15f, -0.08f}}),
 				  rgb(0x8d9aa4), rgb(0x4a5560));
-			box(-0.1f, -0.24f, 0.2f, 0.05f, rgb(0x2a3138));
+			// A slit, in the same steel as the rest: a black rectangle read as
+			// a hole punched in the icon.
+			box(-0.1f, -0.235f, 0.2f, 0.035f, rgb(0x6e7d88));
 			plainDisc(-0.16f, 0.1f, 0.03f, rgb(0x5d6a74));
 			plainDisc(0.16f, 0.1f, 0.03f, rgb(0x5d6a74));
 			plainDisc(-0.16f, 0.21f, 0.03f, rgb(0x5d6a74));

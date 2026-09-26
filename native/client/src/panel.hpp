@@ -83,11 +83,12 @@ public:
 	 * a slot and you are reading about what is in it, hold and pull and you are
 	 * carrying it.
 	 */
-	void press(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale);
+	void press(sim::Inventory& inventory, sim::Crafting& crafting, float x, float y, int width,
+			   int height, float uiScale);
 	/** The mouse moving, which is what turns a press into a drag. */
 	void motion(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale);
-	void release(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale,
-				 const std::function<void(sim::ItemStack)>& dropped);
+	void release(sim::Inventory& inventory, sim::Crafting& crafting, float x, float y, int width,
+				 int height, float uiScale, const std::function<void(sim::ItemStack)>& dropped);
 	const sim::ItemStack& dragging() const { return drag_; }
 
 	/** A transfer in progress, which finishes on its own. */
@@ -138,9 +139,13 @@ private:
 	};
 	/** What can be done with a thing, in the order the buttons stack. */
 	int actionsFor(sim::ItemId id, bool worn, Action out[4]) const;
-	/** Where the up, down and cancel handles on a queued job sit. */
-	void queueButton(const Layout& l, float uiScale, int row, int which, float& bx, float& by,
+	/** Where the cancel handle on a queued job sits. */
+	void queueButton(const Layout& l, float uiScale, int row, float& bx, float& by,
 					 float& bw) const;
+	/** The chip a queued job is drawn on, and which one a point is over. */
+	void queueChip(const Layout& l, float uiScale, int row, float& cx, float& cy, float& cw,
+				   float& ch) const;
+	int queueRowUnder(const Layout& l, float uiScale, int rows, float x, float y) const;
 	/** Where the nth of `count` buttons sits. */
 	void actionBox(const Layout& l, float uiScale, int index, int count, float& bx, float& by,
 				   float& bw, float& bh) const;
@@ -176,6 +181,17 @@ private:
 	sim::ItemStack drag_{};
 	From dragFrom_ = From::None;
 	int dragSlot_ = 0;
+	/**
+	 * A job being dragged up or down the queue.
+	 *
+	 * Below zero means nothing is being dragged. Reordering is a drag because
+	 * that is what moving something in a list is; cancelling stays a button,
+	 * because throwing a job away should take a deliberate click.
+	 */
+	int dragJob_ = -1;
+	int dragJobRow_ = 0;
+	float dragJobY_ = 0;
+
 	/** A press that has not become a drag yet: where it was, and on what. */
 	From pressFrom_ = From::None;
 	int pressSlot_ = 0;

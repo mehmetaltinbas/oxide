@@ -116,6 +116,14 @@ struct Npc {
 	 */
 	int target;
 	double mind;
+	/**
+	 * Seconds left of being frightened.
+	 *
+	 * Set by anything that hurts it, and the reason an arrow out of nowhere
+	 * sends a deer running: once it is fleeing its state is no longer Chase,
+	 * so "has it been provoked" could not be read off the state alone.
+	 */
+	double alarm;
 	std::uint32_t seed;
 };
 

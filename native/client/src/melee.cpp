@@ -43,9 +43,10 @@ MeleePose pose(const Key& k) {
 	out.angle = k.tool;
 	out.stretch = k.stretch;
 	out.twist = k.twist;
-	// Carried upright, what you see over the fist is the head; mid-swing the
-	// tool lies flat and hangs off the grip as it should.
-	out.overHand = k.stretch < 0.9f;
+	// Only when a tool really is pointing away from you does the head sit over
+	// the fist. At anything less than that the handle is still visible, and
+	// hiding it leaves a blade hanging in the air.
+	out.overHand = k.stretch < 0.7f;
 	return out;
 }
 
@@ -57,9 +58,11 @@ float easeInOut(float u) { return u * u * (3 - 2 * u); }
  * of the tool out ahead and a little to the side, not pointed at the sky.
  */
 constexpr Key kCarry[3] = {
-	// Chop: upright at the hip, handle up out of the page, the head turned so
-	// its two ends point ahead of you and behind you, as you carry an axe.
-	{0.75f, 1.5707963f, 0.55f, 0, true, 12, -6},
+	// Chop: carried at the hip with the haft across you and the head forward,
+	// which is how you actually walk with an axe. It used to be held upright
+	// and foreshortened to nothing, so all you saw was a white blade floating
+	// over the fist with no handle under it.
+	{0.75f, 1.05f, 0.88f, 0, true, 11, -7},
 	{0.4f, 0, 1, 0, true, 9.5f, -9},
 	// Thrust: a spear or a gun, held out ahead of you and pointed where you
 	// are looking.

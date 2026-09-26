@@ -68,20 +68,20 @@ constexpr ItemDef kItems[] = {
 	{ItemId::Spear, "Wooden Spear", "Cheap reach. Better than fists.", ItemCategory::Weapon, 1, {38, 1, 0.85, 78}, kNoGun, kNoFood, kNoWear, kNoBoom},
 	// Quiet, cheap to feed, punishing to aim.
 	{ItemId::Bow, "Hunting Bow", "Quiet, cheap to feed, punishing to aim.", ItemCategory::Weapon, 1, kNone,
-	 {48, 0.85, 760, 620, 0.03, ItemId::Arrow, 0, 0, 1}},
+	 {48, 0.85, 760, 620, 0.03, ItemId::Arrow, 0, 0, 1, 26}},
 	{ItemId::Revolver, "Revolver", "First real gun most people build.", ItemCategory::Weapon, 1, kNone,
-	 {42, 0.34, 900, 640, 0.05, ItemId::PistolAmmo, 6, 3.0, 1}},
+	 {42, 0.34, 900, 640, 0.05, ItemId::PistolAmmo, 6, 3.0, 1, 22}},
 	// A cone of pellets: it kills up close and falls apart past short range.
 	{ItemId::Waterpipe, "Waterpipe Shotgun", "One shell, a long reload, and a very bad day for whoever is in front of it.", ItemCategory::Weapon, 1, kNone,
-	 {14, 1.0, 820, 260, 0.26, ItemId::ShotgunShell, 1, 6.0, 9}},
+	 {14, 1.0, 820, 260, 0.26, ItemId::ShotgunShell, 1, 6.0, 9, 32}},
 	{ItemId::PumpShotgun, "Pump Shotgun", "Six shells, one a second. Nothing clears a room faster.", ItemCategory::Weapon, 1, kNone,
-	 {13, 1.05, 860, 300, 0.2, ItemId::ShotgunShell, 6, 5.5, 8}},
+	 {13, 1.05, 860, 300, 0.2, ItemId::ShotgunShell, 6, 5.5, 8, 34}},
 	{ItemId::Rifle, "Semi-Automatic Rifle", "The gun that decides most fights.", ItemCategory::Weapon, 1, kNone,
-	 {62, 0.19, 1250, 950, 0.035, ItemId::RifleAmmo, 16, 4.0, 1}},
+	 {62, 0.19, 1250, 950, 0.035, ItemId::RifleAmmo, 16, 4.0, 1, 35}},
 	// Rust's AK kicks hard, which a top-down game has no camera to show, so
 	// the recoil is spent as spread: it wins close and loses long.
 	{ItemId::Ak47, "Assault Rifle", "The AK. Fast, loud and hard to hold on target past close range.", ItemCategory::Weapon, 1, kNone,
-	 {78, 0.145, 1250, 950, 0.06, ItemId::RifleAmmo, 30, 4.4, 1}},
+	 {78, 0.145, 1250, 950, 0.06, ItemId::RifleAmmo, 30, 4.4, 1, 37}},
 	// Raiding.
 	{ItemId::Satchel, "Satchel Charge", "Cheap raiding. Unreliable, and it takes several.", ItemCategory::Explosive, 10, kNone, kNoGun, kNoFood,
 	 kNoWear, {475, 90, 3.2}},
@@ -89,7 +89,7 @@ constexpr ItemDef kItems[] = {
 	 {550, 120, 4.5}},
 	// Raiding from range, Rust's way: one in the tube and a long reload.
 	{ItemId::RocketLauncher, "Rocket Launcher", "For raiding. One rocket at a time, and a long reload.", ItemCategory::Weapon, 1, kNone,
-	 {0, 1.0, 560, 900, 0.02, ItemId::Rocket, 1, 6.0, 1}, kNoFood, kNoWear, {275, 100, 0}},
+	 {0, 1.0, 560, 900, 0.02, ItemId::Rocket, 1, 6.0, 1, 40}, kNoFood, kNoWear, {275, 100, 0}},
 	{ItemId::Rocket, "Rocket", "For the rocket launcher. Half a timed explosive, from range.", ItemCategory::Ammo, 3, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	// Goes on a door, and keeps everyone else the other side of it.
 	{ItemId::Lock, "Code Lock", "Locks a door so raiders have to break it instead of walking in.", ItemCategory::Tool, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
@@ -110,7 +110,9 @@ constexpr ItemDef kItems[] = {
 	{ItemId::HeavyMetalSuit, "Heavy Metal Suit", "Plate over everything. Turns half a blow, and you feel every step of it.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
 	 {4, 0.5, 0.25}},
 	// Light you can carry, which is the whole first night sorted.
-	{ItemId::Torch, "Torch", "Cloth on a stick. Light to carry and something to swing.", ItemCategory::Tool, 1, {14, 1, 0.55, 32}, kNoGun, kNoFood, kNoWear, kNoBoom},
+	// A light, and only a light: swinging a burning rag at a bear is not a
+	// plan, and letting it work made the torch a free first weapon.
+	{ItemId::Torch, "Torch", "Cloth on a stick. Light to carry, and no use for anything else.", ItemCategory::Tool, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::Workbench3, "Workbench III", "Rifles and C4.", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood,
 	 kNoWear, kNoBoom},
 };

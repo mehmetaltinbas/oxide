@@ -148,6 +148,12 @@ int main(int argc, char** argv) {
 	double startZoom = 1.0;
 	/** One of every animal in a row, for looking at how they are drawn. */
 	bool zoo = false;
+	/** Every item picture in a grid, for looking at them all at once. */
+	bool icons = false;
+	/** An arrow and a rifle round frozen in the air, for looking at them. */
+	bool arrowShot = false;
+	/** Which belt slot to start holding, for looking at a tool in a hand. */
+	int holdSlot = -1;
 	/** Seconds left of the note that says multiplayer is not here yet. */
 	double titleNotice = 0;
 	/** The island's own map, opened for a look at it. */
@@ -212,6 +218,12 @@ int main(int argc, char** argv) {
 		} else if (SDL_strcmp(argv[i], "--window") == 0 && i + 2 < argc) {
 			// Read already, before the window was made.
 			i += 2;
+		} else if (SDL_strcmp(argv[i], "--hold") == 0 && i + 1 < argc) {
+			holdSlot = SDL_atoi(argv[++i]);
+		} else if (SDL_strcmp(argv[i], "--arrow") == 0) {
+			arrowShot = true;
+		} else if (SDL_strcmp(argv[i], "--icons") == 0) {
+			icons = true;
 		} else if (SDL_strcmp(argv[i], "--zoo") == 0) {
 			zoo = true;
 		} else if (SDL_strcmp(argv[i], "--zoom") == 0 && i + 1 < argc) {
@@ -436,6 +448,7 @@ int main(int argc, char** argv) {
 		inventory.add(sim::ItemId::C4, 3);
 		inventory.selectSlot(3);
 	}
+	if (holdSlot >= 0) inventory.selectSlot(holdSlot);
 	if (showBase) {
 		// Two by two, walled in, with a doorway at the front and a door in it,
 		// put up a few cells away so you can see it from outside.
@@ -480,6 +493,16 @@ int main(int argc, char** argv) {
 	}
 
 	sim::Projectiles projectiles;
+	if (arrowShot) {
+		// Three in the air at once, put there rather than fired, so the picture
+		// is the same every time.
+		world.clearNaturalIn(player.x - 500, player.y - 400, player.x + 500, player.y + 400);
+		sim::Gun bowGun = sim::itemDef(sim::ItemId::Bow).gun;
+		projectiles.spawn(player.x - 150, player.y - 60, 0, bowGun, bowGun.damage, true);
+		projectiles.spawn(player.x - 150, player.y, 0, bowGun, bowGun.damage, true);
+		sim::Gun rifleGun = sim::itemDef(sim::ItemId::Rifle).gun;
+		projectiles.spawn(player.x - 150, player.y + 60, 0, rifleGun, rifleGun.damage, false);
+	}
 	sim::Explosives explosives;
 	client::Hud hud;
 	client::Particles specks;
@@ -762,7 +785,7 @@ int main(int argc, char** argv) {
 				const float py = event.button.y * static_cast<float>(lastDensity);
 				if (event.button.button == SDL_BUTTON_LEFT) {
 					// A press on a slot picks the stack up to carry it.
-					panel.press(inventory, px, py, lastWidth, lastHeight,
+					panel.press(inventory, crafting, px, py, lastWidth, lastHeight,
 								static_cast<float>(lastDensity));
 				}
 				if (panel.dragging().id == sim::ItemId::None) {
@@ -778,7 +801,8 @@ int main(int argc, char** argv) {
 							 lastHeight, static_cast<float>(lastDensity));
 			}
 			if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && panel.open()) {
-				panel.release(inventory, event.button.x * static_cast<float>(lastDensity),
+				panel.release(inventory, crafting,
+							  event.button.x * static_cast<float>(lastDensity),
 							  event.button.y * static_cast<float>(lastDensity), lastWidth,
 							  lastHeight, static_cast<float>(lastDensity),
 							  [&](sim::ItemStack stack) {
@@ -1545,6 +1569,16 @@ int main(int argc, char** argv) {
 					look.shirt = client::rgb(0xd8c24a);
 					look.legs = client::rgb(0xb59f34);
 					break;
+				case sim::ItemId::MetalSuit:
+					// Road signs over hide: a grey plate on a brown body.
+					look.shirt = client::rgb(0xb9b2a4);
+					look.legs = client::rgb(0x6a4a28);
+					break;
+				case sim::ItemId::HeavyMetalSuit:
+					// Plate over everything, legs included.
+					look.shirt = client::rgb(0xa9b6c0);
+					look.legs = client::rgb(0x76828c);
+					break;
 				default:
 					look.shirt = look.skin;
 					look.legs = look.skin;
@@ -1608,7 +1642,12 @@ int main(int argc, char** argv) {
 				if (hx < -80 || hy < -80 || hx > width + 80 || hy > height + 80) continue;
 				const float rx = static_cast<float>(node->radius * scale) * 0.6f;
 				const float ry = static_cast<float>(node->radius * scale) * 0.35f;
-				paint.fillPoly(client::ellipsePoints(hx, hy, rx, ry), client::Color{30, 34, 28, 140});
+				// Inked like everything else standing on the island, or it read
+				// as a smudge on the grass rather than a hole in it.
+				paint.fillPoly(client::ellipsePoints(hx, hy, rx, ry),
+							   client::Color{22, 24, 20, 210});
+				paint.outlinePoly(client::ellipsePoints(hx, hy, rx, ry), client::kInkWidth,
+								  client::kInk);
 				continue;
 			}
 			if (!playerDrawn && node->y > player.y) drawPlayer();
@@ -1813,6 +1852,10 @@ int main(int argc, char** argv) {
 			// A heavier round is drawn heavier: an AK's 78 reads thicker and
 			// longer than a revolver's 42.
 			const float width = 1.4f + static_cast<float>(bullet.damage) * 0.03f;
+			// How far the streak reaches back, on screen, so it scales with the
+			// view like any other length. The WIDTHS below do not: Paint scales
+			// every stroke by the view itself, and doing it here as well drew
+			// the rounds at half again the size they were meant to be.
 			const float tail = static_cast<float>(speed * 0.02 * scale) *
 							   (1 + static_cast<float>(bullet.damage) * 0.006f);
 			// And it thins and fades over its last moments in the air.
@@ -1821,9 +1864,9 @@ int main(int argc, char** argv) {
 			if (bullet.arrow) {
 				// Inked like everything else in the world: a bare brown line
 				// vanished against a tree the moment it was over one.
-				const float shaft = 2.2f * static_cast<float>(scale);
-				paint.line(bx - ux * tail, by - uy * tail, bx, by,
-						   shaft + client::kInkFine * static_cast<float>(scale), client::kInk);
+				const float shaft = 2.2f;
+				paint.line(bx - ux * tail, by - uy * tail, bx, by, shaft + client::kInkFine,
+						   client::kInk);
 				paint.line(bx - ux * tail, by - uy * tail, bx, by, shaft,
 						   client::rgb(0x8a5a2e));
 				// The head, so it reads as an arrow and not as a twig.
@@ -1841,7 +1884,7 @@ int main(int argc, char** argv) {
 								 by - uy * head * 0.6f + ux * head * 0.5f}},
 							   client::rgb(0xcfd8e0));
 			} else {
-				const float core = width * static_cast<float>(scale) * (0.4f + 0.6f * left);
+				const float core = width * (0.4f + 0.6f * left);
 				const std::uint8_t fade = static_cast<std::uint8_t>(255 * left);
 				// The black line round the core, so a tracer reads on snow.
 				paint.line(bx - ux * tail, by - uy * tail, bx, by, core + 1.6f,
@@ -2007,7 +2050,9 @@ int main(int argc, char** argv) {
 		map.draw(paint, world, build, player, width, height, static_cast<float>(density));
 		panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
 		panel.setSandbox(sandbox);
-		hud.say("Crafting queue is full.", player.x, player.y - 30, client::rgb(0xefeadd));
+		// Only when it happens. This lost its guard once and shouted every
+		// frame; takeQueueFull answers true exactly once per refusal.
+		if (panel.takeQueueFull()) hud.warn("Crafting queue is full.");
 		panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
 		if (typing) {
 			const std::string line = "say: " + typed + "_";
@@ -2016,6 +2061,26 @@ int main(int argc, char** argv) {
 						   client::Color{20, 17, 13, 200});
 			lettering.draw(line, 20 * density, height - 146 * density, 16 * density,
 						   client::rgb(0xefeadd));
+		}
+
+		if (icons) {
+			// Every picture there is, laid out big, so they can be judged
+			// against each other rather than one at a time on a belt.
+			paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
+						   client::rgb(0x2a2a28));
+			const int cols = 10;
+			const float cell = static_cast<float>(width) / (cols + 1);
+			for (int i = 1; i < sim::kItemCount; ++i) {
+				const int at = i - 1;
+				const float cx = cell * (0.8f + at % cols);
+				const float cy = cell * (0.8f + at / cols);
+				paint.fillRect(cx - cell * 0.42f, cy - cell * 0.42f, cell * 0.84f, cell * 0.84f,
+							   client::rgb(0x3a3a36));
+				client::drawItemIcon(paint, static_cast<sim::ItemId>(i), cx, cy, cell * 0.62f);
+				lettering.draw(sim::itemDef(static_cast<sim::ItemId>(i)).name, cx,
+							   cy + cell * 0.3f, 9 * density, client::rgb(0xcfcfc8),
+							   client::Face::Body, client::Align::Centre);
+			}
 		}
 
 		if (title) {

@@ -84,7 +84,10 @@ bool canAfford(const Inventory& inventory, const Recipe& recipe) {
 }
 
 int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTier, bool free) {
-	if (free) return Crafting::kQueueMax;
+	// Nothing costs anything in sandbox, so nothing limits how many you could
+	// make. What limits how many you can have waiting is the queue, and that
+	// is a different thing said in a different place.
+	if (free) return 9999;
 	if (recipe.bench > benchTier) return 0;
 	int most = 9999;
 	for (int i = 0; i < recipe.costCount; ++i) {

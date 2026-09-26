@@ -179,135 +179,172 @@ void snowTier(Paint& paint, float cx, float y, float r, int variant, bool crown,
 	}
 }
 
-/** A pine: three tiers, the crown in front, leaning its own way. */
+/**
+ * One frond: a long pointed leaf, wide near its base and tapering to a spike,
+ * curving a little as it goes so a ring of them does not read as a starfish.
+ */
+std::vector<Point> frond(float ox, float oy, float angle, float len, float wide, float curve) {
+	const float ca = std::cos(angle);
+	const float sa = std::sin(angle);
+	const auto at = [&](float along, float across) {
+		// The curve bends the frond sideways as it runs out.
+		const float bend = curve * along * along;
+		const float off = across + bend;
+		return Point{ox + ca * along - sa * off, oy + sa * along + ca * off};
+	};
+	std::vector<Point> out;
+	// Out along one side, widest a quarter of the way up, then back along the
+	// other: the shape of a needle cluster rather than of a leaf.
+	constexpr int kSteps = 7;
+	for (int i = 0; i <= kSteps; ++i) {
+		const float t = static_cast<float>(i) / kSteps;
+		const float w = wide * std::sin(std::pow(t, 0.55f) * kPi) * (1 - t * 0.35f);
+		out.push_back(at(len * t, -w));
+	}
+	for (int i = kSteps; i >= 0; --i) {
+		const float t = static_cast<float>(i) / kSteps;
+		const float w = wide * std::sin(std::pow(t, 0.55f) * kPi) * (1 - t * 0.35f);
+		out.push_back(at(len * t, w));
+	}
+	return out;
+}
+
+/**
+ * The tree of the forest and the snow.
+ *
+ * The same fronds as a grassland tree, but four rings of them instead of three,
+ * tighter, and in the near-grey green of a spruce: from above a conifer is a
+ * cone of needle sprays, widest at the skirt and gathered to a point, and the
+ * rings narrowing as they rise are what say cone rather than bush.
+ */
 void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snowy) {
-	const float wide = 0.88f + v(variant, 1) * 0.2f;
-	const float tall = 0.9f + v(variant, 2) * 0.18f;
+	const float size = 0.92f + v(variant, 1) * 0.18f;
 	const float lean = (v(variant, 3) - 0.5f) * r * 0.16f;
-	const float trunk = 0.8f + v(variant, 4) * 0.4f;
 
-	paint.fillRect(ox - r * 0.22f * trunk, oy - r * 0.5f, r * 0.44f * trunk, r, rgb(0x7b4a26));
-	// Grain up the trunk, so it is timber rather than a brown bar.
-	paint.line(ox - r * 0.08f * trunk, oy - r * 0.42f, ox - r * 0.08f * trunk, oy + r * 0.42f,
-			   mark(), kInk);
-	paint.line(ox + r * 0.1f * trunk, oy - r * 0.3f, ox + r * 0.1f * trunk, oy + r * 0.36f,
-			   mark(), kInk);
+	// The trunk, thicker than a grassland tree's and barked across.
+	const float trunkW = r * 0.23f * (0.85f + v(variant, 4) * 0.3f);
+	paint.inkedPoly({{ox - trunkW, oy - r * 0.25f},
+					 {ox + trunkW, oy - r * 0.25f},
+					 {ox + trunkW * 1.3f, oy + r * 0.66f},
+					 {ox - trunkW * 1.3f, oy + r * 0.66f}},
+					rgb(0x6a5236), pen());
+	for (int i = 0; i < 3; ++i) {
+		const float ty = oy + r * (-0.08f + i * 0.22f);
+		markInside(paint, {{ox - trunkW * 1.4f, oy - r * 0.35f},
+						   {ox + trunkW * 1.4f, oy - r * 0.35f},
+						   {ox + trunkW * 1.4f, oy + r * 0.66f},
+						   {ox - trunkW * 1.4f, oy + r * 0.66f}},
+				   ox - trunkW, ty, ox + trunkW, ty + r * 0.08f, fine(), kInk);
+	}
 
-	struct Tier {
+	struct Ring {
 		float y;
-		float r;
-		float dx;
+		float reach;
+		Color fill;
+		int count;
 	};
-	const Tier tiers[3] = {
-		{oy - r * 2.0f * tall, r * 1.0f * wide * (0.92f + v(variant, 5) * 0.16f), lean * 2},
-		{oy - r * 1.35f * tall, r * 1.3f * wide * (0.92f + v(variant, 6) * 0.16f), lean},
-		{oy - r * 0.65f * tall, r * 1.55f * wide * (0.94f + v(variant, 7) * 0.1f), 0},
+	// Skirt first and crown last, so the top sits in front of what is under it.
+	const Ring rings[4] = {
+		{oy - r * 0.5f * size, r * 1.62f * size, kPineDark, 10},
+		{oy - r * 1.15f * size, r * 1.34f * size, kPineDark, 9},
+		{oy - r * 1.75f * size, r * 1.02f * size, kPineMid, 8},
+		{oy - r * 2.3f * size, r * 0.68f * size, kPineLight, 6},
 	};
-	// Bottom tier first, crown last: a conifer's top sits in front of the skirt
-	// below it, and painting downward buried every crown.
-	for (int i = 2; i >= 0; --i) {
-		const Tier& t = tiers[i];
-		const float x = ox + t.dx;
-		paint.inkedPoly({{x, t.y - t.r}, {x - t.r, t.y + t.r * 0.5f}, {x + t.r, t.y + t.r * 0.5f}},
-						i % 2 == 0 ? nodeColor(sim::NodeKind::Tree) : rgb(0x5cc063), pen());
-		markTier(paint, x, t.y, t.r, variant + i);
-		if (snowy) {
-			const float shelf = i > 0 ? tiers[i - 1].y + tiers[i - 1].r * 0.5f : 0;
-			snowTier(paint, x, t.y, t.r, variant + i, i == 0, shelf);
+	for (int t = 0; t < 4; ++t) {
+		const Ring& ring = rings[t];
+		const float cx = ox + lean * (0.2f + t * 0.35f);
+		const float turn = v(variant, 20 + t) * kTau;
+		for (int i = 0; i < ring.count; ++i) {
+			const float a = turn + static_cast<float>(i) / ring.count * kTau +
+							(v(variant, 30 + t * 17 + i) - 0.5f) * 0.24f;
+			const float len = ring.reach * (0.8f + v(variant, 60 + t * 17 + i) * 0.3f);
+			const float wide = len * 0.3f;
+			const float curve = (v(variant, 90 + t * 17 + i) - 0.5f) * 0.9f / std::max(1.0f, len);
+			const std::vector<Point> spray = frond(cx, ring.y, a, len, wide, curve);
+			paint.inkedPoly(spray, ring.fill, pen() * 0.5f);
+			markInside(paint, spray, cx + std::cos(a) * len * 0.12f,
+					   ring.y + std::sin(a) * len * 0.12f, cx + std::cos(a) * len * 0.84f,
+					   ring.y + std::sin(a) * len * 0.84f, fine(), kInk);
+			// Up in the snow it settles along the top of every spray.
+			if (!snowy || t < 2) continue;
+			const std::vector<Point> cap =
+				frond(cx, ring.y, a, len * 0.62f, wide * 0.5f, curve);
+			paint.fillPoly(cap, kSnow);
 		}
+	}
+	if (snowy) {
+		// And a cap over the crown, which is what you see first from a distance.
+		paint.inkedPoly(circlePoints(ox + lean * 1.4f, rings[3].y, r * 0.34f * size), kSnow,
+						pen() * 0.5f);
 	}
 }
 
 /**
- * A broadleaf, for the open grassland: a short trunk and a round crown built of
- * overlapping leaf clumps in two greens, with the scalloped edge of each clump
- * inked inside the crown and hatching down the shaded side.
+ * The tree of the open grassland.
+ *
+ * Not a ball of leaves: three tiers of spiked fronds, the lower ones spreading
+ * wide and the crown gathered above them, each frond inked round its own edge
+ * so the silhouette comes out ragged rather than round. Lighter than the
+ * forest's pines, because the grassland is the open country and its trees read
+ * as scrub rather than as timber.
  */
 void paintBroadleaf(Paint& paint, float ox, float oy, float r, int variant) {
-	const float size = 0.9f + v(variant, 1) * 0.18f;
-	const float lean = (v(variant, 2) - 0.5f) * r * 0.2f;
-	const float cx = ox + lean;
-	const float cy = oy - r * 1.85f * size;
-	const float cr = r * 1.3f * size;
+	const float size = 0.94f + v(variant, 1) * 0.16f;
+	const float lean = (v(variant, 2) - 0.5f) * r * 0.22f;
 
-	paint.inkedPoly({{ox - r * 0.2f, oy + r * 0.4f},
-					 {ox + r * 0.2f, oy + r * 0.4f},
-					 {cx + r * 0.14f, cy + cr * 0.4f},
-					 {cx - r * 0.14f, cy + cr * 0.4f}},
-					rgb(0x7b4a26), pen());
+	// The trunk, with the bark marked across it, showing under the skirt.
+	const float trunkW = r * 0.19f * (0.85f + v(variant, 9) * 0.3f);
+	paint.inkedPoly({{ox - trunkW, oy - r * 0.2f},
+					 {ox + trunkW, oy - r * 0.2f},
+					 {ox + trunkW * 1.25f, oy + r * 0.62f},
+					 {ox - trunkW * 1.25f, oy + r * 0.62f}},
+					rgb(0x8a7256), pen());
+	for (int i = 0; i < 3; ++i) {
+		const float ty = oy + r * (-0.05f + i * 0.2f);
+		markInside(paint, {{ox - trunkW * 1.3f, oy - r * 0.3f},
+						   {ox + trunkW * 1.3f, oy - r * 0.3f},
+						   {ox + trunkW * 1.3f, oy + r * 0.62f},
+						   {ox - trunkW * 1.3f, oy + r * 0.62f}},
+				   ox - trunkW, ty, ox + trunkW, ty + r * 0.07f, fine(), kInk);
+	}
 
-	const int clumps = 6 + static_cast<int>(v(variant, 3) * 3);
-	struct Clump {
-		float x;
+	struct Tier {
 		float y;
-		float r;
+		float reach;
+		Color fill;
 	};
-	std::vector<Clump> pts;
-	for (int i = 0; i < clumps; ++i) {
-		const float a = static_cast<float>(i) / clumps * kTau + v(variant, 4) * kTau +
-						(v(variant, 50 + i) - 0.5f) * 0.6f;
-		const float d = cr * (0.4f + v(variant, 10 + i) * 0.4f);
-		const float rr = cr * (0.3f + v(variant, 20 + i) * 0.25f);
-		pts.push_back({cx + std::cos(a) * d * 1.1f, cy + std::sin(a) * d * 0.78f, rr});
-	}
-	// A couple of stray clumps out at the edge, so the crown is a canopy and
-	// not a ball.
-	for (int i = 0; i < 2; ++i) {
-		const float a = v(variant, 60 + i) * kTau;
-		pts.push_back({cx + std::cos(a) * cr * 0.95f, cy + std::sin(a) * cr * 0.7f,
-					   cr * (0.2f + v(variant, 62 + i) * 0.1f)});
-	}
-	pts.push_back({cx, cy, cr * 0.55f});
-
-	// The pen round the silhouette only: every clump inked heavily first, then
-	// the fills laid over the top, which buries the inner half of each line.
-	for (const Clump& c : pts) paint.fillCircle(c.x, c.y, c.r + pen(), kInk);
-	for (const Clump& c : pts) paint.fillCircle(c.x, c.y, c.r, kBroadleafDark);
-	// The lit clumps, up and to the left, in the lighter green.
-	for (const Clump& c : pts) {
-		if (c.x - cx + (c.y - cy) > cr * 0.25f) continue;
-		paint.fillCircle(c.x - c.r * 0.12f, c.y - c.r * 0.12f, c.r * 0.82f, kBroadleafLight);
-	}
-	// The crown's own edge, for the marks inside it to be cut against.
-	std::vector<Point> crown;
-	for (int i = 0; i < 28; ++i) {
-		const float a = static_cast<float>(i) / 28 * kTau;
-		float reach = 0;
-		for (const Clump& c : pts) {
-			// How far this clump carries the crown out along this bearing.
-			const float dx = c.x - cx;
-			const float dy = c.y - cy;
-			const float along = std::cos(a) * dx + std::sin(a) * dy;
-			const float off = std::abs(-std::sin(a) * dx + std::cos(a) * dy);
-			if (off >= c.r) continue;
-			reach = std::max(reach, along + std::sqrt(c.r * c.r - off * off));
+	// Bottom first and the crown last, so the top sits in front of the skirt
+	// below it. Three greens, lightest at the top, which is where the sun is.
+	const Tier tiers[3] = {
+		{oy - r * 0.55f * size, r * 1.7f * size, kBroadleafDark},
+		{oy - r * 1.35f * size, r * 1.32f * size, kBroadleafMid},
+		{oy - r * 2.05f * size, r * 0.92f * size, kBroadleafLight},
+	};
+	for (int t = 0; t < 3; ++t) {
+		const Tier& tier = tiers[t];
+		const float cx = ox + lean * (0.3f + t * 0.45f);
+		const int count = 9 - t * 2;
+		const float turn = v(variant, 20 + t) * kTau;
+		for (int i = 0; i < count; ++i) {
+			const float a = turn + static_cast<float>(i) / count * kTau +
+							(v(variant, 30 + t * 13 + i) - 0.5f) * 0.28f;
+			const float len = tier.reach * (0.78f + v(variant, 60 + t * 13 + i) * 0.34f);
+			// Broad enough to hold its own colour: at a fifth of its length the
+			// pen swallowed the frond and the tree came out solid black.
+			const float wide = len * 0.34f;
+			// A frond droops away from the middle: the curve leans the way the
+			// frond points, which is what gives the ragged skirt its swirl.
+			const float curve = (v(variant, 90 + t * 13 + i) - 0.5f) * 0.9f / std::max(1.0f, len);
+			const std::vector<Point> leaf = frond(cx, tier.y, a, len, wide, curve);
+			// Each frond inked over the one before it, so the line between two
+			// of them shows and the silhouette comes out ragged. Half the
+			// usual pen, because there are a lot of these edges in one tree.
+			paint.inkedPoly(leaf, tier.fill, pen() * 0.5f);
+			// The spine down it, which is the whole of its texture.
+			markInside(paint, leaf, cx + std::cos(a) * len * 0.12f,
+					   tier.y + std::sin(a) * len * 0.12f, cx + std::cos(a) * len * 0.82f,
+					   tier.y + std::sin(a) * len * 0.82f, fine(), kInk);
 		}
-		crown.push_back({cx + std::cos(a) * reach, cy + std::sin(a) * reach});
-	}
-
-	// A few branches showing between the leaves.
-	for (int k = 0; k < 3; ++k) {
-		const float a = -kPi / 2 + (v(variant, 70 + k) - 0.5f) * 2.2f;
-		paint.line(cx, cy + cr * 0.35f, cx + std::cos(a) * cr * 0.55f,
-				   cy + cr * 0.35f + std::sin(a) * cr * 0.5f, r * 0.12f, rgb(0x5a3a20));
-	}
-	// The underside of every other clump, as a light mark, so the crown stays
-	// leafy rather than lumpy.
-	for (std::size_t k = 0; k < pts.size(); k += 2) {
-		const Clump& c = pts[k];
-		std::vector<Point> arc;
-		for (int i = 0; i <= 8; ++i) {
-			const float a = kPi * 0.25f + (kPi * 0.5f) * static_cast<float>(i) / 8;
-			arc.push_back({c.x + std::cos(a) * c.r * 0.78f, c.y + std::sin(a) * c.r * 0.78f});
-		}
-		for (std::size_t i = 0; i + 1 < arc.size(); ++i) {
-			markInside(paint, crown, arc[i].x, arc[i].y, arc[i + 1].x, arc[i + 1].y, fine(), kInk);
-		}
-	}
-	// Hatching down the shaded side.
-	const float step = hatchStep() * 0.75f;
-	for (float hx = cx + cr * 0.25f; hx < cx + cr * 1.2f; hx += step) {
-		markInside(paint, crown, hx, cy + cr, hx + cr * 0.6f, cy - cr * 0.1f, hatch(), kInk);
 	}
 }
 
