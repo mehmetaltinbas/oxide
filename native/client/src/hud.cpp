@@ -22,6 +22,22 @@ constexpr Color kText = rgb(0xefeadd);
 
 }  // namespace
 
+BeltSlot beltSlotBox(int index, int width, int height, float uiScale) {
+    const float slot = 56 * uiScale;
+    const float gap = 6 * uiScale;
+    const float total = sim::kHotbarSlots * slot + (sim::kHotbarSlots - 1) * gap;
+    const float x0 = std::round((width - total) * 0.5f);
+    return BeltSlot{x0 + index * (slot + gap), height - slot - 34 * uiScale, slot};
+}
+
+int beltSlotUnder(float px, float py, int width, int height, float uiScale) {
+    for (int i = 0; i < sim::kHotbarSlots; ++i) {
+        const BeltSlot box = beltSlotBox(i, width, height, uiScale);
+        if (ui::inside(px, py, box.x, box.y, box.size, box.size)) return i;
+    }
+    return -1;
+}
+
 void Hud::say(const std::string& text, double x, double y, Color color) {
     popups_.push_back(Popup{text, x, y, kPopupLife, color});
 }
@@ -82,11 +98,12 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
     SDL_Renderer* renderer = paint.renderer();
     // The belt: the same dark glass as the panels, rounded, with the slot you
     // are holding lit at its edge.
-    const float slot = 56 * uiScale;
+    const BeltSlot first = beltSlotBox(0, width, height, uiScale);
+    const float slot = first.size;
     const float gap = 6 * uiScale;
     const float total = sim::kHotbarSlots * slot + (sim::kHotbarSlots - 1) * gap;
-    const float x0 = std::round((width - total) * 0.5f);
-    const float y0 = height - slot - 34 * uiScale;
+    const float x0 = first.x;
+    const float y0 = first.y;
 
     float mouseX = 0;
     float mouseY = 0;
@@ -95,7 +112,7 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
     mouseY *= uiScale;
 
     for (int i = 0; i < sim::kHotbarSlots; ++i) {
-        const float x = x0 + i * (slot + gap);
+        const float x = beltSlotBox(i, width, height, uiScale).x;
         const bool active = i == inventory.activeSlot();
         const bool hovered = ui::inside(mouseX, mouseY, x, y0, slot, slot);
         paint.fillRoundRect(x, y0, slot, slot, ui::kRadiusSmall,
@@ -153,8 +170,8 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
         char amount[8];
         SDL_snprintf(amount, sizeof(amount), "%d", static_cast<int>(std::lround(value)));
         if (lettering_) {
-            lettering_->draw(amount, gaugeX + 190 * uiScale, y - 3 * uiScale, 13 * uiScale,
-                             rgb(0xefeadd), Face::BodyBold, Align::Right);
+            lettering_->drawInked(amount, gaugeX + 190 * uiScale, y - 3 * uiScale, 13 * uiScale,
+                                  rgb(0xefeadd), Face::BodyBold, Align::Right, 1);
         }
         // The bar itself, inked like everything else on the page.
         const float h = 7 * uiScale;
@@ -195,8 +212,8 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
         }
         if (temperature_ < -2) SDL_strlcat(line, "   freezing", sizeof(line));
         if (lettering_) {
-            lettering_->draw(line, gaugeX, baseY + 3 * rowH + 2 * uiScale, 11 * uiScale,
-                             Color{150, 150, 140, 255});
+            lettering_->drawInked(line, gaugeX, baseY + 3 * rowH + 2 * uiScale, 11 * uiScale,
+                                  Color{190, 190, 178, 255}, Face::Body, Align::Left, 1);
         }
     }
 
@@ -239,8 +256,9 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
         const std::uint8_t fade =
             static_cast<std::uint8_t>(255 * std::min(1.0, notice.life / 0.8));
         if (lettering_) {
-            lettering_->draw(notice.text, 20 * uiScale, 36 * uiScale + i * 20 * uiScale,
-                             13 * uiScale, Color{kText.r, kText.g, kText.b, fade});
+            lettering_->drawInked(notice.text, 20 * uiScale, 36 * uiScale + i * 20 * uiScale,
+                                  13 * uiScale, Color{kText.r, kText.g, kText.b, fade},
+                                  Face::Body, Align::Left, 1);
         }
     }
 

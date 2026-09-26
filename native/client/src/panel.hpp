@@ -12,6 +12,20 @@
 
 namespace client {
 
+/**
+ * What the detail pane's buttons do.
+ *
+ * The pack screen knows what a thing is and where it sits; it does not know how
+ * eating or getting dressed works, so the game hands it these and the screen
+ * calls whichever one the button says.
+ */
+struct ItemActions {
+    std::function<void(sim::ItemId)> consume;
+    std::function<void(sim::ItemId)> wear;
+    std::function<void()> takeOff;
+    std::function<void(sim::ItemStack)> drop;
+};
+
 /** Which face of the one screen is showing. */
 enum class Tab { Inventory, Craft, Sandbox, Container };
 
@@ -41,6 +55,15 @@ public:
     void setBench(int tier) { bench_ = tier; }
     /** Creative mode adds a shelf of every item there is. */
     void setSandbox(bool on) { sandbox_ = on; }
+
+    /** Looks at one pack slot, as a click on it would. */
+    void inspect(int packSlot) {
+        inspecting_ = packSlot;
+        inspectingWorn_ = false;
+    }
+
+    /** What Eat, Wear, Take off and Drop do. Handed over once at startup. */
+    void useActions(ItemActions actions) { actions_ = std::move(actions); }
 
     /** Whether a queue-is-full refusal happened since this was last asked. */
     bool takeQueueFull() {
@@ -89,6 +112,18 @@ private:
                        float uiScale, float mouseX, float mouseY) const;
     void putBack(sim::Inventory& inventory, const sim::ItemStack& stack);
 
+    /** One button under the detail pane. */
+    struct Action {
+        const char* label;
+        /** Drop, which is the one that loses you something. */
+        bool danger;
+    };
+    /** What can be done with a thing, in the order the buttons stack. */
+    int actionsFor(sim::ItemId id, bool worn, Action out[4]) const;
+    /** Where the nth of `count` buttons sits. */
+    void actionBox(const Layout& l, float uiScale, int index, int count, float& bx, float& by,
+                   float& bw, float& bh) const;
+
     bool open_ = false;
     Tab tab_ = Tab::Inventory;
     bool sandbox_ = false;
@@ -116,6 +151,7 @@ private:
     };
     Move move_;
 
+    ItemActions actions_;
     sim::ItemStack drag_{};
     enum class From : std::uint8_t { None, Belt, Pack, Container, Worn };
     From dragFrom_ = From::None;

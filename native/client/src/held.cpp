@@ -209,7 +209,7 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
     const auto edged = [&](const std::vector<Point>& shape, Color color, Color edge) {
         paint.fillPoly(shape, color);
         paint.outlinePoly(shape, kInkWidth, kInk);
-        paint.outlinePoly(shape, 0.045f * u, edge);
+        paint.outlinePoly(shape, paint.inWorld(0.045f * u), edge);
     };
     const auto box = [&](float ux, float uy, float uw, float uh, Color color) {
         fill(pts({{ux, uy}, {ux + uw, uy}, {ux + uw, uy + uh}, {ux, uy + uh}}), color);
@@ -224,14 +224,15 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
     const auto detail = [&](float x0, float y0, float x1, float y1, float w) {
         const Point a = P(x0, y0);
         const Point b = P(x1, y1);
-        paint.line(a.x, a.y, b.x, b.y, std::max(w * u, kInkHatch), kInk);
+        paint.line(a.x, a.y, b.x, b.y, std::max(paint.inWorld(w * u), kInkHatch), kInk);
     };
     // A shape drawn as a line: ink under it, its own colour over.
     const auto stroke = [&](float x0, float y0, float x1, float y1, float w, Color color) {
         const Point a = P(x0, y0);
         const Point b = P(x1, y1);
-        paint.line(a.x, a.y, b.x, b.y, w * u + kInkWidth * 2, kInk);
-        paint.line(a.x, a.y, b.x, b.y, w * u, color);
+        const float thick = paint.inWorld(w * u);
+        paint.line(a.x, a.y, b.x, b.y, thick + kInkWidth * 2, kInk);
+        paint.line(a.x, a.y, b.x, b.y, thick, color);
     };
     // An arc drawn as a line, for a bow's limb and a lock's shackle.
     const auto arc = [&](float ux, float uy, float ur, float from, float to, float w, Color color) {
@@ -240,8 +241,9 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
             const float a = from + (to - from) * (static_cast<float>(i) / 14);
             along.push_back(P(ux + std::cos(a) * ur, uy + std::sin(a) * ur));
         }
-        paint.outlinePoly(along, w * u + kInkWidth * 2, kInk, false);
-        paint.outlinePoly(along, w * u, color, false);
+        const float thick = paint.inWorld(w * u);
+        paint.outlinePoly(along, thick + kInkWidth * 2, kInk, false);
+        paint.outlinePoly(along, thick, color, false);
     };
     // The wooden handle every tool hangs off.
     const auto haft = [&](float x0, float y0, float x1, float y1, float w = 0.07f) {
@@ -420,8 +422,9 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
                                  t * t * -0.02f;
                 head.push_back(P(ux, uy));
             }
-            paint.outlinePoly(head, 0.1f * u + kInkWidth * 2, kInk, false);
-            paint.outlinePoly(head, 0.1f * u, kSteel, false);
+            const float bar = paint.inWorld(0.1f * u);
+            paint.outlinePoly(head, bar + kInkWidth * 2, kInk, false);
+            paint.outlinePoly(head, bar, kSteel, false);
             fill(pts({{-0.3f, -0.02f}, {-0.34f, -0.12f}, {-0.22f, -0.1f}}), kSteelDark);
             fill(pts({{0.3f, -0.02f}, {0.34f, -0.12f}, {0.22f, -0.1f}}), kSteelDark);
             break;

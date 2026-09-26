@@ -123,6 +123,8 @@ int main(int argc, char** argv) {
     /** The pack open with something in it, for a look at the screen itself. */
     bool showPanel = false;
     bool showCraft = false;
+    /** The view's scale to open at, for looking at how the ink scales. */
+    double startZoom = 1.0;
     /** Seconds left of the note that says multiplayer is not here yet. */
     double titleNotice = 0;
     /** The island's own map, opened for a look at it. */
@@ -184,6 +186,8 @@ int main(int argc, char** argv) {
             showMap = true;
         } else if (SDL_strcmp(argv[i], "--panel") == 0) {
             showPanel = true;
+        } else if (SDL_strcmp(argv[i], "--zoom") == 0 && i + 1 < argc) {
+            startZoom = SDL_atof(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--craft") == 0) {
             showPanel = true;
             showCraft = true;
@@ -454,6 +458,37 @@ int main(int argc, char** argv) {
     client::Audio audio;
     if (!audio.open()) std::printf("No sound: %s\n", SDL_GetError());
     client::Panel panel;
+    // What the buttons under the detail pane do. The screen knows what a thing
+    // is and where it sits; the game knows what eating and getting dressed mean.
+    {
+        client::ItemActions actions;
+        actions.drop = [&](sim::ItemStack stack) {
+            world.dropStack(stack, player.x + SDL_cos(player.aim) * 34,
+                            player.y + SDL_sin(player.aim) * 34);
+            hud.notify(std::string("Dropped ") + std::to_string(stack.count) + " " +
+                       sim::itemDef(stack.id).name + ".");
+        };
+        actions.consume = [&](sim::ItemId id) {
+            if (sim::consume(player, inventory, id)) {
+                hud.say(sim::itemDef(id).name, player.x, player.y - 26, client::rgb(0x8cf08c));
+            }
+        };
+        actions.wear = [&](sim::ItemId id) {
+            if (inventory.take(id, 1) < 1) return;
+            const sim::ItemStack was = inventory.worn();
+            inventory.worn() = sim::ItemStack{id, 1};
+            if (was.id != sim::ItemId::None) inventory.add(was.id, was.count);
+            hud.notify(std::string("Put on the ") + sim::itemDef(id).name + ".");
+        };
+        actions.takeOff = [&] {
+            const sim::ItemStack was = inventory.worn();
+            if (was.id == sim::ItemId::None) return;
+            if (inventory.add(was.id, was.count) != 0) return;
+            inventory.worn() = sim::ItemStack{};
+            hud.notify(std::string("Took off the ") + sim::itemDef(was.id).name + ".");
+        };
+        panel.useActions(std::move(actions));
+    }
     client::MapScreen map(renderer);
     if (loaded) hud.notify("Carried on where you left off.");
     if (clearAround) {
@@ -479,6 +514,7 @@ int main(int argc, char** argv) {
             panel.toggleCraft();
         } else {
             panel.toggleInventory();
+            panel.inspect(0);
         }
         crafting.queue(inventory, sim::recipes()[0], 0);
     }
@@ -529,7 +565,7 @@ int main(int argc, char** argv) {
     double cameraX = player.x;
     double cameraY = player.y;
 
-    double zoom = 1.0;
+    double zoom = startZoom;
     int framesLeft = benchFrames;
     double benchTime = 0;
     double benchWorst = 0;
@@ -1330,6 +1366,9 @@ int main(int argc, char** argv) {
 
         SDL_SetRenderDrawColor(renderer, client::kVoid.r, client::kVoid.g, client::kVoid.b, 255);
         SDL_RenderClear(renderer);
+        // Everything from here to the interface is drawn in the world, so the
+        // pen goes with it: ink round a thing is part of the thing.
+        paint.useWorldScale(static_cast<float>(scale));
         {
             // Eased after the player, at a rate that is the same however fast
             // the frames come.
@@ -1358,8 +1397,7 @@ int main(int argc, char** argv) {
         for (const sim::Monument& monument : world.monuments()) {
             if (SDL_fabs(monument.x - player.x) > width / (2 * scale) + monument.radius) continue;
             if (SDL_fabs(monument.y - player.y) > height / (2 * scale) + monument.radius) continue;
-            client::drawMonument(paint, monument, camX, camY, scale, width, height,
-                                 static_cast<float>(density));
+            client::drawMonument(paint, monument, camX, camY, scale, width, height);
         }
 
         // Everything standing, back to front, so what is nearer the camera is
@@ -1490,8 +1528,7 @@ int main(int argc, char** argv) {
                 } else {
                     client::drawAnimal(paint, *animal, ax, ay, static_cast<float>(scale));
                 }
-                client::drawAnimalTag(paint, *animal, ax, ay, static_cast<float>(scale),
-                                      static_cast<float>(density));
+                client::drawAnimalTag(paint, *animal, ax, ay, static_cast<float>(scale));
             }
         };
 
@@ -1538,12 +1575,15 @@ int main(int argc, char** argv) {
                          alpha);
             if (node->hp < node->maxHp && node->hp > 0) {
                 // White in black, which reads on snow and on grass alike.
-                const float w = 32 * static_cast<float>(density);
-                // Half the old height: five points read as a plank, not a gauge.
-                const float h = 2.5f * static_cast<float>(density);
+                // Measured in world units, so the bar grows and shrinks with
+                // the thing it belongs to. Half the old height: five points
+                // read as a plank, not as a gauge.
+                const float w = 32 * static_cast<float>(scale);
+                const float h = 2.5f * static_cast<float>(scale);
+                const float edge = static_cast<float>(scale);
                 const float bx = sx - w / 2;
                 const float by = sy + static_cast<float>(node->radius * scale) * 0.9f;
-                paint.fillRect(bx - 1, by - 1, w + 2, h + 2, client::kInk);
+                paint.fillRect(bx - edge, by - edge, w + edge * 2, h + edge * 2, client::kInk);
                 paint.fillRect(bx, by, w * node->hp / node->maxHp, h, client::rgb(0xffffff));
             }
         }
@@ -1566,7 +1606,7 @@ int main(int argc, char** argv) {
             // A mate is marked, and nobody else is: finding the rest is the game.
             if (other.team != 0 && other.team == net.team()) {
                 paint.inkedCircle(ox, oy - 26 * static_cast<float>(scale),
-                                  5 * static_cast<float>(density), client::rgb(0x5fb85f),
+                                  5 * static_cast<float>(scale), client::rgb(0x5fb85f),
                                   client::kInkFine);
             }
         }
@@ -1580,10 +1620,11 @@ int main(int argc, char** argv) {
             client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale),
                                    static_cast<float>(clock));
             if (thing.hp < thing.maxHp) {
-                const float w = 36 * static_cast<float>(density);
-                const float h = 2.5f * static_cast<float>(density);
-                paint.fillRect(sx - w / 2 - 1, sy + 20 * static_cast<float>(scale) - 1, w + 2,
-                               h + 2, client::kInk);
+                const float w = 36 * static_cast<float>(scale);
+                const float h = 2.5f * static_cast<float>(scale);
+                const float edge = static_cast<float>(scale);
+                paint.fillRect(sx - w / 2 - edge, sy + 20 * static_cast<float>(scale) - edge,
+                               w + edge * 2, h + edge * 2, client::kInk);
                 paint.fillRect(sx - w / 2, sy + 20 * static_cast<float>(scale),
                                w * thing.hp / thing.maxHp, h, client::rgb(0xffffff));
             }
@@ -1629,11 +1670,12 @@ int main(int argc, char** argv) {
                     cx = (x0 + x1) * 0.5;
                     cy = (y0 + y1) * 0.5;
                 }
-                const float w = 40 * static_cast<float>(density);
-                const float h = 2.5f * static_cast<float>(density);
+                const float w = 40 * static_cast<float>(scale);
+                const float h = 2.5f * static_cast<float>(scale);
+                const float edge = static_cast<float>(scale);
                 const float bx = static_cast<float>((cx - camX) * scale) + width * 0.5f - w / 2;
                 const float by = static_cast<float>((cy - camY) * scale) + height * 0.5f;
-                paint.fillRect(bx - 1, by - 1, w + 2, h + 2, client::kInk);
+                paint.fillRect(bx - edge, by - edge, w + edge * 2, h + edge * 2, client::kInk);
                 paint.fillRect(bx, by, w * piece.hp / piece.maxHp, h, client::rgb(0xffffff));
             }
         }
@@ -1815,6 +1857,8 @@ int main(int argc, char** argv) {
         for (const auto& [id, other] : net.others()) {
             if (other.team != 0 && other.team == net.team()) map.addMate(other.x, other.y);
         }
+        // The interface is not in the world: its lines keep their own weight.
+        paint.useWorldScale(1);
         map.draw(paint, world, build, player, width, height, static_cast<float>(density));
         panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
         panel.setSandbox(sandbox);
@@ -1994,17 +2038,18 @@ int main(int argc, char** argv) {
             char top[96];
             SDL_snprintf(top, sizeof(top), "Day %d   %d:%02d %s%s", day, hour, minute,
                          hour24 < 12 ? "am" : "pm", online ? "   online" : "");
-            lettering.draw(top, width - 10 * density, 6 * density, 12 * density,
-                           client::Color{255, 255, 255, 150}, client::Face::Body,
-                           client::Align::Right);
+            lettering.drawInked(top, width - 10 * density, 6 * density, 12 * density,
+                                client::Color{255, 255, 255, 190}, client::Face::Body,
+                                client::Align::Right, 1);
         }
 
         // The counter, small and out of the way: it is for me, not for playing.
         char counter[128];
         SDL_snprintf(counter, sizeof(counter), "%.0f fps   %zu drawn   %.0f, %.0f   zoom %.2f",
                      fps, visible.size(), player.x, player.y, zoom);
-        lettering.draw(counter, 10 * density, 6 * density, 12 * density,
-                       client::Color{255, 255, 255, 150});
+        lettering.drawInked(counter, 10 * density, 6 * density, 12 * density,
+                            client::Color{255, 255, 255, 190}, client::Face::Body,
+                            client::Align::Left, 1);
 
         if (benchFrames > 0) {
             // The time it takes to build a frame, which is what the rewrite is

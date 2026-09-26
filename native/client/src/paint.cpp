@@ -127,6 +127,9 @@ void Paint::outlineRoundRect(float x, float y, float w, float h, float radius, f
 }
 
 void Paint::line(float x0, float y0, float x1, float y1, float width, Color color) {
+    // Every stroke in the game passes through here, which is why the world
+    // scale is applied here and nowhere else.
+    width *= worldScale_;
     const float dx = x1 - x0;
     const float dy = y1 - y0;
     const float len = std::sqrt(dx * dx + dy * dy);

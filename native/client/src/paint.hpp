@@ -51,6 +51,32 @@ public:
     void useText(Text* text) { text_ = text; }
     Text* text() const { return text_; }
 
+    /**
+     * How many screen pixels one world unit is worth right now.
+     *
+     * Every line this pen draws is multiplied by it, so the ink round a thing
+     * grows and shrinks with the thing. A border that keeps its pixel width
+     * while the object behind it doubles is the single easiest mistake to make
+     * here, and setting this once a frame is what stops it being made: world
+     * drawing sets it to the zoom, the interface sets it back to one.
+     *
+     * Sizes given in world units - a bar's height, a name tag's type size, the
+     * gap between two marks - still have to be multiplied by hand, because the
+     * pen cannot tell a length from a position.
+     */
+    void useWorldScale(float scale) { worldScale_ = scale; }
+    float worldScale() const { return worldScale_; }
+
+    /**
+     * A width already worked out in screen pixels, given back in world units.
+     *
+     * For the few places that size a line off something they have already
+     * scaled themselves, so the pen does not scale it twice.
+     */
+    float inWorld(float screenPixels) const {
+        return worldScale_ > 0 ? screenPixels / worldScale_ : screenPixels;
+    }
+
     /** One line of text. Returns how wide it came out. See Text::draw. */
     float write(const std::string& line, float x, float y, float size, Color color);
 
@@ -79,6 +105,7 @@ public:
 private:
     SDL_Renderer* renderer_ = nullptr;
     Text* text_ = nullptr;
+    float worldScale_ = 1;
     std::vector<SDL_Vertex> vertices_;
     std::vector<int> indices_;
 

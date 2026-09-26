@@ -1,5 +1,8 @@
 #include "animal.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include <cmath>
 
 #include "body_frame.hpp"
@@ -103,8 +106,7 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
                r * 0.18f, dark);
 }
 
-void drawAnimalTag(Paint& paint, const sim::Npc& npc, float x, float y, float scale,
-                   float uiScale) {
+void drawAnimalTag(Paint& paint, const sim::Npc& npc, float x, float y, float scale) {
     const sim::NpcDef& def = sim::npcDef(npc.kind);
     const float r = static_cast<float>(def.radius) * scale;
     const bool hurt = npc.hp < def.hp;
@@ -112,15 +114,17 @@ void drawAnimalTag(Paint& paint, const sim::Npc& npc, float x, float y, float sc
         // White in black, so it reads on snow and on grass alike.
         const float w = r * 2.4f;
         // Half what it was: at five points the bar was a plank across the animal.
-        const float h = 2.5f * uiScale;
+        const float h = 2.5f * scale;
+        const float edge = scale;
         const float bx = x - w / 2;
-        const float by = y - r - 14 * uiScale;
-        paint.fillRect(bx - 1, by - 1, w + 2, h + 2, kInk);
+        const float by = y - r - 14 * scale;
+        paint.fillRect(bx - edge, by - edge, w + edge * 2, h + edge * 2, kInk);
         paint.fillRect(bx, by, w * npc.hp / def.hp, h, rgb(0xffffff));
     }
     if (Text* lettering = paint.text()) {
-        lettering->drawInked(def.name, x, y - r - (hurt ? 32 : 22) * uiScale, 13 * uiScale,
-                             rgb(0xffffff), Face::Body, Align::Centre, 2);
+        lettering->drawInked(def.name, x, y - r - (hurt ? 32 : 22) * scale, 13 * scale,
+                             rgb(0xffffff), Face::Body, Align::Centre,
+                             std::max(1, static_cast<int>(std::lround(scale))));
     }
 }
 

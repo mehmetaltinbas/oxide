@@ -23,9 +23,10 @@ void limb(Paint& paint, const BodyFrame& f, float x0, float y0, float x1, float 
           Color color) {
     const Point a = f.at(x0, y0);
     const Point b = f.at(x1, y1);
-    const float w = width * f.scale;
-    paint.line(a.x, a.y, b.x, b.y, w + kInkWidth, kInk);
-    paint.line(a.x, a.y, b.x, b.y, w, color);
+    // Widths in the body's own units: drawHuman hands the pen this frame's
+    // scale, so the ink and the limb grow together and with the view.
+    paint.line(a.x, a.y, b.x, b.y, width + kInkWidth, kInk);
+    paint.line(a.x, a.y, b.x, b.y, width, color);
 }
 
 void blob(Paint& paint, const BodyFrame& f, float x, float y, float rx, float ry, Color color,
@@ -63,6 +64,11 @@ void drawHuman(Paint& paint, const HumanLook& look) {
     const MeleeStyle style = meleeStyleOf(look.held);
     const MeleePose pose = meleeMotion(style, look.swingT, look.phase);
     const BodyFrame f = look.swimming ? stance : stance.turned(pose.twist);
+    // Everything below is measured in body units, so the pen is told what one
+    // of those is worth on screen. A body is drawn at a radius of 13 and the
+    // survivor's radius is 13 world units, so this is the view's own scale.
+    const float wasScale = paint.worldScale();
+    paint.useWorldScale(stance.scale);
     const float step = std::sin(look.phase) * 4 * look.stride;
     // Hurt, every part of them takes the same colour.
     const auto tint = [&](Color c) { return look.hurt.a > 0 ? look.hurt : c; };
@@ -81,7 +87,7 @@ void drawHuman(Paint& paint, const HumanLook& look) {
                 const float a = static_cast<float>(k) / 20 * 6.28318530718f;
                 ring.push_back({look.x + std::cos(a) * rr, look.y + std::sin(a) * rr * 0.45f});
             }
-            paint.outlinePoly(ring, 2 * look.radius / 13.0f,
+            paint.outlinePoly(ring, 2,
                               Color{190, 225, 245,
                                     static_cast<std::uint8_t>(87 * (1 - phase))});
         }
@@ -190,6 +196,7 @@ void drawHuman(Paint& paint, const HumanLook& look) {
     blob(paint, f, 0, hy, 6.8f, 6.8f, skin, true);
     blob(paint, f, 0, hy - 7, 1.5f, 1.9f, skin, true);
     blob(paint, f, 0, hy + 1.7f, 6.6f, 6.6f, hair, true);
+    paint.useWorldScale(wasScale);
 }
 
 }  // namespace client

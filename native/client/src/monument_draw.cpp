@@ -28,7 +28,7 @@ Color groundOf(sim::MonumentKind kind) {
 }  // namespace
 
 void drawMonument(Paint& paint, const sim::Monument& monument, double cameraX, double cameraY,
-                  double scale, int width, int height, float uiScale) {
+                  double scale, int width, int height) {
     const sim::MonumentDef& def = sim::monumentDef(monument.kind);
     const float x = static_cast<float>((monument.x - cameraX) * scale) + width * 0.5f;
     const float y = static_cast<float>((monument.y - cameraY) * scale) + height * 0.5f;
@@ -66,9 +66,13 @@ void drawMonument(Paint& paint, const sim::Monument& monument, double cameraX, d
     if (Text* lettering = paint.text()) {
         char line[64];
         SDL_snprintf(line, sizeof(line), "%s%s", def.rads > 0 ? "! " : "", def.name);
-        lettering->draw(line, x, y - r + 12 * uiScale, 22 * uiScale,
-                        def.rads > 0 ? Color{180, 230, 90, 220} : Color{230, 228, 210, 200},
-                        Face::Display, Align::Centre);
+        // Sized in world units like the place it names, so it grows and
+        // shrinks with the view. See docs/systems/world-scale.md.
+        lettering->drawInked(line, x, y - r + 12 * static_cast<float>(scale),
+                             22 * static_cast<float>(scale),
+                             def.rads > 0 ? Color{180, 230, 90, 220} : Color{230, 228, 210, 200},
+                             Face::Display, Align::Centre,
+                             std::max(1, static_cast<int>(std::lround(scale))));
     }
 }
 

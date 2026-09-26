@@ -18,10 +18,10 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 /**
  * The name over an animal, and the bar under it once it has taken a scratch.
  *
- * `uiScale` is the display's density: the tag is lettering, so it is sized in
- * points like the rest of the interface rather than in world pixels.
+ * Both are part of the animal, not of the interface: they are measured in world
+ * units and so grow when you zoom in and shrink when you zoom out, like
+ * everything else standing on the island.
  */
-void drawAnimalTag(Paint& paint, const sim::Npc& npc, float x, float y, float scale,
-                   float uiScale);
+void drawAnimalTag(Paint& paint, const sim::Npc& npc, float x, float y, float scale);
 
 }  // namespace client

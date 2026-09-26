@@ -90,4 +90,5 @@ How particular parts of the game actually work, as opposed to how the code is sh
 - [systems/inventory.md](systems/inventory.md): The two containers, stack limits, where a picked-up item goes, magazines, the crafting queue.
 - [systems/networking.md](systems/networking.md): The authoritative server, client prediction, reconciliation, and seed-based world sync.
 - [systems/performance.md](systems/performance.md): The frame budget, what is allowed to cost what, and the measurements behind the caps.
+- [systems/world-scale.md](systems/world-scale.md): World units versus points: ink, bars and name tags scale with the view, the interface does not.
 - [systems/ui.md](systems/ui.md): The two UI contexts, the tabbed menu screen, the channel bar, and the sandbox.

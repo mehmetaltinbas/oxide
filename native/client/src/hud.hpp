@@ -20,6 +20,24 @@ struct Popup {
     Color color;
 };
 
+/** Where one belt slot sits on the screen, in device pixels. */
+struct BeltSlot {
+    float x = 0;
+    float y = 0;
+    float size = 0;
+};
+
+/**
+ * The belt's geometry, worked out in one place.
+ *
+ * The pack screen drags stacks into and out of the belt while it is open, so it
+ * has to know where the belt is; sharing this is what stops the two drifting
+ * apart by a few points and leaving a strip that looks like a slot and is not.
+ */
+BeltSlot beltSlotBox(int index, int width, int height, float uiScale);
+/** Which belt slot a point is over, or -1. */
+int beltSlotUnder(float px, float py, int width, int height, float uiScale);
+
 /**
  * The interface: the belt, what you are carrying, your health, and the one
  * line of prompt that tells you what the key under your finger would do.

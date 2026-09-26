@@ -1,5 +1,7 @@
 #include "panel.hpp"
 
+#include "hud.hpp"
+
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -191,6 +193,31 @@ void Panel::update(double dt, sim::Inventory& inventory) {
 
 // ---- the pack
 
+int Panel::actionsFor(sim::ItemId id, bool worn, Action out[4]) const {
+    const sim::ItemDef& def = sim::itemDef(id);
+    int n = 0;
+    if (def.food.calories > 0 || def.food.hydration > 0 || def.food.health != 0) {
+        out[n++] = Action{def.category == sim::ItemCategory::Consumable ? "Use" : "Eat", false};
+    }
+    // Wear only makes sense from the pack: from the worn slot the same button
+    // would put on what is already on.
+    if (def.category == sim::ItemCategory::Clothing && !worn) out[n++] = Action{"Wear", false};
+    if (worn) out[n++] = Action{"Take off", false};
+    out[n++] = Action{"Drop", true};
+    return n;
+}
+
+void Panel::actionBox(const Layout& l, float uiScale, int index, int count, float& bx, float& by,
+                      float& bw, float& bh) const {
+    const float left = l.x + 24 * uiScale;
+    bx = left + kPackCols * l.pitch + 24 * uiScale;
+    bw = l.x + l.w - bx - 24 * uiScale;
+    bh = 34 * uiScale;
+    // Stacked upwards off the bottom of the card, so the last one is always in
+    // the same place whatever the thing can do.
+    by = l.y + l.h - 44 * uiScale - (count - 1 - index) * 42 * uiScale;
+}
+
 void Panel::drawInventory(Paint& paint, const sim::Inventory& inventory, const Layout& l,
                           float uiScale, float mouseX, float mouseY) const {
     const float left = l.x + 24 * uiScale;
@@ -290,6 +317,26 @@ void Panel::drawInventory(Paint& paint, const sim::Inventory& inventory, const L
             SDL_snprintf(value, sizeof(value), "%+.0f", def.food.health);
             stat("Health", value);
         }
+    }
+
+    // What you can do with it, along the bottom of the pane: the thing you
+    // reached for it to do, one click away instead of a key to remember.
+    Action actions[4];
+    const int count = actionsFor(chosen.id, inspectingWorn_, actions);
+    for (int i = 0; i < count; ++i) {
+        float bx = 0;
+        float by = 0;
+        float bw = 0;
+        float bh = 0;
+        actionBox(l, uiScale, i, count, bx, by, bw, bh);
+        const bool hovered = ui::inside(mouseX, mouseY, bx, by, bw, bh);
+        const Color face = actions[i].danger
+                               ? (hovered ? Color{194, 69, 47, 41} : ui::kSurfaceAlt)
+                               : (hovered ? ui::kAccentHover : ui::kAccent);
+        paint.fillRoundRect(bx, by, bw, bh, ui::kRadiusMedium, face);
+        say(paint, bx + bw / 2, by + 9 * uiScale, 14 * uiScale,
+            actions[i].danger ? ui::kWarn : rgb(0xffffff), actions[i].label, Face::BodyBold,
+            Align::Centre);
     }
 }
 
@@ -616,6 +663,40 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
     const float left = l.x + 24 * uiScale;
     const float gridY = l.top + 36 * uiScale;
 
+    if (tab_ == Tab::Inventory && inspecting_ >= 0) {
+        // The buttons under the detail pane, before the grid: they sit inside
+        // the card too, and a click on one is not a click on a slot.
+        const sim::ItemStack chosen =
+            inspectingWorn_ ? inventory.worn() : inventory.pack()[inspecting_];
+        if (chosen.id != sim::ItemId::None) {
+            Action actions[4];
+            const int count = actionsFor(chosen.id, inspectingWorn_, actions);
+            for (int i = 0; i < count; ++i) {
+                float bx = 0;
+                float by = 0;
+                float bw = 0;
+                float bh = 0;
+                actionBox(l, uiScale, i, count, bx, by, bw, bh);
+                if (!ui::inside(x, y, bx, by, bw, bh)) continue;
+                const std::string label = actions[i].label;
+                if (label == "Drop") {
+                    if (actions_.drop) actions_.drop(chosen);
+                    (inspectingWorn_ ? inventory.worn() : inventory.pack()[inspecting_]) =
+                        sim::ItemStack{};
+                    inspecting_ = -1;
+                } else if (label == "Wear") {
+                    if (actions_.wear) actions_.wear(chosen.id);
+                } else if (label == "Take off") {
+                    if (actions_.takeOff) actions_.takeOff();
+                    inspecting_ = -1;
+                } else if (actions_.consume) {
+                    actions_.consume(chosen.id);
+                }
+                return true;
+            }
+        }
+    }
+
     if (tab_ == Tab::Inventory) {
         const int at = slotUnder(x, y, left, gridY, l.slot, l.pitch, sim::kPackSlots, kPackCols);
         if (at >= 0) {
@@ -748,6 +829,18 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 void Panel::press(sim::Inventory& inventory, float x, float y, int width, int height,
                   float uiScale) {
     if (!open_ || drag_.id != sim::ItemId::None) return;
+    // The belt is reachable from every tab: it is on the screen the whole time
+    // the pack is open, so it would be strange for it to stop taking stacks
+    // because you are looking at the bench.
+    const int belt = beltSlotUnder(x, y, width, height, uiScale);
+    if (belt >= 0) {
+        if (inventory.hotbar()[belt].id == sim::ItemId::None) return;
+        drag_ = inventory.hotbar()[belt];
+        inventory.hotbar()[belt] = sim::ItemStack{};
+        dragFrom_ = From::Belt;
+        dragSlot_ = belt;
+        return;
+    }
     if (tab_ != Tab::Inventory && tab_ != Tab::Container) return;
     const Layout l = layoutOf(width, height, uiScale);
     const float left = l.x + 24 * uiScale;
@@ -813,6 +906,11 @@ void Panel::release(sim::Inventory& inventory, float x, float y, int width, int 
         if (was.id != sim::ItemId::None) putBack(inventory, was);
     };
 
+    const int belt = beltSlotUnder(x, y, width, height, uiScale);
+    if (belt >= 0) {
+        land(inventory.hotbar()[belt]);
+        return;
+    }
     const int pack = slotUnder(x, y, left, gridY, l.slot, l.pitch, sim::kPackSlots, kPackCols);
     if (pack >= 0) {
         land(inventory.pack()[pack]);
