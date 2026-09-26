@@ -1,257 +1,151 @@
 # Oxide
 
-A top-down 2D take on Rust: land on an island with a rock, work your way up to
+A top-down take on Rust: land on an island with a rock, work your way up to
 sheet metal and explosives, and hold what you built.
 
-Being rewritten in **C++ with SDL3**, for a Steam release and a server that can
-hold a crowd. No engine, no art assets: the island, the items and everything
-drawn are made in code. The TypeScript version below still runs and is the
-reference the rewrite is measured against.
+**C++ with SDL3, no engine and no art assets.** The island, every item, every
+animal and every sound are made in code. One rules library shared by the game
+and the server, so the two cannot disagree about what happened.
 
-## The C++ game
+## Build and run
 
 ```bash
-cd native && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
 ```
 
 ```bash
-./native/build/bin/oxide
+./build/bin/oxide
 ```
 
-`--sandbox` for creative, `--armed` for a bag of guns, `--map`, `--night`,
-`--seed`, `--bench N` to time frames and `--shot file.bmp` to write one out.
-
-Online: `--connect host[:port]` opens the lobby of islands that server is
-running, `--island N` lands straight on one and `--new-island` starts another.
-The server is `./native/build/bin/oxide_server --port 8787 --seed 12345`, and
-it runs up to eight islands at once, giving up any that stands empty for five
-minutes.
-
-`native/build/bin/play_check`, `net_check` and `sound_check` are the regression
-checks: one plays a stretch of the game with nobody watching, one runs two
-players against a server, and one renders every sound without a sound card and
-says whether any of them came out silent.
+A launch is a new island. The title screen offers **Sandbox**, which is the
+game with the whole recipe book open and free, and **Multiplayer**, which is
+listed and not built yet. `C` carries on from your last island if there is one.
+A number on the command line pins the island: `./build/bin/oxide 12345`.
 
 ### Controls
 
 WASD to move, shift to run. Left click uses what is in your hand, right click
 draws a bow. 1-6 pick a belt slot, R reloads, E uses whatever is in front of
-you, TAB opens the pack and the bench, M the map, B changes what the building
-plan puts down, T says something online, F asks the person in front of you to
-team up, H lists all of this. Minus and equals set the volume.
+you, G drops it, TAB opens the pack, C the bench, M the map, B changes what the
+building plan puts down, H lists all of this. Wheel zooms. Minus and equals set
+the volume.
 
-## The TypeScript version
+## What is in the repository
 
-TypeScript + HTML5 canvas, no engine, no art or audio assets, terrain, items and
-sound are all generated. Vite for dev/build.
-
-## Run it
-
-```bash
-npm install
+```
+CMakeLists.txt     the three binaries and the fetched libraries
+sim/               the rules of the game. No SDL, no sockets, no platform
+client/            the game you play
+server/            the headless authority
+tools/             the checks
+assets/            fonts
+docs/              architecture, design and system conventions
 ```
 
+`sim/` is the point of the whole thing. The client and the server link the same
+rules, so a wall is the same thickness in both because it is the same number,
+not because somebody kept two copies in step.
+
+## Checks
+
 ```bash
-npm run dev
+./build/bin/play_check     # plays a stretch of the game with nobody watching
+./build/bin/island_check   # generation: biomes, node counts, monuments
+./build/bin/sound_check    # renders every sound with no sound card
+./build/bin/net_check      # two players against a running oxide_server
 ```
 
-Default port is 5173; this project is usually run on 5174 alongside Lumberwave:
-
-```bash
-npm run dev -- --port 5174
-```
-
-## Controls
-
-| Key        | Action                                                                |
-| ---------- | --------------------------------------------------------------------- |
-| WASD       | Move · Shift to sprint                                                |
-| Left mouse | Use the held item: gather, attack, shoot, place, throw, eat           |
-| 1-6        | Belt slots                                                            |
-| TAB        | Opens the pack. Closes whatever screen is open, whichever one it is   |
-| C          | Crafting (a tab of the same screen: click across without closing)     |
-| E          | Interact: doors, boxes, furnaces, crates, and drinking at a shoreline |
-| R          | Reload the held weapon                                                |
-| G          | Drop the held item                                                    |
-| Q / wheel  | With the Building Plan out: pick foundation / wall / doorway / door   |
-| Wheel      | Zoom · `H` help · `Esc` pause                                         |
-| F, [ , ]   | Sandbox only: item shelf, and the clock an hour back or forward       |
-
-**Sandbox** is the third button on the title card. Creative mode: free building, free and instant
-crafting at any tier, infinite ammo, nothing can hurt you, and a shelf with every item in the game
-on it. It is for testing things, not for playing.
+Every one of them exists because something broke and nobody noticed. See
+[docs/testing.md](docs/testing.md) for the flags that draw one frame of any
+state you want to look at.
 
 ## The loop
 
 1. **Gather** with a rock, then craft a hatchet and pickaxe. Hatchets favour
    wood, pickaxes favour ore, and the rock is bad at both.
-2. **Survive**: food and water drain constantly, nights and snow will freeze you,
-   and radiation at monuments will kill you without a hazmat suit.
-3. **Smelt** ore in a furnace, **cook** meat on a campfire (both need wood as fuel
-   and `E` to light).
-4. **Build** a base, place a tool cupboard to claim the ground, upgrade from twig
-   through wood and stone to sheet metal with the Hammer.
-5. **Loot** monuments for scrap, which unlocks the higher workbench tiers.
-6. **Hold it.** From day 2 onward, clans raid you with satchels and C4.
+2. **Survive**: food and water drain constantly, night is nearly black and a
+   torch is your first craft, snow will freeze you, and radiation at monuments
+   will kill you without a hazmat suit.
+3. **Smelt** ore in a furnace, **cook** meat on a campfire. Both need wood and
+   `E` to light.
+4. **Build** a base, place a tool cupboard to claim the ground, upgrade from
+   twig through wood and stone to sheet metal with the hammer.
+5. **Loot** monuments for scrap and high quality metal, which is what the best
+   armour is made of.
+6. **Hold it.**
 
-Everything saves automatically, and your base decays while you are away.
+## The island
+
+Temperate in the middle, snow at the north end and desert at the south, with
+the bands broken up by a moisture field rather than drawn as stripes. Wherever
+grass or forest runs into the sea it turns to sand first; snow goes straight
+into the water and desert is sand already, so neither grows a beach.
+
+Those beaches are the spawn. A fresh character, and every respawn without a
+sleeping bag, washes up on a random stretch of sand, never inside somebody
+else's claim.
+
+## Wildlife
+
+Four animals and a neutral, each answering a question no other one answers.
+Full table in [docs/systems/wildlife.md](docs/systems/wildlife.md).
+
+| Animal | Lives in | Temper |
+| --- | --- | --- |
+| Rabbit | grass, forest | runs from everything |
+| Elk | forest, snow | runs from you, and is a week of food |
+| Kangaroo | grass, desert | neutral until you hit it, then it kicks |
+| Wolf | grass, snow, desert | comes for you, and a sprint only just escapes |
+| Bear | forest, snow | comes for you, and 340 health |
+
+They hunt each other too: a wolf runs down an elk, a bear runs down the wolf.
+
+## Survival
+
+| System | Detail |
+| --- | --- |
+| Food and water | Drain constantly. Hunt, cook, and drink at any shoreline with `E` |
+| Temperature | Biome, time of day, clothing and nearby fire. Freezing does steady damage |
+| Radiation | Builds at monuments, decays outside them. A hazmat suit blocks most of it |
+| Bleeding | Some hits open you up. Bandages stop it |
+| Death | You drop everything where you fell, the bench included. A sleeping bag decides where you wake |
+
+A full day is an hour: forty five minutes of light and fifteen of dark.
 
 ## Building
 
 Rust's building system, adapted for a single floor:
 
 - **Foundations** sit on grid cells. **Walls, doorways and doors** sit on the
-  _edges_ between cells, and need one of the two neighbouring cells to already
-  be your foundation.
-- Everything starts as **twig** (10 hp) and is upgraded one tier at a time with
-  the Hammer: **wood** 250 → **stone** 500 → **sheet metal** 1000.
-- Every wall has a **soft side**, marked with a pale dot. Melee does 10% damage
-  to the hard side, so build with the soft side facing inward.
-- A **tool cupboard** claims a radius around it. Nobody can build inside someone
-  else's claim, which is what stops a raider walling you in.
-- Doors can be opened with `E`. Clan doors are locked, so you break them instead.
+  edges between cells and need one of the two neighbouring cells to already be
+  your foundation.
+- Everything starts as **twig** and is upgraded one tier at a time with the
+  hammer: wood, stone, sheet metal.
+- Every wall has a **soft side**, marked with a pale dot. Melee does a tenth as
+  much to the hard side, so build with the soft side facing inward.
+- A **tool cupboard** claims a radius around it. Nobody builds inside someone
+  else's claim.
+- Nothing goes up through a tree, a rock or a nettle. Clear the ground first,
+  and it grows back on its own timer once the building is gone.
 
-Raid costs work out roughly as they should: a satchel does 475 and C4 does 550,
-so stone walls take two satchels and sheet metal takes four.
+A room is a patch of ground the open air cannot reach, and a room you are not
+in is drawn as a roof. A room needs a floor, so ringing a stretch of forest
+with buildings does not roof the woodland. A hole anywhere opens all of it: one
+wall off a six-cell hall takes the roof off the hall.
 
-## The shore
-
-The island is temperate in the middle, snow at the north end and desert at the south, with the
-bands broken up by the moisture field rather than drawn as clean stripes. Wherever grass or forest
-runs into the sea it turns to sand first. Snow goes straight into the water and desert is sand
-already, so neither grows a beach.
-
-Those beaches are the spawn. A fresh character, and every respawn without a sleeping bag, washes up
-on a random stretch of sand anywhere on the coast, never inside a tool cupboard's claim, so you do
-not wake up in somebody's base. The clans are placed before you are, so the check sees their
-cupboards.
-
-## Survival
-
-| System       | Detail                                                                         |
-| ------------ | ------------------------------------------------------------------------------ |
-| Food & water | Drain constantly. Hunt boar for meat, cook it, drink at any shoreline with `E` |
-| Temperature  | Biome + time of day + clothing + nearby fire. Freezing does steady damage      |
-| Radiation    | Builds at monuments, decays outside them. A hazmat suit blocks 90%             |
-| Bleeding     | Some hits open you up. Bandages stop it                                        |
-| Death        | You drop **everything** where you fell. A sleeping bag decides where you wake  |
-
-## Roofs and rooms
-
-A room is a patch of ground that the open air cannot walk to: sealed by walls, with doorways
-counting as gaps and a shut door counting as a wall. A room you are not standing in, and hold no
-cupboard authority over, is drawn as a roof.
-
-Two rules keep that honest:
-
-**A room needs a floor.** Sealing off open ground, a courtyard inside a compound, or a stretch of
-forest that a few buildings happen to ring in between them, still counts as enclosed for reach and
-privacy, but nothing goes over it. Without this the map grew dark slabs of "ceiling" across open
-woodland with the trees still drawn on top of them.
-
-**A hole anywhere opens all of it.** The room is one region however many foundations it spans, so
-blowing one wall of a six-cell hall takes the roof off the whole hall, not off the square the wall
-happened to touch.
-
-## Explosives
-
-A charge breaks what it is stuck to and nothing else. A satchel on a wall takes that wall down and
-leaves the wall beside it at full health, which is what makes raiding a matter of placing charges
-one at a time rather than lobbing them at a compound and watching it fall over. The blast still
-catches anything alive nearby, yours included, so standing next to your own charge is a mistake.
-
-A charge that never stuck to anything, thrown into open ground, only hurts whoever is standing
-there.
-
-## Building on natural ground
-
-Nothing goes up through a tree, a rock or a hemp bush. Clear the ground first and the spot frees up.
-This holds for the clans too: they fell their plot before they raise a compound, which is why their
-houses no longer have trees standing in the middle of a room. Anything cleared grows back on its
-normal timer, but not while a building stands on it, and not half-overlapping one either.
+A charge breaks what it is stuck to and nothing else, so raiding is placing
+charges one at a time rather than lobbing them at a compound. The blast still
+catches anything alive nearby, yours included.
 
 ## Monuments
 
-| Monument    | Radiation | Scientists | Loot                                                |
-| ----------- | --------- | ---------- | --------------------------------------------------- |
-| Lighthouse  | none      | 1          | Low tier: scrap, cloth, fuel                        |
-| Airfield    | moderate  | 4          | Scrap, metal, sulfur, pistol ammo                   |
-| Power Plant | heavy     | 7          | The best in the game, including C4 and hazmat suits |
+Six of them, from the unguarded to the lethal: **Abandoned Cabins**,
+**Lighthouse**, **Ashvale**, **Airfield**, **Power Plant** and **Military
+Base**. The last three are irradiated and held by scientists and soldiers, and
+they are where scrap, high quality metal, rifles and hazmat suits come from.
 
-## The clans
+## Docs
 
-The island supports **2 to 5 clans at a time**, re-rolled within that range as
-the game runs. Each one has its own name, colour and skill, and the skill decides
-everything about them:
-
-| Skill    | Compound | Built from  | Members | Tech/day | Raid pace | Loot            |
-| -------- | -------- | ----------- | ------- | -------- | --------- | --------------- |
-| Amateur  | 2x2      | Wood        | 2       | 0.5      | 0.6x      | 0.5x            |
-| Seasoned | 3x3      | Stone       | 4       | 1        | 1x        | 1x              |
-| Veteran  | 4x4      | Stone       | 6       | 1.6      | 1.35x     | 1.8x            |
-| Expert   | 4x4      | Sheet metal | 8       | 2.4      | 1.7x      | 3x (carries C4) |
-
-Amateurs are common and experts are rare, so most islands have a couple of soft
-targets and one outfit you do not want to annoy. Bigger clans field a higher
-share of raiders over gatherers.
-
-**Wiping a clan** means destroying its tool cupboard. Its survivors scatter and
-walk off the map, and the plot is free.
-
-**The island refills itself.** Whenever the live count drops below the target,
-somebody new moves onto an empty plot and **raises their compound in real time**
-
-- the cupboard goes down first to claim the ground, then floors, then the wall
-  ring, one piece every few seconds (faster for better clans). Half the members
-  arrive at the start and the rest move in once the walls are up. You can watch it
-  happen, and you can interrupt it.
-
-The HUD carries a live roster under the minimap: who is on the island, how good
-they are, and who is still building.
-
-You can raid them back. Their box is full of metal, scrap and gunpowder, and an
-expert clan's box has C4 in it.
-
-## Code layout
-
-The tree is feature-first: one folder per feature, everything that feature needs inside it.
-`docs/architecture/project-structure.md` is the full rule; this is the shape of it.
-
-```
-src/
-  main.ts                 canvas sizing, the fixed-timestep loop, save wiring
-  app/game.ts             orchestrator: owns the systems and wires their hooks
-  features/
-    building/  clans/  combat/  crafting/  items/  net/  npcs/
-    render/  session/  survival/  time/  ui/  world/
-  shared/
-    core/                 input, camera, audio, particles
-    design/constants/     the design tokens
-    utils/  types/        maths helpers and cross-feature shapes
-```
-
-Inside a feature, artifacts are split one per file under `constants/`, `types/`, `enums/` and
-`utils/`, with the system class at the folder root. Balance lives in the `constants/` folders, one
-named number per file, each with the reasoning beside it.
-
-Every import is absolute and rooted at `src/`.
-
-`window.oxide` exposes the live game for debugging in the console.
-
-## Conventions
-
-`docs/` is the source of truth for how this codebase is built:
-
-- [docs/README.md](docs/README.md): the index.
-- [docs/architecture/](docs/architecture/): principles, source tree, file and code conventions.
-- [docs/design-system/](docs/design-system/): design tokens and theming.
-- [docs/testing.md](docs/testing.md): how anything gets verified.
-- [docs/systems/](docs/systems/): how individual parts of the game work.
-
-## Status
-
-This is a first vertical slice: every system above is implemented and tested end
-to end (gathering, crafting, the full building and upgrade chain, smelting,
-cooking, monument radiation, clan raids that actually breach stone walls, the
-wipe-and-resettle cycle, death and respawn, save/load). What is deliberately not in yet: multiplayer, ceilings
-and multi-floor bases, structural-integrity collapse, electricity, and vehicles.
+[docs/README.md](docs/README.md) is the index: the architecture, the design
+tokens, and a page per system with the rule it holds and the mistake it exists
+to prevent. [CLAUDE.md](CLAUDE.md) is the condensed checklist.

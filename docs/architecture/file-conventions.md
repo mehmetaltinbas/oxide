@@ -1,99 +1,91 @@
 # File conventions
 
-How every artifact, constants, types, interfaces, enums, utility functions, is split into files and
-where those files live. These rules cover everything that is not a system class.
+One artifact per file, a predictable place for each kind, and names that say
+what a thing is. Read this before creating a file.
 
-## Granularity
+## One artifact per file
 
 ### Rule
 
-**One artifact per file, and nothing else in the file.** Each file holds exactly one of: one system
-class, one constant, one utility function, one type alias, one interface, one enum.
+A file holds one thing: one system, one definition table, one drawing routine
+family, one screen. The file is named after that thing, in `snake_case`, and
+the header and the source share the name.
 
-- `*.constant.ts`: one constant
-- `*.util.ts`: one utility function
-- `*.type.ts`: one type alias
-- `*.interface.ts`: one interface
-- `*.enum.ts`: one enum
-
-There are **no barrel files.** Nothing re-exports anything.
+```
+sim/include/sim/npc.hpp     what an animal is         sim/src/npc.cpp     the table
+sim/include/sim/npcs.hpp    the system that runs them sim/src/npcs.cpp
+client/src/animal.hpp       how one is drawn          client/src/animal.cpp
+```
 
 ### Why
 
-- A search for the symbol lands on the file that owns it, not on a 700-line aggregate.
-- Renaming, deleting or moving one artifact doesn't touch unrelated neighbours.
-- Skipping barrels keeps import paths explicit, so the path itself says which feature a symbol comes
-  from, and one item changing doesn't invalidate an "import everything" module.
-- It removes the constant judgment call about whether something deserves its own file. The answer is
-  always yes.
-
-### Counter-examples (do not do this)
-
-```ts
-// BAD: one config module holding the whole game's tuning
-export const PLAYER = { ... };
-export const ENEMIES = { ... };
-export type BuildKind = 'wall' | 'door';
-export const BUILDINGS = { ... };
-```
-
-Split by owner and by kind:
-
-```
-features/survival/constants/player.constant.ts
-features/enemies/constants/enemies.constant.ts
-features/building/types/build-kind.type.ts
-features/building/constants/buildings.constant.ts
-```
-
-A helper duplicated across two system files is NOT a reason to leave it in both, extract it to its
-own `*.util.ts` and import it from each.
+Where a thing lives should be derivable from its name without searching. A file
+that holds two unrelated things has no name that fits it, which is how
+`util.cpp` happens.
 
 ### How to apply
 
-```
-features/<feature>/
-  <feature>.ts                    the system class, if the feature has one
-  constants/
-    <name>.constant.ts            one constant: <NAME>
-  utils/
-    <name>.util.ts                one function
-  types/
-    <name>.interface.ts           one interface
-    <name>.type.ts                one type alias
-  enums/
-    <name>.enum.ts                one enum
-```
-
-## Naming
-
-### Rule
-
-The filename is kebab-case plus the kind suffix. The slug describes the artifact's **identity**, not
-its kind: `BLEED_OUT_SECONDS` lives in `bleed-out-seconds.constant.ts`, never
-`bleed-out-constant.constant.ts`, the suffix already says what it is.
-
-Constants are `SCREAMING_SNAKE_CASE`; types, interfaces and classes are `PascalCase`; utilities are
-`camelCase`.
-
-### Why
-
-Given a symbol you can derive its filename, and given a filename you can derive its symbol. Neither
-requires a search.
-
-## When to extract vs. when to inline
-
-### Rule
-
-The rule is _one export per file_, not _every helper must be exported_. A helper used inside a single
-file, and which is purely a private implementation detail of it, may stay in that file, but it must
-not be exported, so the file still has exactly one export. The moment it is needed from a sibling, it
-moves to its own `*.util.ts`.
+- A header declares; a source defines. A header that needs no source (a
+  definition struct, a constant, a tiny inline) has none.
+- `sim/include/sim/<name>.hpp` is public. `client/src/<name>.hpp` is private.
+- The singular is the thing, the plural is the system that runs many of them:
+  `npc.hpp` is what an animal is, `npcs.hpp` is the system that steps them.
 
 ### Exceptions
 
-- A **system class file** keeps the private helpers and module-private types that only it uses. It
-  still has one export: the class.
-- A definition table's private row-builder (a `const R = (…) => ({ … })` used to write forty rows
-  compactly) stays with the table it builds. It is a way of writing that one constant, not an
-  artifact of its own.
+Small families that are only ever used together stay in one file: every item
+glyph lives in `client/src/held.cpp`, because splitting fifty of them into
+fifty files would make the sheet impossible to read as a sheet.
+
+## Names say what a thing is
+
+### Rule
+
+| Kind | Style | Example |
+| --- | --- | --- |
+| File | `snake_case` | `world_life.cpp` |
+| Type, struct, enum | `PascalCase` | `ResourceNode`, `NpcKind` |
+| Function, method, variable | `camelCase` | `keepOutOfSolids`, `dropLifetime` |
+| Member | `camelCase_` with a trailing underscore | `nodes_`, `worldScale_` |
+| Constant, enum value | `kPascalCase` | `kDropLifetime`, `NpcKind::Wolf` |
+| Namespace | `lowercase` | `sim`, `client`, `sim::net` |
+
+### Why
+
+The trailing underscore is the one that earns its keep: it says at a glance
+whether a name in a method body is state that outlives the call or a local that
+does not.
+
+### How to apply
+
+A definition struct is `<Kind>Def` and its table is `k<Kind>Defs`, reached
+through a `<kind>Def(kind)` accessor. Never index the table directly from
+outside the file that owns it.
+
+## Comments say why, not what
+
+### Rule
+
+A comment explains the reason a thing is the way it is, the measurement behind
+a number, or the mistake the code is avoiding. It never restates the code.
+
+### Why
+
+The code already says what it does. What it cannot say is why 176 and not 184,
+or that this loop is written the long way because the short way walked an
+animal through a wall.
+
+### How to apply
+
+```cpp
+// No: says what the line says.
+// Set the wolf's speed to 176.
+
+// Yes: says what the number is pinned between, and what broke.
+// 176 against a sprint of 185. Under a sprint or a wolf is a death sentence;
+// over an elk's 165 or it never eats. It was 184, a sprint to within a
+// rounding error, and you could not get away from one at all.
+```
+
+Every balance number carries the measurement that justifies it, beside it. See
+[no-hardcoded-values.md](no-hardcoded-values.md).

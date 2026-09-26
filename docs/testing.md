@@ -1,137 +1,105 @@
 # Testing
 
-What gets verified, and how. This codebase has no unit-test suite and does not want one: it is a
-simulation, and the things that break are emergent behaviours over hundreds of ticks, not the return
-value of a pure function. Testing here means **driving the real game and asserting on real state**.
+Critical operations only, driven headlessly against the real rules. Read this
+before adding a check, and before claiming something works.
 
-## Drive the real game, assert on real state
+## A check drives the real game
 
 ### Rule
 
-Verify a change by running the actual game in a browser, stepping the real simulation, and reading
-the real state afterwards. Do not assert on mocks, and do not assert on what the code looks like.
+A check links `sim/` and calls the same functions the game calls. It builds a
+real island, steps real systems, and asserts on real state. Nothing is mocked
+and nothing is stubbed.
 
 ### Why
 
-Every serious bug found in this project so far was emergent: a pathfinder that only failed when
-another flood had already visited the ground outside, a roof that only stayed on when the cells were
-scanned in a particular order, crew that starved because their larder never filled. None of them are
-reachable from a unit test of the function that contained them.
+A check against a test double proves the double works. The rules here are
+mostly relationships between numbers, and the only way to know a relationship
+still holds is to run the thing that depends on it.
+
+Every check in `tools/` exists because something broke and nobody noticed. They
+are listed below with what each one caught.
 
 ### How to apply
 
-The game exposes itself on `window` for exactly this purpose. A check is:
+```bash
+cmake --build build
+./build/bin/play_check     # the rules
+./build/bin/island_check   # generation
+./build/bin/sound_check    # every sound makes a noise
+./build/bin/net_check      # two clients on one island (needs oxide_server running)
+```
 
-1. Set up the world state you need directly.
-2. Step the simulation a known number of fixed steps, `for (let i = 0; i < n; i++) game.update(1 / 60);`
-   , rather than waiting on wall-clock time.
-3. Read the state and assert on it.
+`play_check` prints a line per thing it drove, in plain English, and returns
+non-zero if the island cannot be worked at all:
 
-```ts
-// build the situation, run it, look at what happened
-const before = <state>;
-for (let i = 0; i < 600; i++) game.update(1 / 60);   // ten seconds
-const after = <state>;
+```
+wildlife: Rabbit 130 Elk 85 Kangaroo 70 Wolf 80 Bear 26, 0 in the wrong country
+chain: wolf went for the elk, caught it, gap 0 from 160
+reload: shotgun 2 after a second and a half then 6, rifle 0 then 16
+temper: wolf closed on you by 79, elk ran from you by 60
+outrun: sprinting away from a wolf for ten seconds, gap 178 from 90
+collide: a bear walking at a barrel stopped 32 short of its middle
 ```
 
 ### Exceptions
 
-Anything genuinely pure and fiddly, a maths helper, a stack-merging rule, can be checked by calling
-it directly. That is still done through the same console harness, not a test runner.
+Drawing is checked by eye, through the flags below, because there is no useful
+assertion about whether a rock looks like a rock.
 
-## Step the simulation yourself
-
-### Rule
-
-Never rely on the frame loop advancing while you measure. Call `update` in a loop.
-
-### Why
-
-A backgrounded tab throttles `requestAnimationFrame` to nothing, so a check that waits on real time
-observes a world that never moved and reports a pass. Several apparent bugs during development were
-this and nothing else.
-
-## Check the harness before you blame the game
+## Assert both halves of a relationship
 
 ### Rule
 
-When a check reports something impossible, verify the harness first.
+When a number is pinned from two sides, the check asserts both. One of them
+alone can be satisfied by a value that breaks the other.
 
 ### Why
 
-Repeatedly, the fault was the test: the player parked outside the radius where NPCs simulate at all,
-a movement key left held so every channel cancelled, a measurement taken across all bases when it
-should have been per base. Correct the check, then re-run, then believe it.
-
-## Watch the frame budget
-
-### Rule
-
-Any change to a system that runs every tick gets its cost measured before and after, against
-docs/systems/performance.md.
-
-### Why
-
-The cost of a change is invisible until it is a stutter. Two regressions in this codebase were caught
-this way and would have shipped otherwise: a pathfinder that went from 0.38ms to 7.2ms per update,
-and an enclosure flood that cost 22ms every time anything was built.
+The wolf's speed has to be under a sprint and over an elk. A check that only
+proved you can escape a wolf would pass at any speed at all, including one at
+which a wolf starves.
 
 ### How to apply
 
-```ts
-const t = [];
-for (let i = 0; i < 1800; i++) {
-	const t0 = performance.now();
-	game.update(1 / 60);
-	t.push(performance.now() - t0);
-}
-t.sort((a, b) => a - b);
-// report p50, p95, p99 and the worst, an average hides the spike that is the problem
-```
+`play_check`'s `outrun` sprints a player away from a wolf and reports the gap;
+`chain` puts a wolf on an elk and requires it to catch one. Both run every time.
 
-## Finish with a smoke-test checklist
+## Look at it before saying it works
 
 ### Rule
 
-At the end of a change, write down the handful of things to click or run to confirm it works end to
-end: the critical path first, then the one or two edge cases most likely to break.
+Anything visual is screenshotted and looked at before it is reported as done.
+The game takes a picture of itself and exits.
 
 ### Why
 
-It is the shortest thing that catches an integration mistake, and it tells whoever reads the change
-what "working" was taken to mean.
+Twice now something was reported as finished when the edit had matched nothing
+and changed nothing. A screenshot costs one command.
 
-## Jumping to a state worth testing
+### How to apply
 
-Checking a change used to mean playing from the beach until the game reached the
-situation the change was about, which for anything past the first few minutes is
-a lot of gathering before you learn whether it even works.
-
-Add `?scenario=<name>` to the dev URL:
-
-```
-http://localhost:5173/?scenario=base
+```bash
+./build/bin/oxide 12345 --at 10368 10368 --shot /tmp/a.bmp
 ```
 
-Or switch without reloading, from the browser console:
+The seed pins the island, so the same command gives the same picture every
+time. The flags that exist for looking at things:
 
-```js
-oxide.scenarios(); // list them
-oxide.scenario('night');
-```
+| Flag | What it shows |
+| --- | --- |
+| `--shot <file>` | draw one frame to a BMP and exit |
+| `--at <x> <y>` | start somewhere in particular |
+| `--zoom <n>` | at a given view scale |
+| `--window <w> <h>` | in a window of a given shape |
+| `--zoo` | one of every animal in a row, held mid-blow |
+| `--rocks` | one of every node kind in a row |
+| `--icons` | every item picture on one sheet |
+| `--arrow` | arrows and a rifle round frozen in the air |
+| `--reload <t>` | a gun frozen part way through a magazine change |
+| `--swing <t>`, `--draw <t>` | a blow or a bow frozen part way through |
+| `--monument <n>` | dropped at the nth looting place |
+| `--night`, `--panel`, `--craft`, `--title`, `--map` | the state you want to see |
+| `--bench <frames>` | how long a frame takes to build, printed |
 
-They live in `src/features/dev/scenarios.ts`, one row each: a name, a line
-saying what it sets up, and a function that puts the game in that state. Adding
-one is a new row, not a new branch somewhere else.
-
-**Verify a scenario when you add it.** A harness that quietly fails to reach the
-state it advertises is worse than no harness: it turns a broken feature into a
-passing check. The first `night` here was exactly that. It called `skipTime`,
-which is creative-mode only and returns without doing anything outside sandbox,
-so the scenario advertised midnight and handed back broad daylight. It sets the
-clock directly now.
-
-None of it ships. The whole block in `main.ts`, the console helpers included,
-sits behind `import.meta.env.DEV`, which folds to false in a build and takes the
-module with it. Exposing the helpers unconditionally would keep the entire table
-in the bundle, so if you add to this, check `dist/` afterwards.
+None of these touch the save.

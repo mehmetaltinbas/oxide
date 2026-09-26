@@ -1,84 +1,93 @@
 # Project rules for Claude Code
 
-Oxide: a top-down survival island, on a plain HTML5 canvas with TypeScript and no engine.
+Oxide: a top-down survival island in C++ with SDL3 and no engine. One rules
+library, three binaries, no other language in the repository.
 
 ## Source of truth
 
-The conventions in `docs/` are the source of truth for how this codebase is built. **The rules below are a condensed checklist. The full rationale, examples and exceptions live in
-those docs.** Before
-changing structure, or whenever a rule here is unclear, open the relevant doc and match it rather
-than inventing a new pattern.
+The conventions in `docs/` are the source of truth for how this codebase is
+built. **The rules below are a condensed checklist. The full rationale, examples
+and exceptions live in those docs.** Before changing structure, or whenever a
+rule here is unclear, open the relevant doc and match it rather than inventing a
+new pattern.
 
 Entry points:
 
-- [docs/README.md](docs/README.md): the index, the placeholder legend, and the document skeleton.
-- [docs/architecture/](docs/architecture/): principles, source tree, file and code conventions.
+- [docs/README.md](docs/README.md): the index, the single-source-of-truth table, the placeholder legend, and the document skeleton.
+- [docs/architecture/](docs/architecture/): principles, the source tree, file and code conventions.
 - [docs/design-system/](docs/design-system/): design tokens and theming.
+- [docs/systems/](docs/systems/): how each part of the game works and the rules it holds.
 - [docs/testing.md](docs/testing.md): how anything gets verified.
 
 ## Plan first, then align with the docs
 
-For anything non-trivial, work in plan mode. After producing a plan, **re-read the relevant docs and
-revise the plan to match them** before writing code. Say which doc each step satisfies. Don't start
-editing until the plan matches the documented conventions.
+For anything non-trivial, work in plan mode. After producing a plan, **re-read
+the relevant docs and revise the plan to match them** before writing code. Say
+which doc each step satisfies. Don't start editing until the plan matches the
+documented conventions.
 
 ## Never make consequential decisions alone
 
-Implementation details, names, where a helper lives, how to wire a loop, are yours to decide. A
-**consequential decision**, anything shaping the architecture, the data model, scope, or how the
-game plays, is mine to make.
+Implementation details, names, where a helper lives, how to wire a loop, are
+yours to decide. A **consequential decision**, anything shaping the
+architecture, the data model, scope, or how the game plays, is mine to make.
 
-When you hit one: stop, list the options with their trade-offs, and ask. Don't pick a default and
-continue. If you're unsure whether a decision is consequential, treat it as if it is and ask.
+When you hit one: stop, list the options with their trade-offs, and ask. Don't
+pick a default and continue. If you're unsure whether a decision is
+consequential, treat it as if it is and ask.
 
 ## Measure, don't guess
 
-Balance numbers and performance claims come from measurements taken in the running game, and the
-measurement goes in a comment beside the value it justifies. Before tuning a number, measure the
-thing it controls. Before claiming a change is fast, measure it against the frame budget.
+Balance numbers and performance claims come from measurements taken in the
+running game, and the measurement goes in a comment beside the value it
+justifies. Before tuning a number, measure the thing it controls. Before
+claiming a change is fast, measure it against the frame budget.
 
-When something behaves impossibly, check the test harness before blaming the game, see
-[docs/testing.md](docs/testing.md).
+Where a number is pinned by a relationship rather than by taste, add a check
+that asserts the relationship, and assert **both** halves of it.
+
+## Look at it before saying it works
+
+Anything visual is screenshotted and looked at before it is reported as done.
+`./build/bin/oxide 12345 --at 10368 10368 --shot /tmp/a.bmp` costs one command,
+and there are flags for every state worth looking at: see
+[docs/testing.md](docs/testing.md). An edit that matched nothing is silent.
 
 ## Conventions to honour
 
-- **Feature-first**: one folder per feature under `src/features/`; `src/shared/` for what belongs to
-  nobody; `src/app/game.ts` for the orchestrator.
-- **One artifact per file**: one constant, one type, one interface, one util, one class. No barrels.
-- **Imports are absolute**, rooted at `src/`. Never `./` or `../`.
-- **No hardcoded tuning values.** Every balance number lives in a `*.constant.ts` in the feature that
-  owns it.
-- **No raw visual values.** Colour, spacing, radius, draw order and motion come from the design
-  tokens in `src/shared/design/constants/`.
-- **A new variant is a new row**, not a new `switch` case. Add a field to the definition interface
-  rather than special-casing at the call site.
-- **Simulation never draws; drawing never mutates.** `update(dt)` owns state, `draw()` reads it.
-  The renderer takes `GameView` so the compiler enforces it.
-- **Cross-system calls go through hooks.** No simulation system holds a reference to `Game`. The
-  only three that may are the renderer (read-only `GameView`), the HUD (immediate-mode) and
-  save/load, and the reasons are in `docs/architecture/code-conventions.md`.
-- **Behaviour lives in feature systems**, not in the orchestrator. `src/app/game.ts` constructs
-  systems, owns shared state and phase, and runs them in order. Nothing else.
-- **No prose during play.** No notices, toasts, banners or sentences on the screen for refusals,
-  warnings or confirmations. Say it with the thing itself or with a sound. Numbers floating off what
-  they happened to, name tags and the one action prompt are not prose and stay. See
-  [docs/systems/screen-text.md](docs/systems/screen-text.md).
-- **Every interactable shows its prompt in range.** One source for what is in reach:
-  `InteractionSystem.target()`, which both E and the HUD prompt read. A new interactable is a new
-  case there, never a separate check. See `docs/systems/ui.md`, "Every interactable has a prompt".
-- **Tabs for indentation, four columns wide**, everywhere, C++ included. A block always indents its
-  contents; a body flush against its brace is not acceptable. Alignment under an open bracket is
-  spaces after the tabs. `.editorconfig` sets it for every editor and Prettier enforces it on the
-  TypeScript tree, so `npm run check` fails on drift: run `npm run format` before you finish. See
+- **One rules library.** `sim/` knows nothing about SDL, sockets or drawing.
+  `client/`, `server/` and `tools/` include it and never each other. If two of
+  them need the same thing, it moves into `sim/`.
+- **One artifact per file**, named after that artifact in `snake_case`. No
+  headers that hold two unrelated things.
+- **Simulation never draws; drawing never mutates.** Step the rules, then draw
+  what came out. A drawing routine takes `const&` and returns nothing.
+- **A new variant is a new row**, not a new `switch` case. Add a field to the
+  definition struct rather than special-casing at the call site.
+- **No hardcoded tuning values.** Every balance number is a named constant or a
+  field on a definition, and carries the reason it is that number.
+- **No raw visual values.** Colour, ink weight, spacing and radius come from
+  `client/src/palette.hpp` and `client/src/ui.hpp`.
+- **One routine per rule.** When two copies of a rule exist, one of them is
+  wrong and nobody finds out until they watch it happen. Collision is the
+  standing example: see [docs/systems/collision.md](docs/systems/collision.md).
+- **Widths are in world units.** Ink, bars and name tags scale with the view;
+  the interface does not. See [docs/systems/world-scale.md](docs/systems/world-scale.md).
+- **No prose during play.** No notices, toasts, banners or sentences on screen
+  for refusals, warnings or confirmations. Say it with the thing itself or with
+  a sound. See [docs/systems/screen-text.md](docs/systems/screen-text.md).
+- **Tabs for indentation, four columns wide.** A block always indents its
+  contents; a body flush against its brace is not acceptable. A namespace body
+  is not indented. `.editorconfig` and `.clang-format` set it. See
   [docs/architecture/indentation.md](docs/architecture/indentation.md).
 
 ## Finish with a smoke-test checklist
 
-At the end of an implementation, give a short, high-level smoke-test checklist, the handful of
-things to click or run to confirm it works end to end. Critical path first, then the one or two edge
-cases most likely to break.
+At the end of an implementation, give a short, high-level smoke-test checklist,
+the handful of things to click or run to confirm it works end to end. Critical
+path first, then the one or two edge cases most likely to break.
 
 ## Writing style
 
-Report results in plain, brief English: what works now, what it means in practice, and anything left
-to do. No em-dashes in anything written for me.
+Report results in plain, brief English: what works now, what it means in
+practice, and anything left to do. No em-dashes in anything written for me.

@@ -1,5 +1,10 @@
-node_modules
-dist
+# The build tree: fetched libraries and compiled output.
+build/
 
-# The C++ build tree: fetched libraries and compiled output.
-native/build/
+# What the game writes while it runs.
+.oxide-save
+
+.DS_Store
+
+# Left behind by the old dev server.
+.vite/

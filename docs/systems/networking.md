@@ -39,9 +39,9 @@ A placement is refused unless it is inside the map, on a free spot, and, for a
 wall, standing on one of your own foundations. A door only goes into your own
 doorway, and nothing goes up inside somebody else's tool cupboard.
 
-It cannot yet check trees, rocks or monument ground, because those come from
-worldgen and worldgen is client-only. Those stay client-side refusals, so a
-modified client could build on a rock. `damage` is likewise still the client's
+The server generates the same island from the same seed, so it can check
+against trees, rocks and monument ground as well: worldgen lives in `sim/` and
+both halves run it. `damage` is likewise still the client's
 word, clamped so one message cannot flatten a base. Both are on the list below.
 
 ### Placement is optimistic
@@ -52,12 +52,12 @@ id, and the client swaps its own piece for that one. If the server refuses, it
 sends `refused` naming the spot, and the client takes the piece back off the
 map. Waiting for the round trip instead would put a visible delay on every wall.
 
-`src/features/building/remote-build.ts` is the only place that turns wire
-pieces into local ones, and the only place that maps a client id to the numeric
-owner the build system uses.
+`client/src/net_client.cpp` is the only place that turns wire pieces into local
+ones, and the only place that maps a client id to the numeric owner the build
+system uses.
 
-The server re-runs the same movement rule the client does. `applyInput` in
-`src/net/client.ts` and the movement block in `server/index.mjs` must stay
+The server re-runs the same movement rule the client does, and it is literally
+the same code: both call `sim::stepPlayer`. What follows is what used to be
 identical, if they drift, prediction fights the server on every step and
 players rubber-band.
 
@@ -83,7 +83,9 @@ Splitting these is what lets a 144 Hz client feel smooth against a 30 Hz server.
 
 ## Messages
 
-The types are in `src/features/net/types/`, imported by both halves. Client
+The wire format is in `sim/include/sim/net/protocol.hpp`, included by both
+halves. It is binary and version-stamped: a client whose version does not match
+is turned away rather than half understood. Client
 sends `hello`, `rooms`, `create`, `join`, `leave`, `input`, `build`, `door`,
 `damage`, `chat`, `ping`. Server sends `welcome`, `rooms`, `joined`, `snapshot`,
 `state`, `built`, `deployed`, `refused`, `destroyed`, `door`, `chat`, `pong`,
@@ -98,11 +100,15 @@ update and carries only players plus join/leave lists.
 ## Running it
 
 ```bash
-npm run server
+cmake --build build
+./build/bin/oxide_server
 ```
 
-Then open the game and choose **Play online**. The client finds the server at
-the same host on port 8787; override with `?server=ws://host:port`.
+Then start the game with `--connect <host>`. It defaults to port 8787.
+
+Multiplayer is not reachable from the title screen yet: the entry is listed and
+greyed. The networking is still built and `net_check` still drives two clients
+against a running server on every change.
 
 ## What is not synced yet
 
@@ -128,19 +134,19 @@ assume other players see it.
 
 ## Keeping the numbers in step
 
-Anything both halves need lives in `shared/`, as JSON imported by the client
-through the `shared` alias and by the server by relative path. Movement, the
+There is nothing to keep in step. Both halves link `sim/`, so movement, the
 build grid, wall thickness, the deployable box and the tool cupboard radius are
-all there.
+one copy of one number rather than two copies that agree by luck.
 
-They used to be typed out again in `server/index.mjs`. The server's wall
-thickness and the client's were the same only by luck, and its deployable size
-did not exist at all, which is how players came to walk through every box on
-the island.
+This is the whole reason the game was rewritten in C++. Before it, the client
+had its numbers and the server typed them out again: the two wall thicknesses
+matched by accident and the server's deployable size did not exist at all,
+which is how players came to walk through every box on the island. That class
+of bug is now unrepresentable.
 
 ## Rules
 
 - New synced state goes in the protocol first, then both ends.
 - Never trust a client message: the server validates or ignores it.
 - Prefer sending on change over sending on a timer.
-- Keep the movement rule in exactly two places, and keep them identical.
+- Keep the movement rule in exactly one place: `sim::stepPlayer`, called by both.

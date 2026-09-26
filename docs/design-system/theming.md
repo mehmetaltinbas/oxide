@@ -1,32 +1,28 @@
 # Theming
 
-A theme is a **set of token values**. The game ships one, and changing the look means changing values
-in `src/shared/design/constants/`, never touching a draw call.
+A theme is a set of token values. Changing the look never touches a draw call.
 
-## Rule
+### Rule
 
-To restyle the game, edit the token sets. Do not add per-theme branches to drawing code, and do not
-give a component its own colour so it can look different.
+Everything that decides how the game looks is a value in
+`client/src/palette.hpp` or `client/src/ui.hpp`. A different look is a
+different set of those values and nothing else.
 
 ### Why
 
-Drawing code that asks "which theme is this?" has to ask it everywhere, and every place that forgets
-is a visual bug. Keeping the question in the token layer means there is exactly one place to answer
-it, and every draw call inherits the answer for free.
+It is the test of whether the tokens are actually doing their job. If turning
+the palette dark required editing drawing code, then the drawing code contains
+visual decisions it should not have.
 
 ### How to apply
 
-A second theme is a second set of values behind the same keys, chosen once at startup:
-
-```ts
-// src/shared/design/constants/ui.constant.ts
-export const UI = <theme chosen once> ;
-```
-
-Everything downstream keeps naming `UI.surface` and gets whichever value the active theme supplies.
+The game ships one look: comic, inked, warm. To change it, change the values.
+Nothing in `client/src/*.cpp` should need editing to do it, and if something
+does, that is a colour or a width that escaped into a draw call and belongs in
+a token.
 
 ### Exceptions
 
-**Day and night are not themes.** The world darkens through a simulated value that the renderer
-applies as an overlay, because it is a property of the game state, it drives what the AI can see
-too, not a property of the presentation. Only presentation belongs in the token layer.
+Night is not a theme. It is a veil laid over the finished frame with holes cut
+in it by whatever is alight, and it is a system rather than a set of values:
+see `client/src/glow.hpp`.

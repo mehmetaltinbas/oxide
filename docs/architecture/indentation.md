@@ -37,8 +37,8 @@ than spaces, because a tab is one level of indentation by definition: the
 reader chooses how wide a level looks, and the file does not have to be
 reformatted for them to change their mind.
 
-Four columns because it is what the TypeScript side of this repository has
-always used, and one project should not read two ways.
+Four columns because it is wide enough to see the nesting at a glance and
+narrow enough that five levels still fit on a line.
 
 ### How to apply
 
@@ -56,13 +56,17 @@ and then spaces up to the column:
 Written that way, the alignment holds at four columns and the nesting holds at
 any width.
 
-Prettier is configured with `useTabs: true` for the TypeScript tree, so
-`npm run format` produces the same thing; `npm run check` fails on drift.
+`.clang-format` at the root says the same thing, so an editor that formats on
+save produces it without being asked.
 
 ### Exceptions
 
-YAML and JSON are indented with two spaces, because tabs are not valid in YAML
+YAML and JSON are indented with four spaces, because tabs are not valid in YAML
 and every tool that writes these files writes spaces. `.editorconfig` says so.
 
 Markdown keeps spaces inside list continuations for the same reason: a tab
 changes what a list item means.
+
+A namespace body is **not** indented. A namespace wraps the whole file, so
+indenting it distinguishes nothing and costs a level of width on every line;
+this is what every C++ project does and `.clang-format` enforces it.

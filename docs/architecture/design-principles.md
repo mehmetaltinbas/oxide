@@ -1,13 +1,13 @@
 # Design principles
 
-The principles every change in `src/` is measured against. SOLID first, then the guidance that is
-specific to a fixed-timestep canvas game with no engine under it. When a design decision is
-contentious, point at the principle that resolves it.
+The principles every change is measured against. SOLID first, then the guidance that is specific
+to a fixed-timestep game in C++ with no engine under it. When a design decision is contentious,
+point at the principle that resolves it.
 
 ## 1. Single Responsibility Principle (SRP)
 
 Each system, class or function has one reason to change. `BuildSystem` owns what is built;
-`Renderer` owns how it looks. A bug in wall placement has exactly one file to open.
+`client/src/built.cpp` owns how it looks. A bug in wall placement has exactly one file to open.
 
 ## 2. Open-Closed Principle (OCP)
 
@@ -16,7 +16,7 @@ branch to a `switch`. See [data-driven-definitions.md](data-driven-definitions.m
 
 ## 3. Liskov Substitution Principle (LSP)
 
-Anything that satisfies a definition interface, `<Def>`, must be usable everywhere that interface
+Anything that satisfies a definition struct, `<Def>`, must be usable everywhere that struct
 is accepted. A definition that needs the calling code to special-case it is a definition that needs
 another field, not another `if`.
 
@@ -39,9 +39,11 @@ Behaviour is combined by running several systems over the same data, not by exte
 
 ## 7. Don't Repeat Yourself (DRY)
 
-Every piece of knowledge has one home. A tuning number lives in one `*.constant.ts`; a colour lives
-in one token; a shape lives in one `*.interface.ts`. A helper duplicated across two files becomes a
-`*.util.ts` that both import.
+Every piece of knowledge has one home. A tuning number lives on one definition row or in one named
+constant; a colour lives in one token; a rule lives in one routine. A helper duplicated across two
+files becomes one header both include. The collision bug is the standing example of what the second
+copy costs: the player had its own private version and the animals had none, so a bear walked
+through a barrel for a month.
 
 ## 8. Separation of Concerns (SoC)
 

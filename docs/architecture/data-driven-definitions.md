@@ -1,47 +1,69 @@
 # Data-driven definitions
 
-How this codebase replaces `switch` and `if/else` chains on a kind with one definition table per
-family. Read this before adding a new enemy, item, building, biome or any other variant.
+A new variant is a new row, not a new `switch` case. Read this before adding an
+item, an animal, a node, a recipe or a building piece.
 
-## Rule
+## One table per family
 
-A family of variants is expressed as a **kind union**, a **definition interface**, and a **table
-mapping every kind to its definition**. Code that behaves differently per kind reads fields off the
-definition; it does not branch on the kind.
+### Rule
 
-```
-features/<feature>/types/<kind>.type.ts        export type <Kind> = 'a' | 'b' | 'c';
-features/<feature>/types/<def>.interface.ts    export interface <Def> { … }
-features/<feature>/constants/<defs>.constant.ts  export const <DEFS>: Record<<Kind>, <Def>> = { … };
+Every family of things is a struct of fields and a table with one row per
+variant, reached through an accessor. Code asks the definition what to do
+rather than asking which variant it is.
+
+```cpp
+struct NpcDef {
+	NpcKind kind;
+	const char* name;
+	int hp;
+	double speed;
+	/* ... */
+	Biome homes[3];
+	int homeCount;
+	int rank;
+	NpcKind eats[3];
+	int eatsCount;
+	bool skittish;
+};
+
+const NpcDef& npcDef(NpcKind kind);
 ```
 
 ### Why
 
-- **Adding a variant is adding a row.** The compiler then tells you about every table that must gain
-  an entry, because `Record<<Kind>, <Def>>` is exhaustive by construction. A `switch` gives you a
-  silent fallthrough instead.
-- **All of a variant's behaviour is in one place**: one row, rather than scattered across the nine
-  `switch` statements that mention it.
-- It is Open-Closed made concrete: new behaviour extends the data, not the code.
+A `switch` on a kind is the same list written again in every place that cares,
+and every one of them has to be found and edited to add a variant. Miss one and
+the new thing silently behaves like whatever the `default` was.
+
+The tables are also the game's balance, readable in one place. The whole food
+chain is three fields on one struct; you can see it by reading one file instead
+of five state machines.
 
 ### How to apply
 
-Adding a kind:
+Adding an animal is one row in `sim/src/npc.cpp`, one value in `NpcKind`, and a
+count in the populations table. Nothing else changes, because nothing else
+switches on the kind: `populate` reads `homes`, the chase reads `eats` and
+`rank`, the loot drop reads `loot`.
 
-1. Add the string to the `<Kind>` union.
-2. Add the row to `<DEFS>`. TypeScript will refuse to compile until every exhaustive table has it.
-3. If the new kind needs behaviour no existing field expresses, **add a field to `<Def>`** and give
-   every existing row a value for it. Do not add an `if (kind === …)` at the call site.
+When behaviour cannot be expressed as a number, add a field for it rather than a
+case at the call site:
 
-The last step is the one that matters. A field with a sensible default for everything else is how a
-family stays open to extension; a special case at the call site is how it stops being one.
+```cpp
+// No: the call site now knows about shotguns.
+if (held == ItemId::PumpShotgun || held == ItemId::Waterpipe) { /* one shell */ }
+
+// Yes: the gun says how it is fed.
+if (gun.singly) { /* one shell */ }
+```
 
 ### Exceptions
 
-- **Drawing.** A renderer genuinely does draw a bear differently from a wall, and no data table
-  expresses "which pixels". Rendering switches on kind, and that is where the special-casing is
-  allowed to live.
-- **A field that only one kind can ever have** may be optional on `<Def>` and read behind a
-  presence check. `shootThrough?: boolean` is a property of the piece, not a branch on its name.
-- **One-off orchestration**: a single place in the game flow that treats one kind specially because
-  of the story, not because of the mechanic.
+Drawing is the one place a `switch` on a kind is right. A wolf and a bear do not
+differ by a number, they differ by being different drawings, and expressing that
+as data would be inventing a worse programming language. `client/src/animal.cpp`
+switches on the kind to pick the body proportions and then draws from those.
+
+A table field should still be preferred where it works: an animal's whole build
+is a `Build` struct picked by that switch, so the drawing code below it is the
+same for every animal.

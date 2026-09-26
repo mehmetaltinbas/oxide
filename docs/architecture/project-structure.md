@@ -1,140 +1,80 @@
-# Project structure (feature-first)
+# Project structure
 
-How the source tree is organised at the top level: **one self-contained folder per feature** under
-`src/features/`, plus `src/shared/` for what belongs to no single feature, and `src/app/` for the
-thing that wires them together. For how a feature's own files are split by kind, see
-[file-conventions.md](file-conventions.md).
+Three binaries built over one rules library. Read this before adding a file, and
+before reaching for an include that crosses a boundary.
 
-## Feature-first, not type-first
+```
+CMakeLists.txt     the three binaries and the fetched libraries
+sim/               the rules of the game. No SDL, no sockets, no platform
+  include/sim/     the headers every other part includes
+  src/
+client/            the game you play: window, input, drawing, sound
+server/            the headless authority, run on a machine with no screen
+tools/             headless checks that drive the real rules
+assets/            fonts, and anything else read at runtime
+docs/              this
+```
+
+## The arrows point one way
 
 ### Rule
 
-`src/features/` is a **flat list of features**, one folder per feature, each owning everything that
-feature needs: its system class, its constants, its types, its enums, its utils. There is no global
-`constants/` or `types/` dump spanning features.
+`sim/` knows nothing about anything else. It includes no SDL, opens no socket,
+reads no file it was not handed, and draws nothing. `client/`, `server/` and
+`tools/` all include `sim/`, and none of them includes another.
 
-```
-src/
-  main.ts                     the entry point: canvas, resize, and the frame loop
-  app/
-    game.ts                   the orchestrator, owns the systems and wires their hooks
-  features/
-      building/
-      combat/
-      crafting/
-      items/
-      net/
-      npcs/
-      render/
-      session/
-      survival/
-      time/
-      ui/
-      world/
-  shared/
-    core/                     input, camera, audio, particles, owned by nobody, used by everyone
-    design/constants/         the design tokens
-    utils/                    one maths helper per file
-    types/                    shapes two or more features both need
-```
+If two of them need the same thing, it moves into `sim/`.
 
 ### Why
 
-- **Everything for a feature is in one place.** A change to how crafting works touches
-  `src/features/crafting/`, not three global directories.
-- **Deleting a feature is deleting a folder.**
-- It makes Separation of Concerns physical rather than aspirational.
-- A contributor: or an agent, finds a feature by name in one hop.
+The client and the server have to agree about the rules exactly, or a player
+sees one game and the server runs another. The way to make that impossible is
+for there to be one copy of the rules that both of them use rather than two
+that are kept in step by hand. This is the single largest thing the C++ rewrite
+bought: the game it replaced kept its numbers in three places and they drifted.
+
+It also makes the checks in `tools/` worth something. They link `sim/` and
+nothing else, so what they assert on is the real game and not a test double of
+it.
 
 ### How to apply
 
-1. New feature → create `src/features/<feature>/` and add its artifacts under the per-kind
-   sub-folders described in [file-conventions.md](file-conventions.md).
-2. Wire it into `src/app/game.ts`, which constructs it and supplies its hooks.
-3. Anything a _second_ feature needs moves down into `src/shared/`.
+Ask what a thing is. If it is a rule about what happens, it goes in `sim/`. If
+it is about what that looks like or sounds like, it goes in `client/`.
 
-## `src/shared/`, cross-feature only
+```cpp
+// sim/: how far a wolf can see, how much a blow takes off.
+inline constexpr double kSkittishRange = 150;
+// client/: what a wolf is drawn with, and how heavy the line round it is.
+constexpr Color kInk = rgb(0x14110d);
+```
 
-### Rule
-
-`src/shared/` holds only what is used by **two or more features and owned by none**: the input,
-camera, audio and particle systems, the design tokens, the maths helpers, and the handful of types
-that genuinely span features. Feature-specific code never lives here.
-
-### Why
-
-One home for reusable pieces keeps every feature consistent for free, and stops the same helper
-being written twice with two slightly different rounding behaviours.
+A header in `sim/include/sim/` is public to all three. A header in
+`client/src/` is private to the client. There is no third case.
 
 ### Exceptions
 
-`src/main.ts` sits at the root because it is the module the HTML loads; it does nothing but build
-the canvas, construct the systems, and run the frame loop.
+`tools/` may reach into the client for something it is checking about drawing,
+as `sound_check` does: it renders the audio to memory with no sound card. That
+is a check of the client, so it links the client. Nothing in `client/` or
+`server/` may do the same in reverse.
 
-## `src/app/`, the orchestrator
-
-### Rule
-
-`src/app/game.ts` owns the systems, holds the state that is nobody's alone (the clock, the phase,
-the player), and supplies every system's hooks. It is the only place that knows about all the
-features at once.
-
-### Why
-
-Systems that call each other directly become a graph nothing can reason about. Routing every
-cross-system call through hooks the orchestrator satisfies keeps the dependency arrows pointing one
-way: a feature depends on its own hooks interface, and the orchestrator depends on the features.
-
-### Exceptions
-
-A feature may import another feature's **data**, its constants, its types, directly. That is not a
-dependency on behaviour, and routing a constant through a hook would be ceremony for nothing.
-
-## Systems, not one big orchestrator
+## One binary per job
 
 ### Rule
 
-A feature that has behaviour owns a **system class** in its folder. The orchestrator constructs the
-systems, holds the state that belongs to nobody in particular (the clock, the phase, the player),
-runs them in order, and supplies their hooks. It does not implement their behaviour.
-
-If `src/app/game.ts` is growing past a few hundred lines, that is the signal: some cluster of
-methods in it belongs to a feature.
+`client/` produces `oxide`, `server/` produces `oxide_server`, and each file in
+`tools/` produces its own check binary. A binary does one job and is run one
+way.
 
 ### Why
 
-An orchestrator that also implements crafting, survival and building is a file nobody
-can hold in their head, nothing can be tested in isolation, and every unrelated change touches. Both
-games reached two and a half thousand lines this way before the split.
-
-Once a cluster is a system, its dependencies are written down in one interface at the top of the
-file, which is the readable summary of what it can do to the rest of the game.
+A check that has to be reached through a flag on the game is a check nobody
+runs. `./build/bin/play_check` is a command; `--run-tests` is a thing you have
+to remember.
 
 ### How to apply
 
-1. Find the cluster: a set of methods that talk to each other far more than to anything else, and
-   the state only they touch.
-2. Move that state onto the new system. Counters and collections a feature owns go with it.
-3. Rewrite the outward calls as `this.hooks.<call>()`, and collect them into `<System>Hooks`.
-4. Construct it in the orchestrator, wiring the hooks with arrow functions that close over `this`.
-5. Anything outside reaches it through the system, not through the orchestrator.
-
-### Exceptions
-
-**Phase transitions stay in the orchestrator.** Dying, respawning, starting a night, moving to the
-next contract: these change what the whole game is doing, and that is exactly what the orchestrator
-is for. A system reports that the player ran out of health; the orchestrator decides that means the
-game is now in its death phase.
-
-## Order of construction
-
-### Rule
-
-A system is constructed once, in the orchestrator, and any state it owns is reset by constructing a
-fresh one. Never reset a system's state before it exists.
-
-### Why
-
-Both games had the same bug immediately after the split: `newWorld()` cleared a queue at the top and
-built the system that owns it further down, so the clear ran against the previous instance and threw
-on the very first world. The fix is to let construction be the reset.
+Adding a check means adding one `.cpp` to `tools/` and one line to
+`tools/CMakeLists.txt`. It prints what it found in plain English and returns
+non-zero when the thing it exists to catch has happened.

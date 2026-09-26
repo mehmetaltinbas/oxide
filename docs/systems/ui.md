@@ -145,16 +145,20 @@ another bar.
 
 ## Sandbox
 
-Creative mode, started from its own button on the title card. Nothing costs anything, nothing can
-kill you, every workbench tier is assumed, crafting is instant, and the Sandbox tab hands you any
-item in the game in ones, tens, hundreds or thousands. `[` and `]` push the clock an hour either
-way. It is gated on `game.sandbox`; nothing else in the simulation knows the mode exists, because
-the vitals are simply refilled every tick rather than having their drain conditionalised.
+The mode you can actually reach from the title screen, and it is the island rather than a god mode.
+You starve, you bleed and a round spent is a round gone. What it gives is the whole recipe book, at
+any bench, for nothing, so anything you want is a few seconds of crafting rather than an afternoon
+of mining. Not infinite ammunition: it is made a box at a time and still runs out in a fight. The
+Sandbox tab hands you any item in the game, and `[` and `]` push the clock an hour either way.
+
+It used to top the vitals up every tick and hand out five thousand of every material. That was fine
+while it was one mode of three; it is the only way in now, so it had to become a game.
 
 ## Craft amounts
 
-The amount row is a stepper, a max button and a field you can type into, and the craft button
-carries Rust's modifiers: shift for ten more, ctrl for as many as you can pay for.
+The amount row is a stepper, a max button and a field you click and type a number into. Shift on a
+stepper moves ten at a time and the buttons say so while it is held. One order is one entry on the
+bench however many it is for: up to 999 of a thing, and ten orders waiting.
 
 The text field takes ownership of the number while it has focus. Clamping the typed value back into
 range on every frame would fight whoever is halfway through typing "12", so the raw text lives in

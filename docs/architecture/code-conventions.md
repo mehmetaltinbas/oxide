@@ -1,175 +1,116 @@
 # Code conventions
 
-Cross-cutting rules for how code is shaped inside `src/`. These apply to every feature.
+How a file is put together, and the two rules about who may touch what. Read
+this before wiring one part of the game to another.
 
-## Imports are absolute, rooted at `src/`
+## The simulation never draws; drawing never mutates
 
 ### Rule
 
-Always import via a path rooted at `src/`. Never use `./` or `../`.
+Nothing in `sim/` draws, plays a sound, or reads the keyboard. Nothing in the
+drawing path changes the state of the game.
+
+A frame is two halves and they do not overlap: step the rules, then draw what
+came out.
 
 ### Why
 
-- Absolute paths survive file moves: a system can be relocated without rewriting the imports of
-  every neighbour.
-- The path documents which feature a symbol comes from at a glance: `src/features/building/…` is
-  self-evident in a way `../../constants` is not.
-- Search and refactor tools resolve one canonical path per module instead of a family of
-  relative-depth variants.
+A rule that only runs when somebody is looking is not a rule. The server draws
+nothing and has to reach the same answers as the client, which is only possible
+if drawing is a pure read.
+
+The reverse matters as much. A draw call that quietly advances an animation
+means the game plays differently at a different frame rate, and it means the
+same frame drawn twice is not the same frame.
 
 ### How to apply
 
-```ts
-// good
-import { CELL } from 'src/features/building/constants/cell.constant';
-import { dist } from 'src/shared/utils/dist.util';
+```cpp
+// The step: everything that changes is in here.
+sim::stepPlayer(world, build, player, input, dt);
+const sim::NpcEvents animals = npcs.update(world, build, projectiles, dt, player);
 
-// bad
-import { CELL } from './constants/cell.constant';
-import { dist } from '../../shared/utils/dist.util';
+// The draw: reads, and nothing else.
+sprites.draw(*node, sx, sy, scale, snowy, broadleaf, alpha);
 ```
 
-`tsconfig.json` maps `src/*` through `paths`, and `vite.config.ts` carries the matching alias so the
-bundler resolves it the same way. Both must be updated together.
-
-## No barrel files
-
-### Rule
-
-Nothing re-exports anything. Import from the file that declares the symbol.
-
-### Why
-
-A barrel makes every consumer depend on every symbol in it, so touching one constant invalidates
-modules that never used it. It also hides where a symbol actually lives, which is the one thing an
-import path is for.
-
-## A system owns its state and exposes it as data
-
-### Rule
-
-Each feature's system class owns its own collections and the invariants over them. Other code reads
-what it exposes and calls its methods to change it; nothing reaches in and mutates another system's
-arrays.
-
-### Why
-
-When two places can mutate the same array, the invariant that array is supposed to hold has no home,
-and the bug shows up somewhere neither of them.
-
-## Cross-system calls go through hooks
-
-### Rule
-
-A system that needs to cause an effect outside itself declares a `<System>Hooks` interface listing
-exactly the calls it makes, and takes it in its constructor. It never imports the orchestrator, and
-never holds a reference back to `Game`.
-
-### Why
-
-- The interface is a readable, reviewable list of everything that system can do to the rest of the
-  game.
-- It keeps the dependency arrows one-way, so a feature can be read: and tested, without the whole
-  application.
-
-### How to apply
-
-```ts
-export interface <System>Hooks {
-  /** One line saying when this fires and what it is expected to do. */
-  <onSomething>(...): void;
-}
-
-export class <System> {
-  constructor(private world: World, private hooks: <System>Hooks) {}
-}
-```
-
-The orchestrator supplies the implementations at construction time.
-
-## Simulation and rendering stay separate
-
-### Rule
-
-`update(dt)` mutates; `draw()` does not. The world renderer takes a `GameView`, which is a read-only
-view of the game, so the compiler refuses any assignment to a top-level field during a draw call.
-
-### Why
-
-The simulation runs at a fixed 60Hz while rendering runs at whatever the display offers, so a frame
-may run zero simulation steps or several. Anything that mutates during drawing would advance at the
-frame rate, which means the same fight resolves differently on different hardware.
-
-Passing `Game` itself made this a convention nobody could check. `GameView` makes it a compile
-error. It is a shallow readonly, so it does not stop someone reaching into a nested object, but it
-does stop the mistake that actually happens.
+Drawing routines take what they need by `const&` and return nothing. If a
+drawing routine needs to remember something between frames, that something is
+about drawing, so it belongs to the drawing object and not to the game: the
+sprite cache and the text cache are both allowed, because neither changes what
+happens.
 
 ### Exceptions
 
-- **Purely visual state** that no rule depends on, a cached canvas or an animation phase, may be
-  updated during drawing. The renderer keeps these as its own fields, not on the game.
-- **The HUD is immediate-mode**, so it takes the mutable `Game`. Hit-testing a button and drawing it
-  are the same pass: the rectangle is computed, drawn, and tested against the cursor in one place,
-  which is precisely what makes the code readable. It therefore handles clicks while it draws, and
-  writes things like `panel`, `dragging` and `uiHover`. That is the pattern working as intended, not
-  a leak, but it is the reason the HUD cannot take a read-only view.
+The client keeps a small amount of state that is only about presentation: which
+fist the next punch comes off, the camera's eased position, how far the screen
+is shaking. None of it is read by `sim/`.
 
-## Who may hold the orchestrator
+## Systems own their state and are stepped in order
 
 ### Rule
 
-Simulation systems never reference `Game`. They declare a `<System>Hooks` interface and receive it.
-Three things are allowed to know the whole game, and only these three:
-
-| Holder       | What it takes | Why                                                                         |
-| ------------ | ------------- | --------------------------------------------------------------------------- |
-| the renderer | `GameView`    | it reads everything and writes nothing                                      |
-| the HUD      | `Game`        | immediate-mode drawing handles input in the same pass                       |
-| save/load    | `Game`        | serialising the world means reading all of it, and loading means writing it |
+Each system in `sim/` owns its own data and exposes it through methods. Nothing
+holds a pointer back to whoever owns it. The client's loop constructs them,
+holds the shared state, and runs them in a fixed order.
 
 ### Why
 
-The rule exists to stop simulation systems reaching sideways into each other through the
-orchestrator, which is what turns a dependency graph into a knot. It was never meant to stop a
-serialiser from serialising. Stating the three exceptions precisely is more useful than a rule
-everyone can see is broken.
-
-## Input is polled once per frame
-
-### Rule
-
-Read edge-triggered input (`justPressed`, `mouseClicked`) once per rendered frame, before the
-simulation steps run, not inside `update()`.
-
-### Why
-
-Plenty of frames run zero simulation steps. A key pressed on one of those was cleared at the end of
-the frame having never been read, which is why single-press actions used to work only sometimes.
-
-## Indentation and formatting
-
-### Rule
-
-Four spaces, never tabs. Formatting is not a matter of taste here: Prettier owns it, the settings
-live in `.prettierrc.json`, and `.editorconfig` tells editors the same thing so most of them get it
-right with no plugin.
-
-```bash
-npm run format        # fix everything
-npm run check         # formatting + types, no build
-```
-
-### Why
-
-- A repo that mixes indentation produces diffs full of whitespace, which hides the change that
-  actually matters.
-- Making it a tool's job rather than a reviewer's job means it never comes up in review at all.
+A system that reaches back into its owner can be called from anywhere, which
+means it can be called at the wrong time, which means the order a frame runs in
+stops being visible in one place.
 
 ### How to apply
 
-`npm run build` runs `prettier --check` before it type-checks, so badly formatted code cannot be
-built, let alone shipped. If the build complains about formatting, run `npm run format`.
+A system takes what it needs as arguments for that call:
 
-Editors pick the width up from `.editorconfig` automatically. Anyone who opens the project gets four
-spaces whether or not they have Prettier installed, and the build catches them if their editor
-ignored it.
+```cpp
+NpcEvents NpcSystem::update(World& world, const BuildSystem& build,
+							Projectiles& projectiles, double dt, const Player& player);
+```
+
+What a system did, the caller learns from what it returns, not from a callback:
+`NpcEvents` says what hit the player this tick and what died, and the client
+turns that into a sound and a number floating off a body.
+
+### Exceptions
+
+Save and load touch several systems at once by nature. They live in
+`sim/src/save.cpp` and take each one explicitly rather than holding anything.
+
+## Headers include what they use
+
+### Rule
+
+A header includes what its own declarations need and nothing more. A source
+file includes its own header first, then what it uses.
+
+### Why
+
+A header that leans on its includer's includes compiles until the day somebody
+includes it somewhere new.
+
+### How to apply
+
+Forward declare a type you only hold a reference or pointer to. `sim/npcs.hpp`
+declares `class Projectiles;` rather than including it: the rounds in the air
+know about the animals, and including it both ways is a cycle.
+
+## A blow is a result, not a side effect
+
+### Rule
+
+Something that happens in the rules and needs to be seen or heard returns a
+result describing it. The client decides what that looks like.
+
+### Why
+
+It keeps `sim/` free of presentation, and it keeps the client's reaction in one
+readable place instead of scattered through the rules as callbacks.
+
+### How to apply
+
+`swing()` returns a `SwingResult`: whether it landed, on what, how big the thing
+was, what came off it. The client reads that and produces the number that floats
+off the top of the tree, the specks, and the sound the material makes. `sim/`
+never knew any of that happened.
