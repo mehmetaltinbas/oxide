@@ -133,6 +133,8 @@ int main(int argc, char** argv) {
     bool deathTest = false;
     /** A couple of floating numbers, for a look at how they read. */
     bool showPopups = false;
+    /** Everything round you felled at once, for a look at the empty ground. */
+    bool clearAround = false;
     /** Where to play: nowhere is this machine, a host is somebody's island. */
     std::string connectTo;
     std::string playerName = "survivor";
@@ -165,6 +167,8 @@ int main(int argc, char** argv) {
             poseDraw = SDL_atof(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--sandbox") == 0) {
             sandbox = true;
+        } else if (SDL_strcmp(argv[i], "--cleared") == 0) {
+            clearAround = true;
         } else if (SDL_strcmp(argv[i], "--popups") == 0) {
             showPopups = true;
         } else if (SDL_strcmp(argv[i], "--death-test") == 0) {
@@ -350,7 +354,7 @@ int main(int argc, char** argv) {
     // is measuring something and wants the island as generated.
     const bool asGenerated = startX >= 0 || atMonument >= 0 || shotPath != nullptr ||
                              benchFrames > 0 || showBase || poseDraw >= 0 || poseSwing >= 0 ||
-                             showPopups;
+                             showPopups || clearAround;
     bool loaded = false;
     if (!online && !sandbox && !asGenerated) {
         sim::Session session;
@@ -453,6 +457,9 @@ int main(int argc, char** argv) {
     client::Panel panel;
     client::MapScreen map(renderer);
     if (loaded) hud.notify("Carried on where you left off.");
+    if (clearAround) {
+        world.clearNaturalIn(player.x - 400, player.y - 400, player.x + 400, player.y + 400);
+    }
     if (showPopups) {
         hud.say("+4 Wood", player.x - 40, player.y - 40, client::rgb(0xefeadd));
         hud.say("+12 Leather", player.x + 50, player.y + 10, client::rgb(0xefeadd));
@@ -1457,6 +1464,9 @@ int main(int argc, char** argv) {
 
         for (const sim::ResourceNode* node : visible) {
             drawAnimalsUpTo(node->y);
+            // Felled, broken or picked: gone from the island until it grows
+            // back, rather than standing there at nought health.
+            if (node->hp <= 0) continue;
             if (!playerDrawn && node->y > player.y) drawPlayer();
             const float sx = static_cast<float>((node->x - camX) * scale) + width * 0.5f;
             const float sy = static_cast<float>((node->y - camY) * scale) + height * 0.5f;

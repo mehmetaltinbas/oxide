@@ -14,8 +14,9 @@ void separate(const World& world, Player& player) {
     const double reach = PlayerRules::kRadius + 40;
     world.nodesInRect(player.x - reach, player.y - reach, player.x + reach, player.y + reach, near);
     for (const ResourceNode* node : near) {
-        // A nettle is walked through; everything else is stood against.
-        if (node->kind == NodeKind::Nettle) continue;
+        // What has been taken is gone until it grows back, and a nettle is
+        // walked through; everything else is stood against.
+        if (node->hp <= 0 || node->kind == NodeKind::Nettle) continue;
         const double dx = player.x - node->x;
         const double dy = player.y - node->y;
         const double min = PlayerRules::kRadius + node->radius * 0.6;

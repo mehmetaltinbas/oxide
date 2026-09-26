@@ -337,6 +337,36 @@ int main() {
                     backBuild.deployables().size(), felled);
     }
 
+    // Felled, it is gone: you can stand where it was, and it comes back a day
+    // later, which is the same rule every resource on the island follows.
+    bool walkedThrough = false;
+    double grewBack = 0;
+    if (felled) {
+        sim::Player rambler;
+        rambler.x = target->x - 60;
+        rambler.y = target->y;
+        for (int i = 0; i < 240; ++i) {
+            sim::PlayerInput push;
+            push.moveX = 1;
+            push.aim = 0;
+            sim::stepPlayer(world, build, rambler, push, dt);
+        }
+        walkedThrough = rambler.x > target->x + 10;
+
+        // A day of island time, a minute at a go.
+        for (int i = 0; i < 4200 && grewBack == 0; ++i) {
+            world.update(1.0);
+            const sim::ResourceNode* back = nullptr;
+            for (const sim::ResourceNode& node : world.nodes()) {
+                if (node.id == target->id) back = &node;
+            }
+            if (back && back->hp > 0) grewBack = i + 1;
+        }
+    }
+    std::printf("regrowth: %s, back after %.0f minutes\n",
+                walkedThrough ? "walked through where it stood" : "STILL IN THE WAY",
+                grewBack / 60);
+
     std::printf("tree at %.0f, %.0f: %s after %d blows, wood %d, stone %d, drops %zu\n", target->x,
                 target->y, felled ? "felled" : "still standing", blows,
                 inventory.count(sim::ItemId::Wood), inventory.count(sim::ItemId::Stone),
