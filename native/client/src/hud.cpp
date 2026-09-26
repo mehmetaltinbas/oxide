@@ -4,6 +4,8 @@
 
 #include "held.hpp"
 #include "palette.hpp"
+#include "text.hpp"
+#include "vital_icon.hpp"
 
 namespace client {
 
@@ -58,17 +60,18 @@ void Hud::update(double dt) {
                   popups_.end());
 }
 
-void Hud::drawPopups(SDL_Renderer* renderer, double cameraX, double cameraY, double scale,
-                     int width, int height) const {
+void Hud::drawPopups(SDL_Renderer*, double cameraX, double cameraY, double scale, int width,
+                     int height) const {
     for (const Popup& p : popups_) {
         const double t = 1 - p.life / kPopupLife;
         const float sx = static_cast<float>((p.x - cameraX) * scale) + width * 0.5f;
         const float sy = static_cast<float>((p.y - cameraY - t * kPopupRise) * scale) + height * 0.5f;
         const std::uint8_t fade = static_cast<std::uint8_t>(255 * std::min(1.0, p.life / 0.4));
-        SDL_SetRenderDrawColor(renderer, p.color.r, p.color.g, p.color.b, fade);
-        SDL_SetRenderScale(renderer, 2.0f, 2.0f);
-        SDL_RenderDebugText(renderer, sx * 0.5f, sy * 0.5f, p.text.c_str());
-        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        if (lettering_) {
+            lettering_->draw(p.text, sx, sy, 18 * static_cast<float>(scale),
+                             Color{p.color.r, p.color.g, p.color.b, fade}, Face::Display,
+                             Align::Centre);
+        }
     }
 }
 
@@ -91,76 +94,82 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
             drawItemIcon(paint, stack.id, x + slot * 0.5f, y0 + slot * 0.5f, slot * 0.7f);
         }
         // The slot's own number, and how many are in it.
-        const float digits = uiScale;
-        SDL_SetRenderScale(renderer, digits, digits);
-        SDL_SetRenderDrawColor(renderer, active ? 40 : 200, active ? 36 : 200, active ? 30 : 200, 255);
-        SDL_RenderDebugTextFormat(renderer, (x + 6 * uiScale) / digits, (y0 + 6 * uiScale) / digits,
-                                  "%d", i + 1);
-        if (stack.count > 1) {
-            // Right-aligned inside the slot: a four-figure stack used to run
-            // out over the slot beside it.
-            char count[8];
-            SDL_snprintf(count, sizeof(count), "%d", stack.count);
-            const float size = digits * 1.6f;
-            const float textW = static_cast<float>(SDL_strlen(count)) * 8 * size;
-            SDL_SetRenderScale(renderer, size, size);
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            SDL_RenderDebugText(renderer, (x + slot - 5 * uiScale - textW) / size,
-                                (y0 + slot - 20 * uiScale) / size, count);
+        if (lettering_) {
+            char number[4];
+            SDL_snprintf(number, sizeof(number), "%d", i + 1);
+            lettering_->draw(number, x + 6 * uiScale, y0 + 2 * uiScale, 12 * uiScale,
+                             active ? Color{40, 36, 30, 255} : Color{200, 200, 200, 255});
+            if (stack.count > 1) {
+                // Right-aligned inside the slot: a four-figure stack used to
+                // run out over the slot beside it.
+                char count[8];
+                SDL_snprintf(count, sizeof(count), "%d", stack.count);
+                lettering_->draw(count, x + slot - 5 * uiScale, y0 + slot - 22 * uiScale,
+                                 15 * uiScale, rgb(0xffffff), Face::BodyBold, Align::Right);
+            }
         }
-        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
     }
 
-    // Health, along the bottom left, where it is out of the way of the belt.
-    const float barW = 240 * uiScale;
-    const float barH = 18 * uiScale;
-    const float bx = 28 * uiScale;
-    const float by = height - barH - 28 * uiScale;
-    paint.fillRect(bx - 3 * uiScale, by - 3 * uiScale, barW + 6 * uiScale, barH + 6 * uiScale, kInk);
-    paint.fillRect(bx, by, barW, barH, kPlate);
-    const float fill = barW * std::max(0, std::min(100, health)) / 100.0f;
-    paint.fillRect(bx, by, fill, barH, rgb(0x8cf08c));
-    SDL_SetRenderScale(renderer, uiScale, uiScale);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderDebugTextFormat(renderer, (bx + 8 * uiScale) / uiScale, (by + 5 * uiScale) / uiScale,
-                              "%d", health);
-    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    // The gauges, bottom left, out of the way of the belt: a picture at the
+    // head of each where its name used to be, the bar after it, and the number
+    // at the far end.
+    const float icon = 18 * uiScale;
+    const float gaugeX = 20 * uiScale;
+    const float barX = gaugeX + icon + 8 * uiScale;
+    const float barW = 190 * uiScale - (barX - gaugeX);
+    const float rowH = 26 * uiScale;
+    const float baseY = height - 134 * uiScale;
 
-    // Food and water under the health bar, and the cold and the radiation only
-    // when they are worth knowing about.
-    const auto bar = [&](float row, double value, double max, Color color) {
-        const float h = 12 * uiScale;
-        const float y = by - row * (h + 5 * uiScale);
-        paint.fillRect(bx - 3 * uiScale, y - 3 * uiScale, barW + 6 * uiScale, h + 6 * uiScale, kInk);
-        paint.fillRect(bx, y, barW, h, kPlate);
-        paint.fillRect(bx, y, static_cast<float>(barW * std::clamp(value / max, 0.0, 1.0)), h,
+    const auto gauge = [&](Vital vital, double value, double max, Color color, int row) {
+        const float y = baseY + row * rowH;
+        drawVitalIcon(paint, vital, gaugeX + icon / 2, y + 15 * uiScale, icon, color);
+        // The number, right-aligned at the end of the bar.
+        char amount[8];
+        SDL_snprintf(amount, sizeof(amount), "%d", static_cast<int>(std::lround(value)));
+        if (lettering_) {
+            lettering_->draw(amount, gaugeX + 190 * uiScale, y - 3 * uiScale, 13 * uiScale,
+                             rgb(0xefeadd), Face::BodyBold, Align::Right);
+        }
+        // The bar itself, inked like everything else on the page.
+        const float h = 7 * uiScale;
+        const float top = y + 14 * uiScale;
+        paint.fillRect(barX - 2 * uiScale, top - 2 * uiScale, barW + 4 * uiScale,
+                       h + 4 * uiScale, kInk);
+        paint.fillRect(barX, top, barW, h, kPlate);
+        paint.fillRect(barX, top, static_cast<float>(barW * std::clamp(value / max, 0.0, 1.0)), h,
                        color);
     };
-    bar(1, calories_, 100, rgb(0xd8a24a));
-    bar(2, hydration_, 100, rgb(0x5aa8d8));
-    if (radiation_ > 1) bar(3, radiation_, 100, rgb(0xb4e65a));
+
+    // While you bleed the health bar throbs between its own red and a darker
+    // one, so the gauge itself says it is draining.
+    const double pulse = 0.5 + 0.5 * std::sin(clock_ * 7);
+    const Color healthColor = bleeding_ ? (pulse > 0.5 ? rgb(0x7a1c1c) : rgb(0xd8483a))
+                              : health > 35 ? rgb(0xd8483a)
+                                            : rgb(0xff6a5a);
+    gauge(Vital::Health, health, 100, healthColor, 0);
+    gauge(Vital::Food, calories_, 100, rgb(0xff8a1c), 1);
+    gauge(Vital::Water, hydration_, 100, rgb(0x4a9ee8), 2);
+
+    if (bleeding_) {
+        // A drop beside the gauges, beating.
+        drawVitalIcon(paint, Vital::Water, gaugeX + 208 * uiScale, baseY + 15 * uiScale,
+                      icon * static_cast<float>(0.9 + pulse * 0.2), rgb(0x7a1c1c));
+    }
 
     {
-        // The thermometer, as a word: a number in degrees says nothing at a
-        // glance about whether you are about to freeze.
-        const char* how = temperature_ < -2  ? "FREEZING"
-                          : temperature_ < 8 ? "COLD"
-                          : temperature_ > 34 ? "SWELTERING"
-                                              : "";
-        if (how[0]) {
-            SDL_SetRenderScale(renderer, 1.6f * uiScale, 1.6f * uiScale);
-            SDL_SetRenderDrawColor(renderer, 150, 200, 255, 255);
-            SDL_RenderDebugText(renderer, (bx) / (1.6f * uiScale),
-                                (by - 4 * (12 * uiScale + 5 * uiScale)) / (1.6f * uiScale), how);
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        // The conditions, as one quiet line, and only when they apply.
+        char line[128] = {0};
+        SDL_snprintf(line, sizeof(line), "%d degrees", static_cast<int>(std::lround(temperature_)));
+        if (radiation_ > 1) {
+            char rads[32];
+            SDL_snprintf(rads, sizeof(rads), "   rad %d",
+                         static_cast<int>(std::lround(radiation_)));
+            SDL_strlcat(line, rads, sizeof(line));
         }
-        if (bleeding_) {
-            SDL_SetRenderScale(renderer, 1.6f * uiScale, 1.6f * uiScale);
-            SDL_SetRenderDrawColor(renderer, 216, 72, 58, 255);
-            SDL_RenderDebugText(renderer, (bx + 120 * uiScale) / (1.6f * uiScale),
-                                (by - 4 * (12 * uiScale + 5 * uiScale)) / (1.6f * uiScale),
-                                "BLEEDING");
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        if (temperature_ < -2) SDL_strlcat(line, "   freezing", sizeof(line));
+        if (lettering_) {
+            lettering_->draw(line, gaugeX, baseY + 3 * rowH + 2 * uiScale, 11 * uiScale,
+                             Color{150, 150, 140, 255});
         }
     }
 
@@ -179,11 +188,11 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
         // is left in the pack for it.
         const float ax = x0 + total + 20 * uiScale;
         const float ay = y0 + slot * 0.5f - 10 * uiScale;
-        SDL_SetRenderScale(renderer, 2.0f * uiScale, 2.0f * uiScale);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderDebugTextFormat(renderer, ax / (2.0f * uiScale), ay / (2.0f * uiScale), "%d / %d",
-                                  loaded_, carried_ - loaded_);
-        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        char ammo[32];
+        SDL_snprintf(ammo, sizeof(ammo), "%d / %d", loaded_, carried_ - loaded_);
+        if (lettering_) {
+            lettering_->draw(ammo, ax, ay, 20 * uiScale, rgb(0xffffff), Face::Display);
+        }
     }
     if (reloading_ > 0 || bowDraw_ > 0) {
         // A sliver over the belt: the reload running down, or the draw coming
@@ -200,28 +209,23 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
     // What just happened, stacked in the top left under the frame counter.
     for (std::size_t i = 0; i < notices_.size(); ++i) {
         const Popup& notice = notices_[i];
-        const float size = 1.5f * uiScale;
         const std::uint8_t fade =
             static_cast<std::uint8_t>(255 * std::min(1.0, notice.life / 0.8));
-        SDL_SetRenderScale(renderer, size, size);
-        SDL_SetRenderDrawColor(renderer, kText.r, kText.g, kText.b, fade);
-        SDL_RenderDebugText(renderer, (20 * uiScale) / size,
-                            (40 * uiScale + i * 18 * uiScale) / size, notice.text.c_str());
-        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        if (lettering_) {
+            lettering_->draw(notice.text, 20 * uiScale, 36 * uiScale + i * 20 * uiScale,
+                             13 * uiScale, Color{kText.r, kText.g, kText.b, fade});
+        }
     }
 
     if (prompt && prompt[0]) {
         // One line, over the belt: what the key under your finger would do.
-        const float scale = 2.0f * uiScale;
-        const float textW = static_cast<float>(SDL_strlen(prompt)) * 8 * scale;
+        const float size = 16 * uiScale;
+        const float textW = lettering_ ? lettering_->widthOf(prompt, size) : 0;
         const float px = (width - textW) * 0.5f;
-        const float py = y0 - 40 * uiScale;
-        paint.fillRect(px - 12 * uiScale, py - 8 * uiScale, textW + 24 * uiScale,
-                       16 * scale + 16 * uiScale, kPlate);
-        SDL_SetRenderScale(renderer, scale, scale);
-        SDL_SetRenderDrawColor(renderer, kText.r, kText.g, kText.b, 255);
-        SDL_RenderDebugText(renderer, px / scale, py / scale, prompt);
-        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        const float py = y0 - 42 * uiScale;
+        paint.fillRect(px - 12 * uiScale, py - 6 * uiScale, textW + 24 * uiScale,
+                       size + 14 * uiScale, kPlate);
+        if (lettering_) lettering_->draw(prompt, px, py, size, kText);
     }
 }
 

@@ -43,7 +43,26 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
+# The lettering: a comic face that shouts and one that can be read at ten
+# pixels, drawn with SDL's own text library rather than a bitmap of our own.
+FetchContent_Declare(
+    SDL3_ttf
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf.git
+    GIT_TAG release-3.2.2
+    GIT_SHALLOW TRUE
+)
+set(SDLTTF_VENDORED ON CACHE BOOL "" FORCE)
+set(SDLTTF_HARFBUZZ OFF CACHE BOOL "" FORCE)
+set(SDLTTF_PLUTOSVG OFF CACHE BOOL "" FORCE)
+set(SDLTTF_SAMPLES OFF CACHE BOOL "" FORCE)
+set(SDLTTF_INSTALL OFF CACHE BOOL "" FORCE)
+
 FetchContent_MakeAvailable(SDL3 enet)
+# Static, like everything else here: SDL_ttf reads BUILD_SHARED_LIBS to decide
+# which SDL target to link, and would otherwise go looking for a shared SDL
+# that this build never produced.
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(SDL3_ttf)
 
 # ENet's own build predates the habit of telling consumers where its headers
 # are, so it is said here once rather than in both binaries that use it.

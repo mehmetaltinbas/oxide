@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "palette.hpp"
+#include "text.hpp"
 
 namespace client {
 
@@ -60,20 +61,15 @@ void drawMonument(Paint& paint, const sim::Monument& monument, double cameraX, d
         }
     }
 
-    // The name across the top of it, in lettering rather than world units.
-    SDL_Renderer* renderer = paint.renderer();
-    const float size = 1.8f * uiScale;
-    char line[64];
-    SDL_snprintf(line, sizeof(line), "%s%s", def.rads > 0 ? "! " : "", def.name);
-    const float textW = static_cast<float>(SDL_strlen(line)) * 8 * size;
-    SDL_SetRenderScale(renderer, size, size);
-    if (def.rads > 0) {
-        SDL_SetRenderDrawColor(renderer, 180, 230, 90, 200);
-    } else {
-        SDL_SetRenderDrawColor(renderer, 220, 220, 200, 180);
+    // The name across the top of it, in the shouting face: a monument is meant
+    // to be read from across the island.
+    if (Text* lettering = paint.text()) {
+        char line[64];
+        SDL_snprintf(line, sizeof(line), "%s%s", def.rads > 0 ? "! " : "", def.name);
+        lettering->draw(line, x, y - r + 12 * uiScale, 22 * uiScale,
+                        def.rads > 0 ? Color{180, 230, 90, 220} : Color{230, 228, 210, 200},
+                        Face::Display, Align::Centre);
     }
-    SDL_RenderDebugText(renderer, (x - textW / 2) / size, (y - r + 18 * uiScale) / size, line);
-    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
 }
 
 void drawCrate(Paint& paint, const sim::LootCrate&, float x, float y, float scale) {

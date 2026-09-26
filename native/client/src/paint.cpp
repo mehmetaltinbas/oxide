@@ -1,6 +1,7 @@
 #include "paint.hpp"
 
 #include "palette.hpp"
+#include "text.hpp"
 
 #include <cmath>
 
@@ -29,6 +30,10 @@ std::vector<Point> circlePoints(float cx, float cy, float radius, int segments) 
         out.push_back({cx + std::cos(a) * radius, cy + std::sin(a) * radius});
     }
     return out;
+}
+
+float Paint::write(const std::string& line, float x, float y, float size, Color color) {
+    return text_ ? text_->draw(line, x, y, size, color) : 0;
 }
 
 void Paint::submit() {

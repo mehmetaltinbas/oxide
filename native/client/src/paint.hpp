@@ -3,9 +3,12 @@
 #include <SDL3/SDL.h>
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace client {
+
+class Text;
 
 struct Color {
     std::uint8_t r = 0;
@@ -39,6 +42,18 @@ public:
 
     SDL_Renderer* renderer() const { return renderer_; }
 
+    /**
+     * The lettering, which is part of drawing and so lives with the pen.
+     *
+     * Handed over once at startup rather than threaded through every routine
+     * that has a word to write.
+     */
+    void useText(Text* text) { text_ = text; }
+    Text* text() const { return text_; }
+
+    /** One line of text. Returns how wide it came out. See Text::draw. */
+    float write(const std::string& line, float x, float y, float size, Color color);
+
     void fillPoly(const std::vector<Point>& points, Color color);
     void fillCircle(float cx, float cy, float radius, Color color);
     void fillRect(float x, float y, float w, float h, Color color);
@@ -55,6 +70,7 @@ public:
 
 private:
     SDL_Renderer* renderer_ = nullptr;
+    Text* text_ = nullptr;
     std::vector<SDL_Vertex> vertices_;
     std::vector<int> indices_;
 

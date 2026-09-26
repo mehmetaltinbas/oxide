@@ -19,6 +19,7 @@
 #include "human.hpp"
 #include "paint.hpp"
 #include "particles.hpp"
+#include "text.hpp"
 #include "palette.hpp"
 #include "sim/action.hpp"
 #include "sim/blast.hpp"
@@ -90,6 +91,22 @@ int main(int argc, char** argv) {
     // 120 by hand because the browser gave it no say in this.
     SDL_SetRenderVSync(renderer, 1);
 
+    // The lettering: the comic faces the browser game used, bundled here.
+    client::Text lettering;
+    {
+        const char* base = SDL_GetBasePath();
+        const std::string here = base ? base : "";
+        // Beside the binary first, which is how it ships, then the places it
+        // sits while being worked on.
+        if (!lettering.open(renderer, here + "assets/fonts") &&
+            !lettering.open(renderer, here + "../assets/fonts") &&
+            !lettering.open(renderer, "assets/fonts") &&
+            !lettering.open(renderer, "native/assets/fonts")) {
+            std::printf("No fonts: %s\n", SDL_GetError());
+        }
+    }
+
+
     std::uint32_t seed = 12345u;
     // A frame straight to a file and then out again, so the look of the game
     // can be checked without a pair of eyes at the window.
@@ -112,6 +129,8 @@ int main(int argc, char** argv) {
     bool startAtNight = false;
     /** Nothing to worry about and everything to hand, for trying things out. */
     bool sandbox = false;
+    /** Kills you, waits, presses the key, and says whether you woke up. */
+    bool deathTest = false;
     /** Where to play: nowhere is this machine, a host is somebody's island. */
     std::string connectTo;
     std::string playerName = "survivor";
@@ -144,6 +163,8 @@ int main(int argc, char** argv) {
             poseDraw = SDL_atof(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--sandbox") == 0) {
             sandbox = true;
+        } else if (SDL_strcmp(argv[i], "--death-test") == 0) {
+            deathTest = true;
         } else if (SDL_strcmp(argv[i], "--night") == 0) {
             startAtNight = true;
         } else if (SDL_strcmp(argv[i], "--title") == 0) {
@@ -238,31 +259,23 @@ int main(int argc, char** argv) {
                 const float ui = windowW > 0 ? static_cast<float>(lobbyW) / windowW : 1.0f;
                 SDL_SetRenderDrawColor(renderer, 10, 12, 10, 255);
                 SDL_RenderClear(renderer);
-                const float big = 4.0f * ui;
-                SDL_SetRenderScale(renderer, big, big);
-                SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-                SDL_RenderDebugText(renderer, (lobbyW * 0.5f - 120 * ui) / big,
-                                    (lobbyH * 0.2f) / big, "ISLANDS");
-                SDL_SetRenderScale(renderer, 1.0f, 1.0f);
-                const float small = 1.8f * ui;
-                SDL_SetRenderScale(renderer, small, small);
+                lettering.draw("ISLANDS", lobbyW * 0.5f, lobbyH * 0.2f, 54 * ui,
+                               client::rgb(0xefeadd), client::Face::Display,
+                               client::Align::Centre);
                 float row = lobbyH * 0.32f;
                 for (std::size_t i = 0; i < net.rooms().size() && i < 9; ++i) {
                     const client::RoomEntry& room = net.rooms()[i];
                     char line[96];
                     SDL_snprintf(line, sizeof(line), "%zu   %s   %d of %d", i + 1,
                                  room.name.c_str(), room.players, room.max);
-                    SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-                    SDL_RenderDebugText(renderer, (lobbyW * 0.5f - 200 * ui) / small, row / small,
-                                        line);
-                    row += 30 * ui;
+                    lettering.draw(line, lobbyW * 0.5f - 200 * ui, row, 18 * ui,
+                                   client::rgb(0xefeadd));
+                    row += 32 * ui;
                 }
-                SDL_SetRenderDrawColor(renderer, 160, 160, 150, 255);
-                SDL_RenderDebugText(renderer, (lobbyW * 0.5f - 200 * ui) / small,
-                                    (row + 20 * ui) / small, "N   start a new island");
-                SDL_RenderDebugText(renderer, (lobbyW * 0.5f - 200 * ui) / small,
-                                    (row + 50 * ui) / small, "ESC   leave");
-                SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+                lettering.draw("N   start a new island", lobbyW * 0.5f - 200 * ui, row + 20 * ui,
+                               18 * ui, client::Color{160, 160, 150, 255});
+                lettering.draw("ESC   leave", lobbyW * 0.5f - 200 * ui, row + 52 * ui, 18 * ui,
+                               client::Color{160, 160, 150, 255});
                 SDL_RenderPresent(renderer);
                 // The list keeps up with whoever is joining while you decide.
                 net.poll(build, 1.0 / 30);
@@ -452,6 +465,8 @@ int main(int argc, char** argv) {
     client::Terrain terrain(renderer);
     client::Sprites sprites(renderer);
     client::Paint paint(renderer);
+    paint.useText(&lettering);
+    hud.useText(&lettering);
 
     if (benchFrames > 0 && !SDL_SetRenderVSync(renderer, SDL_RENDERER_VSYNC_DISABLED)) {
         std::printf("bench: could not turn vsync off: %s\n", SDL_GetError());
@@ -468,7 +483,7 @@ int main(int argc, char** argv) {
     bool paused = false;
     /** The card you land on, until you say how you want to play. */
     bool title = connectTo.empty() && !showPanel && !showMap && poseSwing < 0 &&
-                 benchFrames <= 0 && (!shotPath || showTitle);
+                 benchFrames <= 0 && !deathTest && (!shotPath || showTitle);
     /** Typing a line of chat, and what has been typed so far. */
     bool typing = false;
     std::string typed;
@@ -479,6 +494,9 @@ int main(int argc, char** argv) {
     // The island's own clock, carried over from the last sitting.
     std::uint32_t inputSeq = 0;
     double sinceSave = 0;
+    double deathClock = 0;
+    bool deathAsked = false;
+    bool deathSeen = false;
     std::size_t chatSeen = 0;
 
     double clock = startClock;
@@ -505,7 +523,11 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_QUIT) running = false;
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
                 // Closes whatever is open first, and only then stops the game.
-                if (panel.open()) {
+                // Dead, it does nothing: a paused death screen is a game you
+                // cannot get out of.
+                if (dead) {
+                    // Nothing to do here but choose where to wake up.
+                } else if (panel.open()) {
                     panel.close();
                 } else if (map.open()) {
                     map.close();
@@ -612,13 +634,16 @@ int main(int argc, char** argv) {
                 showHelp = !showHelp;
             }
             if (event.type == SDL_EVENT_KEY_DOWN && dead && !event.key.repeat) {
-                // A number picks a bag, B picks a beach, and space takes the
-                // first thing offered.
+                // A number picks a bag; B, space or enter takes a beach. A
+                // number with no bag behind it takes the beach as well, rather
+                // than leaving you pressing keys at a screen that ignores you.
                 if (event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
                     wakeIn = static_cast<int>(event.key.key - SDLK_1) + 1;
                 }
-                if (event.key.key == SDLK_B) wakeIn = -1;
-                if (event.key.key == SDLK_SPACE) wakeIn = -1;
+                if (event.key.key == SDLK_B || event.key.key == SDLK_SPACE ||
+                    event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) {
+                    wakeIn = -1;
+                }
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_M && !event.key.repeat) {
                 map.toggle();
@@ -827,6 +852,29 @@ int main(int argc, char** argv) {
             if (!thing.lit) continue;
             if (SDL_randf() < dt * 20) specks.ember(thing.x, thing.y - 4);
         }
+        if (deathTest) {
+            // Dies, waits, asks for a beach, and says whether it worked.
+            deathClock += dt;
+            if (deathClock > 0.4 && player.alive && !dead && !deathSeen) {
+                sim::hurtPlayer(player, inventory, 999);
+            }
+            if (dead) deathSeen = true;
+            if (deathClock > 1.0 && dead && !deathAsked) {
+                deathAsked = true;
+                SDL_Event press{};
+                press.type = SDL_EVENT_KEY_DOWN;
+                press.key.key = SDLK_B;
+                press.key.repeat = 0;
+                SDL_PushEvent(&press);
+            }
+            if (deathClock > 2.0) {
+                std::printf("death test: died %s, asked %s, now %s, %s, at %.0f,%.0f\n",
+                            deathSeen ? "yes" : "NO", deathAsked ? "yes" : "NO",
+                            dead ? "STILL ON THE DEATH SCREEN" : "back in the game",
+                            player.alive ? "alive" : "DEAD", player.x, player.y);
+                running = false;
+            }
+        }
         clock += dt;
         const double dark = sim::darkness(clock);
         sim::updateSurvival(world, player, inventory, dt, sim::nightness(clock),
@@ -878,8 +926,11 @@ int main(int argc, char** argv) {
                 }
             }
             if (wakeIn > 0 && !bag) {
-                wakeIn = 0;
-            } else {
+                // Asked for a bag that is not there: a beach, then.
+                wakeIn = -1;
+                bag = nullptr;
+            }
+            {
                 dead = false;
                 dropIn(world, player, static_cast<std::uint32_t>(SDL_GetTicks()));
                 if (bag) {
@@ -1674,6 +1725,7 @@ int main(int argc, char** argv) {
                       player.bleeding > 0,
                       player.useTotal > 0 && player.useLeft > 0 ? player.useLeft / player.useTotal
                                                                 : 0);
+        hud.setClock(clock);
         hud.setAmmo(sim::itemDef(inventory.held()).gun.damage > 0
                         ? sim::roundsCarried(player, inventory)
                         : -1,
@@ -1702,16 +1754,12 @@ int main(int argc, char** argv) {
         if (panel.takeQueueFull()) hud.notify("Crafting queue is full.");
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
         if (typing) {
-            const float size = 1.8f * static_cast<float>(density);
             const std::string line = "say: " + typed + "_";
             paint.fillRect(0, height - 150 * static_cast<float>(density),
                            static_cast<float>(width), 30 * static_cast<float>(density),
                            client::Color{20, 17, 13, 200});
-            SDL_SetRenderScale(renderer, size, size);
-            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-            SDL_RenderDebugText(renderer, (20 * density) / size,
-                                (height - 142 * density) / size, line.c_str());
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+            lettering.draw(line, 20 * density, height - 146 * density, 16 * density,
+                           client::rgb(0xefeadd));
         }
 
         if (title) {
@@ -1719,32 +1767,22 @@ int main(int argc, char** argv) {
             // thing you see should be the place you are about to be dropped on.
             paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
                            client::Color{10, 12, 10, 190});
-            const float big = 6.0f * static_cast<float>(density);
-            const char* name = "OXIDE";
-            const float nameW = static_cast<float>(SDL_strlen(name)) * 8 * big;
-            SDL_SetRenderScale(renderer, big, big);
-            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-            SDL_RenderDebugText(renderer, (width - nameW) * 0.5f / big, height * 0.3f / big, name);
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
-
-            const float small = 1.8f * static_cast<float>(density);
-            const char* tag = "an island, a rock, and whatever you make of them";
-            const float tagW = static_cast<float>(SDL_strlen(tag)) * 8 * small;
-            SDL_SetRenderScale(renderer, small, small);
-            SDL_SetRenderDrawColor(renderer, 160, 160, 150, 255);
-            SDL_RenderDebugText(renderer, (width - tagW) * 0.5f / small, height * 0.45f / small,
-                                tag);
+            lettering.draw("OXIDE", width * 0.5f, height * 0.26f, 110 * density,
+                           client::rgb(0xefeadd), client::Face::Display, client::Align::Centre);
+            lettering.draw("an island, a rock, and whatever you make of them", width * 0.5f,
+                           height * 0.45f, 20 * density, client::Color{160, 160, 150, 255},
+                           client::Face::Body, client::Align::Centre);
             // The keys in a column of their own, so the eye runs down them.
             static const char* kKeys[] = {"ENTER", "S", "ESC"};
             static const char* kWhat[] = {"play", "sandbox: everything to hand, nothing to lose",
                                           "leave"};
-            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
             for (int i = 0; i < 3; ++i) {
-                const float y = (height * 0.55f + i * 34 * density) / small;
-                SDL_RenderDebugText(renderer, (width * 0.5f - 260 * density) / small, y, kKeys[i]);
-                SDL_RenderDebugText(renderer, (width * 0.5f - 130 * density) / small, y, kWhat[i]);
+                const float y = height * 0.55f + i * 36 * density;
+                lettering.draw(kKeys[i], width * 0.5f - 260 * density, y, 20 * density,
+                               client::rgb(0xefeadd), client::Face::Display);
+                lettering.draw(kWhat[i], width * 0.5f - 130 * density, y, 18 * density,
+                               client::rgb(0xefeadd));
             }
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
 
         if (paused) {
@@ -1752,15 +1790,12 @@ int main(int argc, char** argv) {
             // where a player looks for the controls.
             paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
                            client::Color{0, 0, 0, 170});
-            const float size = 3.0f * static_cast<float>(density);
-            const char* headline = online ? "SETTINGS    esc to carry on"
-                                          : "PAUSED    esc to carry on";
-            const float textW = static_cast<float>(SDL_strlen(headline)) * 8 * size;
-            SDL_SetRenderScale(renderer, size, size);
-            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size, height * 0.16f / size,
-                                headline);
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+            lettering.draw(online ? "SETTINGS" : "PAUSED", width * 0.5f, height * 0.13f,
+                           54 * density, client::rgb(0xefeadd), client::Face::Display,
+                           client::Align::Centre);
+            lettering.draw("esc to carry on", width * 0.5f, height * 0.2f, 18 * density,
+                           client::Color{160, 160, 150, 255}, client::Face::Body,
+                           client::Align::Centre);
 
             struct Binding {
                 const char* group;
@@ -1789,25 +1824,20 @@ int main(int argc, char** argv) {
                 {nullptr, "F11", "full screen"},
                 {nullptr, "ESC", "back out"},
             };
-            const float small = 1.5f * static_cast<float>(density);
-            SDL_SetRenderScale(renderer, small, small);
             float row = height * 0.26f;
             for (const Binding& binding : kBindings) {
                 if (binding.group) {
-                    row += 14 * density;
-                    SDL_SetRenderDrawColor(renderer, 160, 160, 150, 255);
-                    SDL_RenderDebugText(renderer, (width * 0.5f - 300 * density) / small,
-                                        row / small, binding.group);
-                    row += 26 * density;
+                    row += 12 * density;
+                    lettering.draw(binding.group, width * 0.5f - 300 * density, row, 20 * density,
+                                   client::Color{160, 160, 150, 255}, client::Face::Display);
+                    row += 28 * density;
                 }
-                SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-                SDL_RenderDebugText(renderer, (width * 0.5f - 260 * density) / small, row / small,
-                                    binding.key);
-                SDL_RenderDebugText(renderer, (width * 0.5f - 60 * density) / small, row / small,
-                                    binding.what);
+                lettering.draw(binding.key, width * 0.5f - 260 * density, row, 15 * density,
+                               client::rgb(0xefeadd), client::Face::BodyBold);
+                lettering.draw(binding.what, width * 0.5f - 60 * density, row, 15 * density,
+                               client::rgb(0xefeadd));
                 row += 24 * density;
             }
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
 
         if (showHelp) {
@@ -1818,40 +1848,26 @@ int main(int argc, char** argv) {
                 "TAB  pack and bench               M  map",
                 "B  what the plan puts down        H  close this",
             };
-            const float size = 1.8f * static_cast<float>(density);
             paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
                            client::Color{0, 0, 0, 170});
-            SDL_SetRenderScale(renderer, size, size);
-            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
             for (int i = 0; i < 5; ++i) {
-                SDL_RenderDebugText(renderer, (width * 0.5f - 300 * density) / size,
-                                    (height * 0.35f + i * 30 * density) / size, kLines[i]);
+                lettering.draw(kLines[i], width * 0.5f - 300 * density,
+                               height * 0.35f + i * 32 * density, 18 * density,
+                               client::rgb(0xefeadd));
             }
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
 
         if (dead) {
             paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
                            client::Color{40, 8, 8, 170});
-            const float size = 4.0f * static_cast<float>(density);
-            const char* headline = "YOU DIED";
-            const float textW = static_cast<float>(SDL_strlen(headline)) * 8 * size;
-            SDL_SetRenderScale(renderer, size, size);
-            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size, (height * 0.4f) / size,
-                                headline);
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
-
-            const float small = 1.8f * static_cast<float>(density);
-            SDL_SetRenderScale(renderer, small, small);
-            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+            lettering.draw("YOU DIED", width * 0.5f, height * 0.36f, 72 * density,
+                           client::rgb(0xefeadd), client::Face::Display, client::Align::Centre);
             char line[96];
             SDL_snprintf(line, sizeof(line),
                          "Your things are on the ground where you fell.   Day %d.",
                          1 + static_cast<int>(clock / sim::kDaySeconds));
-            float lineW = static_cast<float>(SDL_strlen(line)) * 8 * small;
-            SDL_RenderDebugText(renderer, (width - lineW) * 0.5f / small,
-                                (height * 0.4f + 60 * density) / small, line);
+            lettering.draw(line, width * 0.5f, height * 0.4f + 60 * density, 18 * density,
+                           client::rgb(0xefeadd), client::Face::Body, client::Align::Centre);
             // Every bag you have put down, with how far off it lies and which
             // way, so waking up is a decision rather than a button.
             int listed = 0;
@@ -1865,16 +1881,13 @@ int main(int argc, char** argv) {
                 SDL_snprintf(line, sizeof(line), "%d   Sleeping bag, %d cells %s%s", listed,
                              static_cast<int>(SDL_sqrt(dx * dx + dy * dy) / sim::kBuildCell), ns,
                              ew);
-                lineW = static_cast<float>(SDL_strlen(line)) * 8 * small;
-                SDL_RenderDebugText(renderer, (width - lineW) * 0.5f / small,
-                                    (height * 0.4f + (100 + listed * 30) * density) / small, line);
+                lettering.draw(line, width * 0.5f, height * 0.4f + (100 + listed * 32) * density,
+                               18 * density, client::rgb(0xefeadd), client::Face::Body,
+                               client::Align::Centre);
             }
-            SDL_snprintf(line, sizeof(line), "B   A beach, with nothing");
-            lineW = static_cast<float>(SDL_strlen(line)) * 8 * small;
-            SDL_SetRenderDrawColor(renderer, 216, 72, 58, 255);
-            SDL_RenderDebugText(renderer, (width - lineW) * 0.5f / small,
-                                (height * 0.4f + (130 + listed * 30) * density) / small, line);
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+            lettering.draw("B   A beach, with nothing", width * 0.5f,
+                           height * 0.4f + (132 + listed * 32) * density, 18 * density,
+                           client::rgb(0xd8483a), client::Face::Body, client::Align::Centre);
         }
 
         if (!title)
@@ -1895,23 +1908,20 @@ int main(int argc, char** argv) {
             char top[96];
             SDL_snprintf(top, sizeof(top), "DAY %d    %02d:%02d %s%s", day, hour, minute,
                          sim::isNight(clock) ? "night" : "day", online ? "    online" : "");
-            const float size = 2.0f * static_cast<float>(density);
-            const float textW = static_cast<float>(SDL_strlen(top)) * 8 * size;
-            paint.fillRect((width - textW) * 0.5f - 14 * density, 0, textW + 28 * density,
-                           30 * density, client::Color{20, 17, 13, 170});
-            SDL_SetRenderScale(renderer, size, size);
-            SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size, (8 * density) / size, top);
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+            const float size = 22 * density;
+            const float textW = lettering.widthOf(top, size, client::Face::Display);
+            paint.fillRect((width - textW) * 0.5f - 16 * density, 0, textW + 32 * density,
+                           32 * density, client::Color{20, 17, 13, 170});
+            lettering.draw(top, width * 0.5f, 2 * density, size, client::rgb(0xefeadd),
+                           client::Face::Display, client::Align::Centre);
         }
 
-        SDL_SetRenderScale(renderer, static_cast<float>(density), static_cast<float>(density));
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderDebugTextFormat(renderer, 10, 10, "%.0f fps  %zu drawn  %.0f, %.0f  zoom %.2f  %02d:%02d",
-                                  fps, visible.size(), player.x, player.y, zoom,
-                                  static_cast<int>(sim::dayFraction(clock) * 24),
-                                  static_cast<int>(SDL_fmod(sim::dayFraction(clock) * 24 * 60, 60)));
-        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        // The counter, small and out of the way: it is for me, not for playing.
+        char counter[128];
+        SDL_snprintf(counter, sizeof(counter), "%.0f fps   %zu drawn   %.0f, %.0f   zoom %.2f",
+                     fps, visible.size(), player.x, player.y, zoom);
+        lettering.draw(counter, 10 * density, 6 * density, 12 * density,
+                       client::Color{255, 255, 255, 150});
 
         if (benchFrames > 0) {
             // The time it takes to build a frame, which is what the rewrite is
@@ -1938,6 +1948,7 @@ int main(int argc, char** argv) {
             running = false;
         }
 
+        lettering.endFrame();
         SDL_RenderPresent(renderer);
     }
 
@@ -1952,6 +1963,7 @@ int main(int argc, char** argv) {
     }
 
     audio.close();
+    lettering.close();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

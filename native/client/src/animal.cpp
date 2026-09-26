@@ -4,6 +4,7 @@
 
 #include "body_frame.hpp"
 #include "palette.hpp"
+#include "text.hpp"
 
 namespace client {
 
@@ -116,14 +117,10 @@ void drawAnimalTag(Paint& paint, const sim::Npc& npc, float x, float y, float sc
         paint.fillRect(bx - 2, by - 2, w + 4, h + 4, kInk);
         paint.fillRect(bx, by, w * npc.hp / def.hp, h, rgb(0xffffff));
     }
-    SDL_Renderer* renderer = paint.renderer();
-    const float text = 1.5f * uiScale;
-    const float width = static_cast<float>(SDL_strlen(def.name)) * 8 * text;
-    SDL_SetRenderScale(renderer, text, text);
-    SDL_SetRenderDrawColor(renderer, 232, 176, 160, 255);
-    SDL_RenderDebugText(renderer, (x - width / 2) / text,
-                        (y - r - (hurt ? 26 : 16) * uiScale) / text, def.name);
-    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    if (Text* lettering = paint.text()) {
+        lettering->draw(def.name, x, y - r - (hurt ? 32 : 22) * uiScale, 13 * uiScale,
+                        rgb(0xe8b0a0), Face::Body, Align::Centre);
+    }
 }
 
 }  // namespace client

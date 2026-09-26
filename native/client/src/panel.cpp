@@ -6,6 +6,7 @@
 
 #include "held.hpp"
 #include "palette.hpp"
+#include "text.hpp"
 
 namespace client {
 
@@ -21,11 +22,10 @@ constexpr Color kDim = rgb(0x8d8a80);
 /** The pack is laid out six across, as the belt is. */
 constexpr int kPackCols = 6;
 
-void text(SDL_Renderer* renderer, float x, float y, float scale, Color color, const char* line) {
-    SDL_SetRenderScale(renderer, scale, scale);
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    SDL_RenderDebugText(renderer, x / scale, y / scale, line);
-    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+/** One line, at a size in pixels, in the face it belongs in. */
+void text(Paint& paint, float x, float y, float size, Color color, const char* line,
+          Face face = Face::Body) {
+    if (Text* lettering = paint.text()) lettering->draw(line, x, y, size, color, face);
 }
 
 }  // namespace
@@ -290,9 +290,9 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
     paint.fillRect(l.x - 3 * uiScale, l.y - 3 * uiScale, l.w + 6 * uiScale, l.h + 6 * uiScale, kInk);
     paint.fillRect(l.x, l.y, l.w, l.h, kPlate);
 
-    text(renderer, l.packX, l.y + 24 * uiScale, 2.0f * uiScale, kText, "PACK");
-    text(renderer, l.listX, l.y + 24 * uiScale, 2.0f * uiScale, kText,
-         container_ ? title_ : (shelf_ ? "SHELF" : "CRAFT"));
+    text(paint, l.packX, l.y + 12 * uiScale, 26 * uiScale, kText, "PACK", Face::Display);
+    text(paint, l.listX, l.y + 12 * uiScale, 26 * uiScale, kText,
+         container_ ? title_ : (shelf_ ? "SHELF" : "CRAFT"), Face::Display);
 
     // The pack, and the belt under it.
     const auto slotAt = [&](float x, float y, const sim::ItemStack& stack) {
@@ -302,9 +302,9 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         if (stack.count > 1) {
             char count[8];
             SDL_snprintf(count, sizeof(count), "%d", stack.count);
-            const float size = 1.4f * uiScale;
-            const float textW = static_cast<float>(SDL_strlen(count)) * 8 * size;
-            text(renderer, x + l.slot - 4 * uiScale - textW, y + l.slot - 16 * uiScale, size, kText,
+            const float size = 12 * uiScale;
+            const float textW = paint.text() ? paint.text()->widthOf(count, size) : 0;
+            text(paint, x + l.slot - 4 * uiScale - textW, y + l.slot - 18 * uiScale, size, kText,
                  count);
         }
     };
@@ -314,7 +314,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         slotAt(sx, sy, inventory.pack()[i]);
     }
     const float beltY = l.packY + 4 * (l.slot + 4 * uiScale) + 22 * uiScale;
-    text(renderer, l.packX, beltY - 16 * uiScale, 1.4f * uiScale, kDim, "BELT");
+    text(paint, l.packX, beltY - 16 * uiScale, 11.2 * uiScale, kDim, "BELT");
     for (int i = 0; i < sim::kHotbarSlots; ++i) {
         const float sx = l.packX + i * (l.slot + 4 * uiScale);
         slotAt(sx, beltY, inventory.hotbar()[i]);
@@ -333,7 +333,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
             char line[96];
             SDL_snprintf(line, sizeof(line), "%s   %s", fire_->lit ? "Lit" : "Out",
                          fire_->lit ? "burning wood" : "E to light it");
-            text(renderer, l.listX, statusY, 1.4f * uiScale, kDim, line);
+            text(paint, l.listX, statusY, 11.2 * uiScale, kDim, line);
         }
         if (move_.left > 0 && move_.total > 0) {
             // The spinner: how much longer the lifting takes.
@@ -344,7 +344,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
             paint.fillRect(bx, by, static_cast<float>(w * (1 - move_.left / move_.total)),
                            10 * uiScale, rgb(0xe8c87a));
         }
-        text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim,
+        text(paint, l.listX, l.y + l.h - 22 * uiScale, 11.2 * uiScale, kDim,
              "click a slot to move it   TAB to close");
         return;
     }
@@ -362,7 +362,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
             drawItemIcon(paint, static_cast<sim::ItemId>(i), sx + l.slot * 0.5f,
                          sy + l.slot * 0.5f, l.slot * 0.7f);
         }
-        text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim,
+        text(paint, l.listX, l.y + l.h - 22 * uiScale, 11.2 * uiScale, kDim,
              "click for one, right click for a stack");
         return;
     }
@@ -394,7 +394,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
             }
             SDL_snprintf(line, sizeof(line), "%s   %s", sim::itemDef(recipe.out).name, cost);
         }
-        text(renderer, l.listX + 36 * uiScale, ry + 10 * uiScale, 1.4f * uiScale,
+        text(paint, l.listX + 36 * uiScale, ry + 6 * uiScale, 11.2f * uiScale,
              byHand ? kText : kDim, line);
     }
 
@@ -410,7 +410,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         paint.fillRect(jx, l.queueY + size - 5 * uiScale, static_cast<float>(size * progress),
                        4 * uiScale, rgb(0xe8c87a));
     }
-    text(renderer, l.packX, l.queueY - 14 * uiScale, 1.4f * uiScale, kDim,
+    text(paint, l.packX, l.queueY - 14 * uiScale, 11.2 * uiScale, kDim,
          "QUEUE   right click to cancel");
     // What the cursor is over, named along the bottom.
     float mouseX = 0;
@@ -438,9 +438,9 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         // Its name and what it is for, under the pack where there is room.
         const float detailY = l.y + l.h - 76 * uiScale;
         drawItemIcon(paint, over, l.packX + 14 * uiScale, detailY + 14 * uiScale, 26 * uiScale);
-        text(renderer, l.packX + 34 * uiScale, detailY + 6 * uiScale, 1.7f * uiScale, kText,
+        text(paint, l.packX + 34 * uiScale, detailY + 6 * uiScale, 13.6 * uiScale, kText,
              def.name);
-        text(renderer, l.packX + 34 * uiScale, detailY + 24 * uiScale, 1.2f * uiScale, kDim,
+        text(paint, l.packX + 34 * uiScale, detailY + 24 * uiScale, 9.6 * uiScale, kDim,
              def.desc);
         char line[96];
         if (def.gun.damage > 0) {
@@ -458,10 +458,10 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         } else {
             SDL_snprintf(line, sizeof(line), "%s   stacks to %d", def.name, def.stack);
         }
-        text(renderer, l.packX + 34 * uiScale, l.y + l.h - 22 * uiScale, 1.3f * uiScale, kText,
+        text(paint, l.packX + 34 * uiScale, l.y + l.h - 22 * uiScale, 10.4 * uiScale, kText,
              line);
     }
-    text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim,
+    text(paint, l.listX, l.y + l.h - 22 * uiScale, 11.2 * uiScale, kDim,
          "drag to sort, out to drop   TAB to close");
 
     if (drag_.id != sim::ItemId::None) {
@@ -470,7 +470,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         if (drag_.count > 1) {
             char count[8];
             SDL_snprintf(count, sizeof(count), "%d", drag_.count);
-            text(renderer, px + 8 * uiScale, py + 8 * uiScale, 1.4f * uiScale, kText, count);
+            text(paint, px + 8 * uiScale, py + 8 * uiScale, 11.2 * uiScale, kText, count);
         }
     }
 }

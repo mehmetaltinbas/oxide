@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "paint.hpp"
+#include "text.hpp"
 #include "sim/inventory.hpp"
 
 namespace client {
@@ -59,6 +60,12 @@ public:
     void setVitals(double calories, double hydration, double temperature, double radiation,
                    bool bleeding, double applying);
 
+    /** The clock, for anything that beats or blinks. */
+    void setClock(double seconds) { clock_ = seconds; }
+
+    /** The lettering, which the interface needs as much as the world does. */
+    void useText(Text* text) { lettering_ = text; }
+
 private:
     std::vector<Popup> popups_;
     std::vector<Popup> notices_;
@@ -72,6 +79,8 @@ private:
     double radiation_ = 0;
     bool bleeding_ = false;
     double applying_ = 0;
+    double clock_ = 0;
+    Text* lettering_ = nullptr;
 };
 
 }  // namespace client

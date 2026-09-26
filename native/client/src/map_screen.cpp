@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "palette.hpp"
+#include "text.hpp"
 
 namespace client {
 
@@ -18,11 +19,10 @@ constexpr int kCellsAcross = 15;
 constexpr double kGridSize =
     (sim::kWorldWidth > sim::kWorldHeight ? sim::kWorldWidth : sim::kWorldHeight) / kCellsAcross;
 
-void text(SDL_Renderer* renderer, float x, float y, float scale, Color color, const char* line) {
-    SDL_SetRenderScale(renderer, scale, scale);
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    SDL_RenderDebugText(renderer, x / scale, y / scale, line);
-    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+/** One line of the map's own lettering, at a size in pixels. */
+void text(Paint& paint, float x, float y, float size, Color color, const char* line,
+          Align align = Align::Left, Face face = Face::Body) {
+    if (Text* lettering = paint.text()) lettering->draw(line, x, y, size, color, face, align);
 }
 
 }  // namespace
@@ -101,8 +101,8 @@ void MapScreen::draw(Paint& paint, const sim::World& world, const sim::BuildSyst
         for (int col = 0; col < cols; ++col) {
             char label[8];
             SDL_snprintf(label, sizeof(label), "%c%d", static_cast<char>('A' + col), row);
-            text(renderer, x + col * cell + 3 * uiScale, y + row * cell + 3 * uiScale, uiScale,
-                 Color{240, 235, 221, 150}, label);
+            text(paint, x + col * cell + 3 * uiScale, y + row * cell + 2 * uiScale,
+                 9 * uiScale, Color{240, 235, 221, 170}, label);
         }
     }
 
@@ -121,10 +121,8 @@ void MapScreen::draw(Paint& paint, const sim::World& world, const sim::BuildSyst
         const float mx = x + static_cast<float>(monument.x) * scale;
         const float my = y + static_cast<float>(monument.y) * scale;
         paint.inkedCircle(mx, my, 4 * uiScale, hot ? rgb(0xb4e65a) : rgb(0xefeadd), kInkFine);
-        const float size = 1.1f * uiScale;
-        const float textW = static_cast<float>(SDL_strlen(def.name)) * 8 * size;
-        text(renderer, mx - textW / 2, my + 7 * uiScale, size,
-             hot ? rgb(0xb4e65a) : rgb(0xefeadd), def.name);
+        text(paint, mx, my + 6 * uiScale, 11 * uiScale, hot ? rgb(0xb4e65a) : rgb(0xefeadd),
+             def.name, Align::Centre);
     }
 
     // You, and which way you are facing.
@@ -147,7 +145,8 @@ void MapScreen::draw(Paint& paint, const sim::World& world, const sim::BuildSyst
     squareOf(player.x, player.y, square, sizeof(square));
     char line[64];
     SDL_snprintf(line, sizeof(line), "MAP    you are in %s    M to close", square);
-    text(renderer, x, y - 26 * uiScale, 1.6f * uiScale, rgb(0xefeadd), line);
+    text(paint, x, y - 30 * uiScale, 18 * uiScale, rgb(0xefeadd), line, Align::Left,
+         Face::Display);
 }
 
 }  // namespace client
