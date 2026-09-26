@@ -129,7 +129,16 @@ int main(int argc, char** argv) {
 	}
 
 
-	std::uint32_t seed = 12345u;
+	/**
+	 * Which island.
+	 *
+	 * A new one every launch, so running the game twice is two islands rather
+	 * than the same one with your old footprints on it. A number on the
+	 * command line pins it, which is what every check and every screenshot in
+	 * this repository relies on; the title screen's "carry on" takes the seed
+	 * out of the save.
+	 */
+	std::uint32_t seed = static_cast<std::uint32_t>(SDL_GetPerformanceCounter());
 	// A frame straight to a file and then out again, so the look of the game
 	// can be checked without a pair of eyes at the window.
 	const char* shotPath = nullptr;
@@ -400,23 +409,22 @@ int main(int argc, char** argv) {
 	// than the dark; a save brings its own hour with it.
 	double startClock = sim::kDaySeconds * 0.5;
 
-	// Picking up where the last sitting left off, unless this is an island
-	// somebody else is running, or a flag has said where to start, or this run
-	// is measuring something and wants the island as generated.
+	// Nothing is loaded here. A launch is a new island, and the last one is
+	// picked up from the title screen by pressing C, which is where a choice
+	// between two islands belongs rather than in a silent default.
+	//
+	// A run that is measuring or photographing something wants the island as
+	// generated and must not write over anybody's save on the way out.
 	const bool asGenerated = startX >= 0 || atMonument >= 0 || shotPath != nullptr ||
 							 benchFrames > 0 || showBase || poseDraw >= 0 || poseSwing >= 0 ||
-							 showPopups || clearAround;
-	bool loaded = false;
-	if (!online && !asGenerated) {
-		sim::Session session;
-		if (sim::loadSession(savePath, session, world, build) && session.seed == seed) {
-			player = session.player;
-			inventory = session.inventory;
-			startClock = session.clock;
-			loaded = true;
-			std::printf("Carried on from %s, %.1f hours on\n", savePath.c_str(),
-						session.hoursAway);
-		}
+							 showPopups || clearAround || zoo || icons || arrowShot;
+	// Whether there is one to go back to, for the title screen to say so.
+	bool hasSave = false;
+	if (!online) {
+		sim::World peek;
+		sim::BuildSystem peekBuild;
+		sim::Session peekSession;
+		hasSave = sim::loadSession(savePath, peekSession, peek, peekBuild);
 	}
 
 	if (poseSwing >= 0) {
@@ -691,6 +699,24 @@ int main(int argc, char** argv) {
 						sandbox = true;
 						fillSandbox();
 						title = false;
+					}
+					if (event.key.key == SDLK_C && hasSave) {
+						// The island out of the save, rebuilt from its own
+						// seed, with everything that happened to it on top.
+						sim::Session session;
+						if (sim::loadSession(savePath, session, world, build)) {
+							seed = session.seed;
+							player = session.player;
+							inventory = session.inventory;
+							clock = session.clock;
+							npcs.populate(world, seed);
+							npcs.garrison(world, seed);
+							sandbox = true;
+							fillSandbox();
+							title = false;
+							std::printf("Carried on from %s, %.1f hours on\n", savePath.c_str(),
+										session.hoursAway);
+						}
 					}
 					if (event.key.key == SDLK_M) titleNotice = 3.0;
 					if (event.key.key == SDLK_ESCAPE) running = false;
@@ -986,7 +1012,7 @@ int main(int argc, char** argv) {
 		// Nothing warms you yet: the campfire arrives with the deployables.
 		build.updateDeployables(world, dt);
 		specks.update(dt);
-		if (!online) {
+		if (!online && !asGenerated) {
 			sinceSave += dt;
 			if (sinceSave > 20) {
 				sinceSave = 0;
@@ -2107,12 +2133,13 @@ int main(int argc, char** argv) {
 				const char* what;
 				bool ready;
 			};
-			static const Mode kModes[] = {
-				{"S", "Sandbox: your own island, every recipe open", true},
+			const Mode kModes[] = {
+				{"S", "Sandbox: a new island, every recipe open", true},
+				{"C", hasSave ? "Carry on where you left off" : "Nothing saved yet", hasSave},
 				{"M", "Multiplayer: not built yet", false},
 				{"ESC", "Leave", true},
 			};
-			for (int i = 0; i < 3; ++i) {
+			for (int i = 0; i < 4; ++i) {
 				const float y = height * 0.55f + i * 36 * density;
 				const client::Color ink = kModes[i].ready ? client::rgb(0xefeadd)
 														  : client::Color{120, 120, 112, 255};
@@ -2123,7 +2150,7 @@ int main(int argc, char** argv) {
 			if (titleNotice > 0) {
 				titleNotice -= 1.0 / 60;
 				lettering.draw("Multiplayer is not in this build yet.", width * 0.5f,
-							   height * 0.55f + 3 * 36 * density + 14 * density, 16 * density,
+							   height * 0.55f + 4 * 36 * density + 14 * density, 16 * density,
 							   client::rgb(0xd8483a), client::Face::Body, client::Align::Centre);
 			}
 		}
@@ -2316,7 +2343,7 @@ int main(int argc, char** argv) {
 		SDL_RenderPresent(renderer);
 	}
 
-	if (!online && benchFrames <= 0 && !shotPath) {
+	if (!online && !asGenerated) {
 		// On the way out, so quitting never costs you the last twenty seconds.
 		sim::Session session;
 		session.seed = seed;
