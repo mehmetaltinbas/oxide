@@ -549,7 +549,7 @@ int main(int argc, char** argv) {
 			sim::Npc npc{};
 			npc.id = 9000 + i;
 			npc.kind = static_cast<sim::NpcKind>(i);
-			npc.x = player.x - 480 + at * 175;
+			npc.x = player.x - 360 + at * 180;
 			npc.y = player.y - 40;
 			npc.facing = 0;
 			npc.hp = sim::npcDef(npc.kind).hp;
@@ -591,6 +591,12 @@ int main(int argc, char** argv) {
 	client::Paint paint(renderer);
 	paint.useText(&lettering);
 	hud.useText(&lettering);
+
+	// The system arrow is hidden and the game draws its own. An arrow points
+	// up and to the left, which is a lie in a game where the thing under the
+	// cursor is what you are aiming at: a dot has no direction and sits
+	// exactly on the point it means.
+	SDL_HideCursor();
 
 	// Vsync off, always: the counter is there to show what the game costs, and
 	// pinned to the panel's refresh it only ever shows the panel.
@@ -2290,6 +2296,20 @@ int main(int argc, char** argv) {
 				SDL_DestroySurface(frame);
 			}
 			running = false;
+		}
+
+		{
+			// The cursor, over everything: a dot with the pen round it, so it
+			// reads on snow and on grass and on a dark panel alike.
+			float mx = 0;
+			float my = 0;
+			SDL_GetMouseState(&mx, &my);
+			const float cx = mx * static_cast<float>(density);
+			const float cy = my * static_cast<float>(density);
+			const float dot = 3.0f * static_cast<float>(density);
+			paint.useWorldScale(1);
+			paint.fillCircle(cx, cy, dot + 1.5f * static_cast<float>(density), client::kInk);
+			paint.fillCircle(cx, cy, dot, client::rgb(0xf4f1e6));
 		}
 
 		lettering.endFrame();

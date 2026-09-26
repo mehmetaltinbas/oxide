@@ -39,6 +39,17 @@ SwingResult swing(World& world, NpcSystem& npcs, BuildSystem& build, Player& pla
 
 	const ItemId held = inventory.held();
 	const bool tool = itemDef(held).category == ItemCategory::Tool;
+	// Holding a tool that is not for hitting means your hands are full: a
+	// torch, a building plan, a code lock. You do not get your fists back
+	// because what you are carrying happens to be useless in a fight.
+	if (held != ItemId::None) {
+		const ItemDef& def = itemDef(held);
+		const bool inert = def.melee.damage <= 0 && def.gun.damage <= 0;
+		if (inert && (def.category == ItemCategory::Tool ||
+					  def.category == ItemCategory::Weapon)) {
+			return out;
+		}
+	}
 	Melee melee = tool ? itemDef(held).melee : itemDef(ItemId::Rock).melee;
 	if (!tool) {
 		// Bare hands: half the rock's damage and half its yield.

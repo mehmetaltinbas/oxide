@@ -17,9 +17,10 @@ constexpr NpcGun kNoGun{0, 0, 0, 0, 0};
  * the forest and a chicken does not pay for the arrow.
  */
 constexpr NpcDef kDefs[kNpcKindCount] = {
-	// Bottom of the chain: quick, useless, and something to practise a bow on.
-	{NpcKind::Chicken, "Chicken", 15, 104, 7, 2, 18, 1.4, false, false, kNoGun,
-	 {{ItemId::MeatRaw, 1, 2}, {ItemId::Bone, 1, 2}, {ItemId::AnimalFat, 0, 1}},
+	// Bottom of the chain: quick, twitchy, barely worth an arrow, and the one
+	// thing you can kill on your first morning with a rock.
+	{NpcKind::Rabbit, "Rabbit", 12, 150, 6, 0, 14, 1.4, false, false, kNoGun,
+	 {{ItemId::MeatRaw, 1, 2}, {ItemId::Leather, 1, 3}, {ItemId::Bone, 1, 2}},
 	 3,
 	 {Biome::Grass, Biome::Forest},
 	 2,
@@ -28,21 +29,39 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 0,
 	 true,
 	 0},
-	// The meat animal. A sprint is 185 and a deer is 172, so you can run one
-	// down on foot and you will arrive with nothing left; a bow is the sane
-	// way. One deer is a full day of food and most of a set of hide.
-	{NpcKind::Deer, "Deer", 120, 172, 15, 8, 26, 1.4, false, false, kNoGun,
-	 {{ItemId::MeatRaw, 5, 9},
-	  {ItemId::Leather, 14, 24},
-	  {ItemId::Bone, 6, 11},
-	  {ItemId::AnimalFat, 5, 10}},
+
+	// The meat animal, and a big one: an elk is most of a week of food and a
+	// full set of hide. A sprint is 185 and an elk is 165, so you can run one
+	// down on foot and arrive with nothing left; a bow is the sane way.
+	{NpcKind::Elk, "Elk", 160, 165, 18, 14, 28, 1.4, false, false, kNoGun,
+	 {{ItemId::MeatRaw, 7, 12},
+	  {ItemId::Leather, 18, 30},
+	  {ItemId::Bone, 8, 14},
+	  {ItemId::AnimalFat, 7, 13}},
 	 4,
 	 {Biome::Forest, Biome::Snow},
 	 2,
-	 1,
+	 2,
 	 {},
 	 0,
 	 true,
+	 0},
+
+	// Neutral, and the one thing on the island that teaches it. It will graze
+	// past you all day. Hit it once and it turns round and kicks hard enough
+	// that you will not do it twice without meaning to.
+	{NpcKind::Kangaroo, "Kangaroo", 130, 168, 13, 24, 26, 1.2, false, false, kNoGun,
+	 {{ItemId::MeatRaw, 4, 8},
+	  {ItemId::Leather, 11, 19},
+	  {ItemId::Bone, 5, 10},
+	  {ItemId::AnimalFat, 5, 11}},
+	 4,
+	 {Biome::Grass, Biome::Desert},
+	 2,
+	 3,
+	 {},
+	 0,
+	 false,
 	 0},
 
 	// Everywhere that is not trees: grass, tundra and sand alike, which is
@@ -58,7 +77,7 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 {Biome::Grass, Biome::Snow, Biome::Desert},
 	 3,
 	 4,
-	 {NpcKind::Chicken, NpcKind::Deer},
+	 {NpcKind::Rabbit, NpcKind::Elk},
 	 2,
 	 true,
 	 0},
@@ -73,7 +92,7 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 {Biome::Forest, Biome::Snow},
 	 2,
 	 9,
-	 {NpcKind::Deer, NpcKind::Wolf},
+	 {NpcKind::Elk, NpcKind::Wolf},
 	 2,
 	 false,
 	 0},

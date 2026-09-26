@@ -20,7 +20,7 @@ struct NpcEvents {
 	double fromY = 0;
 	/** An animal that died this tick, for the sound and the popup. */
 	bool killed = false;
-	NpcKind killedKind = NpcKind::Deer;
+	NpcKind killedKind = NpcKind::Elk;
 	double killedX = 0;
 	double killedY = 0;
 };

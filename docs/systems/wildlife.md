@@ -48,7 +48,10 @@ one table instead of five state machines.
 
 A chase only resolves if the hunter is faster than the prey. Set the speeds
 against each other deliberately, and check with `play_check`, which puts a wolf
-next to a deer and asserts that the wolf both goes for it and catches it.
+next to an elk and asserts that the wolf both goes for it and catches it. That
+check earns its keep: the chase branch once tested the state it had itself set
+the frame before, so a wolf went for an elk for exactly one tick and then
+forgot about it, and nothing else would have caught that.
 
 ## The roster
 
@@ -61,9 +64,10 @@ next to a deer and asserts that the wolf both goes for it and catches it.
 | Bear    | forest, snow  | 340 | 92    | 9    | hostile  | deer, wolf, hyena | nothing                |
 
 A player walks at 132 and sprints at 185, which is the number the rest are set
-against: a deer at 172 can be run down on foot and you will arrive with nothing
+against: an elk at 165 can be run down on foot and you will arrive with nothing
 left, a wolf at 184 is just slower than a sprint, and a bear at 92 never
-catches anybody who runs.
+catches anybody who runs. A wolf has to outrun what it hunts or the chain does
+nothing, which is why it is the fastest thing on the island bar you.
 
 Anything skittish bolts when you come within 260 units of it, not only once you
 have hit it: you do not walk up to a deer.
@@ -82,7 +86,7 @@ arrow.
 | Wolf    | 2 to 4   | 6 to 12  | 3 to 6   | 2 to 5     |
 | Bear    | 8 to 16  | 20 to 36 | 10 to 20 | 14 to 30   |
 
-Populations, for a map of the reference size: 120 chickens, 95 deer, 80 wolves,
-26 bears. The wolf covers the desert as well as the grass and the tundra, which
-is what keeps the sand from being a free walk. Everything killed comes back where it lived a day later,
+Populations, for a map of the reference size: 130 rabbits, 85 elk, 70
+kangaroos, 80 wolves, 26 bears. The wolf covers the desert as well as the grass
+and the tundra, which is what keeps the sand from being a free walk. Everything killed comes back where it lived a day later,
 the same rule every other resource on the island follows.

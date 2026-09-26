@@ -15,8 +15,9 @@ namespace {
 
 Color coatOf(sim::NpcKind kind) {
 	switch (kind) {
-		case sim::NpcKind::Chicken: return rgb(0xe8e2d4);
-		case sim::NpcKind::Deer: return rgb(0xb07d4a);
+		case sim::NpcKind::Rabbit: return rgb(0xc9bda8);
+		case sim::NpcKind::Elk: return rgb(0x8a6038);
+		case sim::NpcKind::Kangaroo: return rgb(0xb07a52);
 		case sim::NpcKind::Wolf: return rgb(0x8e97a5);
 		case sim::NpcKind::Bear: return rgb(0x88522c);
 		// The people of the monuments: a lab coat and a field green.
@@ -28,8 +29,9 @@ Color coatOf(sim::NpcKind kind) {
 
 Color darkOf(sim::NpcKind kind) {
 	switch (kind) {
-		case sim::NpcKind::Chicken: return rgb(0xbdb3a0);
-		case sim::NpcKind::Deer: return rgb(0x7d5530);
+		case sim::NpcKind::Rabbit: return rgb(0x8e8471);
+		case sim::NpcKind::Elk: return rgb(0x5c3f22);
+		case sim::NpcKind::Kangaroo: return rgb(0x7a5236);
 		case sim::NpcKind::Wolf: return rgb(0x505d6d);
 		case sim::NpcKind::Bear: return rgb(0x523119);
 		case sim::NpcKind::Scientist: return rgb(0x758494);
@@ -99,13 +101,20 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 	};
 	Build b{};
 	switch (npc.kind) {
-		case sim::NpcKind::Chicken:
-			// Round, tiny, no neck to speak of and a beak instead of a snout.
-			b = Build{1.0f, 0.92f, 0.0f, 0.15f, 1.05f, 0.5f, 0.28f, 0.42f, 0.55f, 0.0f, 0.5f};
+		case sim::NpcKind::Rabbit:
+			// A ball with a nose on it. The ears are the whole silhouette and
+			// are drawn separately, long and swept back.
+			b = Build{0.98f, 0.82f, 0.0f, 0.1f, 1.02f, 0.44f, 0.24f, 0.4f, 0.5f, 0.0f, 0.26f};
 			break;
-		case sim::NpcKind::Deer:
-			// Long in the leg, long in the neck, narrow through the body.
-			b = Build{1.25f, 0.62f, 0.1f, 0.62f, 1.7f, 0.42f, 0.3f, 0.78f, 0.95f, 0.3f, 0.3f};
+		case sim::NpcKind::Elk:
+			// Long in the leg and the neck like a deer, but heavier through
+			// the shoulder, and the rack over the head is enormous.
+			b = Build{1.3f, 0.68f, 0.16f, 0.66f, 1.75f, 0.44f, 0.32f, 0.8f, 1.0f, 0.28f, 0.28f};
+			break;
+		case sim::NpcKind::Kangaroo:
+			// Narrow at the front, heavy at the back, and the tail is half the
+			// animal: drawn separately, thick where it leaves the body.
+			b = Build{1.08f, 0.66f, -0.3f, 0.36f, 1.42f, 0.42f, 0.28f, 0.5f, 1.1f, 0.3f, 1.25f};
 			break;
 		case sim::NpcKind::Wolf:
 			b = Build{1.3f, 0.7f, 0.08f, 0.45f, 1.6f, 0.44f, 0.46f, 0.62f, 0.72f, 0.26f, 0.66f};
@@ -188,19 +197,8 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 		paint.line(from.x, from.y, to.x, to.y, r * b.headSize * 1.1f - kInkWidth * scale * 2, coat);
 	}
 	oval(paint, f, headX, 0, r * b.headSize, r * b.headSize * 0.86f, coat, true);
-	// The snout, out in front of the head.
-	if (npc.kind == sim::NpcKind::Chicken) {
-		// A beak: a wedge, in the one colour nothing else here uses.
-		paint.fillPoly({f.at(headX + r * b.headSize * 0.7f, -r * 0.14f),
-						f.at(headX + r * (b.headSize + b.snout), 0),
-						f.at(headX + r * b.headSize * 0.7f, r * 0.14f)},
-					   rgb(0xe8a12c));
-		// The comb, which is the rest of what says chicken.
-		for (int i = -1; i <= 1; ++i) {
-			oval(paint, f, headX - r * 0.1f + i * r * 0.2f, 0, r * 0.12f, r * 0.1f,
-				 rgb(0xc8433a), true);
-		}
-	} else {
+	// The snout, out in front of the head. Every one of them has one.
+	{
 		std::vector<Point> muzzle;
 		for (int i = 0; i < 16; ++i) {
 			const float a = static_cast<float>(i) / 16 * 6.28318530718f;
@@ -212,7 +210,7 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 		oval(paint, f, headX + r * (b.snout * 1.25f), 0, r * 0.11f, r * 0.11f, kInk, false);
 	}
 
-	// Ears, and a deer's antlers, which is the one silhouette nothing else has.
+	// Ears, and the rack or the tail that goes with each one.
 	if (b.ears > 0) {
 		for (int side = -1; side <= 1; side += 2) {
 			const float s = static_cast<float>(side);
@@ -220,18 +218,58 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 				 r * b.ears * 0.5f, r * b.ears * 0.62f, dark, true);
 		}
 	}
-	if (npc.kind == sim::NpcKind::Deer) {
-		const Color horn = hurt ? rgb(0xffb0b0) : rgb(0xd8c8a8);
+	if (npc.kind == sim::NpcKind::Elk) {
+		// The rack: a heavy beam back over each shoulder with three tines off
+		// it, which is the one silhouette nothing else on the island has.
+		const Color horn = hurt ? rgb(0xffb0b0) : rgb(0xcbb894);
 		for (int side = -1; side <= 1; side += 2) {
 			const float s = static_cast<float>(side);
-			const Point base = f.at(headX - r * 0.1f, s * r * 0.22f);
-			const Point mid = f.at(headX + r * 0.5f, s * r * 0.72f);
-			const Point tip = f.at(headX + r * 1.15f, s * r * 0.95f);
-			paint.line(base.x, base.y, mid.x, mid.y, r * 0.13f, horn);
-			paint.line(mid.x, mid.y, tip.x, tip.y, r * 0.1f, horn);
-			// One tine off the middle of each, which is what makes it a rack.
-			const Point tine = f.at(headX + r * 0.62f, s * r * 0.36f);
-			paint.line(mid.x, mid.y, tine.x, tine.y, r * 0.09f, horn);
+			const Point base = f.at(headX - r * 0.12f, s * r * 0.24f);
+			const Point mid = f.at(headX + r * 0.45f, s * r * 0.95f);
+			const Point tip = f.at(headX + r * 1.5f, s * r * 1.25f);
+			paint.line(base.x, base.y, mid.x, mid.y, r * 0.16f, horn);
+			paint.line(mid.x, mid.y, tip.x, tip.y, r * 0.12f, horn);
+			for (int t = 0; t < 3; ++t) {
+				const float along = 0.25f + t * 0.42f;
+				const Point from = f.at(headX - r * 0.12f + r * 1.62f * along * 0.55f,
+										s * r * (0.24f + 1.01f * along));
+				const Point out = f.at(headX + r * (0.55f + along * 0.95f),
+									   s * r * (0.2f + along * 0.35f));
+				paint.line(from.x, from.y, out.x, out.y, r * 0.09f, horn);
+			}
+		}
+	}
+	if (npc.kind == sim::NpcKind::Rabbit) {
+		// Two long ears laid back along its spine: at this size they are the
+		// only thing that tells a rabbit from a stone.
+		for (int side = -1; side <= 1; side += 2) {
+			const float s = static_cast<float>(side);
+			std::vector<Point> ear;
+			for (int i = 0; i <= 10; ++i) {
+				const float t = static_cast<float>(i) / 10;
+				const float along = headX - r * 0.2f - r * 1.75f * t;
+				const float across = s * r * (0.26f + t * 0.42f);
+				const float wide = r * 0.2f * std::sin(3.14159265f * (0.15f + t * 0.85f));
+				ear.push_back(f.at(along, across - wide));
+			}
+			for (int i = 10; i >= 0; --i) {
+				const float t = static_cast<float>(i) / 10;
+				const float along = headX - r * 0.2f - r * 1.75f * t;
+				const float across = s * r * (0.26f + t * 0.42f);
+				const float wide = r * 0.2f * std::sin(3.14159265f * (0.15f + t * 0.85f));
+				ear.push_back(f.at(along, across + wide));
+			}
+			paint.inkedPoly(ear, coat, kInkWidth);
+		}
+	}
+	if (npc.kind == sim::NpcKind::Kangaroo) {
+		// The haunches, which is where all its weight is, and the big hind
+		// feet turned out under them.
+		for (int side = -1; side <= 1; side += 2) {
+			const float s = static_cast<float>(side);
+			oval(paint, f, -r * 0.5f, s * r * 0.58f, r * 0.42f, r * 0.34f, dark, true);
+			oval(paint, f, -r * 0.15f + gait * s * 0.4f, s * r * 0.74f, r * 0.46f, r * 0.17f,
+				 dark, true);
 		}
 	}
 

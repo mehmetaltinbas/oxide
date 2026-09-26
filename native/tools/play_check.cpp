@@ -387,7 +387,7 @@ int main() {
 			if (!sim::livesIn(sim::npcDef(npc.kind), island.biomeAt(npc.x, npc.y))) ++wrong;
 		}
 		std::printf("wildlife:");
-		for (int i = 0; i < 4; ++i) {
+		for (int i = 0; i < 5; ++i) {
 			std::printf(" %s %d", sim::npcDef(static_cast<sim::NpcKind>(i)).name, counts[i]);
 		}
 		std::printf(", %d in the wrong country\n", wrong);
@@ -418,7 +418,7 @@ int main() {
 			wild.mutableList().push_back(npc);
 		};
 		put(sim::NpcKind::Wolf, 10368 + 300, 10368);
-		put(sim::NpcKind::Deer, 10368 + 460, 10368);
+		put(sim::NpcKind::Elk, 10368 + 460, 10368);
 		const double gap0 = 160;
 		bool chased = false;
 		bool bled = false;
@@ -426,12 +426,12 @@ int main() {
 			wild.update(island, empty, none, dt, watcher);
 			const sim::NpcState state = wild.list()[0].state;
 			if (state == sim::NpcState::Chase || state == sim::NpcState::Attack) chased = true;
-			if (wild.list().size() < 2 || wild.list()[1].hp < sim::npcDef(sim::NpcKind::Deer).hp) {
+			if (wild.list().size() < 2 || wild.list()[1].hp < sim::npcDef(sim::NpcKind::Elk).hp) {
 				bled = true;
 			}
 		}
 		const sim::Npc& wolf = wild.list()[0];
-		std::printf("chain: wolf %s the deer, %s it, gap %.0f from %.0f\n",
+		std::printf("chain: wolf %s the elk, %s it, gap %.0f from %.0f\n",
 					chased ? "went for" : "IGNORED", bled ? "caught" : "never caught",
 					wild.list().size() > 1
 						? std::hypot(wild.list()[1].x - wolf.x, wild.list()[1].y - wolf.y)

@@ -83,7 +83,7 @@ constexpr float kNodeLineScale = 1.5f;
  * Roughly: 2.6 is bold and comic, 1.6 is a clean pen line, below about 1.0 the
  * glyphs start to look unfinished at belt size.
  */
-constexpr float kGlyphInk = 1.0;
+constexpr float kGlyphInk = 1.0f;
 /**
  * The thin mark inside a glyph: stitching on a hide, a crease, a rivet line,
  * the fold in a sheet of scrap. Keep it around two thirds of kGlyphInk.
@@ -148,12 +148,6 @@ inline Color nodeColor(sim::NodeKind kind) {
 	return rgb(0x9aa6b2);
 }
 
-/** The lighter tree of the grassland, in its two greens. */
-/**
- * The three greens of a grassland tree, lightest at the crown where the sun
- * is. Lighter than the forest's pines on purpose: the grassland is open
- * country and its trees read as scrub rather than as timber.
- */
 /**
  * The three greens of a forest pine: the near-grey green of a spruce, darker
  * and colder than the grassland's, so walking from one into the other is a
@@ -163,6 +157,11 @@ constexpr Color kPineLight = rgb(0x6f8a63);
 constexpr Color kPineMid = rgb(0x5b7452);
 constexpr Color kPineDark = rgb(0x4a6244);
 
+/**
+ * The three greens of a grassland tree, lightest at the crown where the sun
+ * is. Lighter than the forest's pines on purpose: the grassland is open
+ * country and its trees read as scrub rather than as timber.
+ */
 constexpr Color kBroadleafLight = rgb(0x9ecc6e);
 constexpr Color kBroadleafMid = rgb(0x84b45a);
 constexpr Color kBroadleafDark = rgb(0x6d9a48);

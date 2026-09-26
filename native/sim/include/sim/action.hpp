@@ -29,7 +29,7 @@ struct SwingResult {
 	bool packFull = false;
 	/** An animal took the blow instead, and how much it felt. */
 	bool hitNpc = false;
-	NpcKind npcKind = NpcKind::Deer;
+	NpcKind npcKind = NpcKind::Elk;
 	/** Whether that blow was the one that finished it. */
 	bool killed = false;
 	/** Or it landed on somebody's wall. */

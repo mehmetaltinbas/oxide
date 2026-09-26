@@ -18,9 +18,10 @@ struct Population {
 	int count;
 };
 
-constexpr Population kWildlife[4] = {
-	{NpcKind::Chicken, 120},
-	{NpcKind::Deer, 95},
+constexpr Population kWildlife[5] = {
+	{NpcKind::Rabbit, 130},
+	{NpcKind::Elk, 85},
+	{NpcKind::Kangaroo, 70},
 	{NpcKind::Wolf, 80},
 	{NpcKind::Bear, 26},
 };
@@ -388,11 +389,22 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 		// The island's own business, before yours: something running from a
 		// bear is not interested in you, and a wolf on a deer will finish
 		// with the deer first unless you are the nearer thing.
-		if (npc.target != 0 && npc.state != NpcState::Chase && npc.state != NpcState::Attack) {
+		// It used to say "and it is not already chasing", which is a test on
+		// the state this branch had itself set the frame before: a wolf went
+		// for an elk for exactly one tick and then forgot about it.
+		if (npc.target != 0) {
 			Npc* other = nullptr;
 			const int wanted = npc.target < 0 ? -npc.target : npc.target;
 			for (Npc& candidate : npcs_) {
 				if (candidate.id == wanted && candidate.hp > 0) other = &candidate;
+			}
+			// Running for your life beats everything. Otherwise, whichever of
+			// you and its quarry is nearer is the one it deals with.
+			if (other && npc.target > 0 && wantsFight && player.alive &&
+				toPlayer < dist(npc.x, npc.y, other->x, other->y) && toPlayer < aggroRange) {
+				other = nullptr;
+				npc.target = 0;
+				npc.mind = 0;
 			}
 			if (!other) {
 				npc.target = 0;
