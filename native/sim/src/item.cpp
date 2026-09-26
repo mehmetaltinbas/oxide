@@ -23,14 +23,20 @@ constexpr ItemDef kItems[] = {
     {ItemId::Scrap, "Scrap", "Salvaged at monuments. Buys the good blueprints.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
     {ItemId::LowGrade, "Low Grade Fuel", "Rendered from animal fat. Burns in lamps and satchels.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
     {ItemId::PistolAmmo, "Pistol Ammo", "For the revolver.", ItemCategory::Ammo, 128, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
-    {ItemId::MeatRaw, "Raw Meat", "Eat it raw at your own risk. Cook it on a fire.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
+    // Raw meat is food and a gamble: it feeds you a little and costs you some
+    // health for the privilege. Cooked is worth three times as much, for free.
+    {ItemId::MeatRaw, "Raw Meat", "Eat it raw at your own risk. Cook it on a fire.",
+     ItemCategory::Consumable, 20, kNone, kNoGun, {12, 0, -8, 0}, kNoWear, kNoBoom},
     {ItemId::Leather, "Leather", "Skinned from animals.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
     {ItemId::Bone, "Bone", "From carcasses. Crude tools and arrows.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
     {ItemId::AnimalFat, "Animal Fat", "Cut off a carcass. Render it into fuel.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
     {ItemId::Charcoal, "Charcoal", "Furnace by-product. Half of gunpowder.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
     {ItemId::Gunpowder, "Gunpowder", "Sulfur and charcoal. Ammunition and explosives.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
-    {ItemId::MeatCooked, "Cooked Meat", "Proper food.", ItemCategory::Resource, 20, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
-    {ItemId::Water, "Water", "Collected at rivers and lakes.", ItemCategory::Resource, 250, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
+    {ItemId::MeatCooked, "Cooked Meat", "Proper food.", ItemCategory::Consumable, 20, kNone,
+     kNoGun, {36, 0, 3, 0}, kNoWear, kNoBoom},
+    // A drink you carry, worth a little more than a mouthful at the shore.
+    {ItemId::Water, "Water", "Collected at rivers and lakes.", ItemCategory::Consumable, 250,
+     kNone, kNoGun, {0, 40, 0, 0}, kNoWear, kNoBoom},
     // Stops bleeding, heals a little, slowly.
     {ItemId::Bandage, "Bandage", "Stops bleeding. Heals a little, slowly. Takes five seconds.", ItemCategory::Consumable, 12, kNone, kNoGun, {0, 0, 5, 5}, kNoWear, kNoBoom},
     {ItemId::Medkit, "Medical Syringe", "Heals a lot over a few seconds. Quick to apply.", ItemCategory::Consumable, 10, kNone, kNoGun,

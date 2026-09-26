@@ -27,9 +27,10 @@ The server is `./native/build/bin/oxide_server --port 8787 --seed 12345`, and
 it runs up to eight islands at once, giving up any that stands empty for five
 minutes.
 
-`native/build/bin/play_check` and `net_check` are the regression checks: one
-plays a stretch of the game with nobody watching, the other runs two players
-against a server.
+`native/build/bin/play_check`, `net_check` and `sound_check` are the regression
+checks: one plays a stretch of the game with nobody watching, one runs two
+players against a server, and one renders every sound without a sound card and
+says whether any of them came out silent.
 
 ### Controls
 
@@ -37,7 +38,7 @@ WASD to move, shift to run. Left click uses what is in your hand, right click
 draws a bow. 1-6 pick a belt slot, R reloads, E uses whatever is in front of
 you, TAB opens the pack and the bench, M the map, B changes what the building
 plan puts down, T says something online, F asks the person in front of you to
-team up, H lists all of this.
+team up, H lists all of this. Minus and equals set the volume.
 
 ## The TypeScript version
 

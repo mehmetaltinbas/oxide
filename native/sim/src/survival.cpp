@@ -120,11 +120,16 @@ void apply(Player& player, Inventory& inventory, ItemId id) {
             player.health = std::min(PlayerVitals::kMaxHealth, player.health + food.health);
         }
         player.bleeding = 0;
+    } else if (food.health < 0) {
+        // Raw meat: it feeds you and it costs you.
+        player.health = std::max(1.0, player.health + food.health);
     }
 }
 
 bool isFood(const Food& food) {
-    return food.calories > 0 || food.hydration > 0 || food.health > 0;
+    // Health can be negative and the thing still be food: raw meat feeds you
+    // and makes you ill at the same time.
+    return food.calories > 0 || food.hydration > 0 || food.health != 0;
 }
 
 }  // namespace

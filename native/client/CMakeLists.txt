@@ -18,6 +18,7 @@ add_executable(oxide_client
     src/map_screen.cpp
     src/net_client.cpp
     src/particles.cpp
+    src/audio.cpp
 )
 target_link_libraries(oxide_client PRIVATE oxide_sim SDL3::SDL3 enet)
 set_target_properties(oxide_client PROPERTIES OUTPUT_NAME oxide)

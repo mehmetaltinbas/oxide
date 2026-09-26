@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "animal.hpp"
+#include "audio.hpp"
 #include "built.hpp"
 #include "deploy_draw.hpp"
 #include "monument_draw.hpp"
@@ -429,6 +430,8 @@ int main(int argc, char** argv) {
     sim::Crafting crafting;
     client::Hud hud;
     client::Particles specks;
+    client::Audio audio;
+    if (!audio.open()) std::printf("No sound: %s\n", SDL_GetError());
     client::Panel panel;
     client::MapScreen map(renderer);
     if (loaded) hud.notify("Carried on where you left off.");
@@ -593,6 +596,12 @@ int main(int argc, char** argv) {
                 if (clock < 0) clock += sim::kDaySeconds;
                 hud.notify(hours > 0 ? "Clock moved forward 1h." : "Clock moved back 1h.");
             }
+            if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+                (event.key.key == SDLK_MINUS || event.key.key == SDLK_EQUALS)) {
+                audio.setVolume(audio.volume() + (event.key.key == SDLK_EQUALS ? 0.1 : -0.1));
+                hud.notify("Volume " + std::to_string(static_cast<int>(audio.volume() * 100)) +
+                           "%");
+            }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F11 &&
                 !event.key.repeat) {
                 fullscreen = !fullscreen;
@@ -681,6 +690,7 @@ int main(int argc, char** argv) {
                     if (thing->kind == sim::DeployKind::Campfire ||
                         thing->kind == sim::DeployKind::Furnace) {
                         thing->lit = !thing->lit;
+                        audio.build();
                         hud.say(thing->lit ? "Lit" : "Out", thing->x, thing->y - 20,
                                 client::rgb(0xffd98a));
                     }
@@ -692,6 +702,7 @@ int main(int argc, char** argv) {
                     }
                 } else if (sim::drink(world, player)) {
                     hud.say("drank", player.x, player.y - 26, client::rgb(0x5aa8d8));
+                    audio.pickup();
                 }
                 if (sim::Structure* door = build.nearest(player.x, player.y, sim::kBuildCell * 0.9)) {
                     if (door->kind == sim::BuildKind::Door) {
@@ -702,11 +713,13 @@ int main(int argc, char** argv) {
                             net.sendDoor(door->id, !door->open);
                         } else {
                             door->open = !door->open;
+                            audio.build();
                         }
                     }
                 }
                 const sim::PickResult got = sim::pickUp(world, build, player, inventory);
                 if (got.picked && got.stack.count > 0) {
+                    audio.pluck();
                     hud.say(std::string("+") + std::to_string(got.stack.count) + " " +
                                 sim::itemDef(got.stack.id).name,
                             got.x, got.y, client::rgb(0xefeadd));
@@ -760,6 +773,7 @@ int main(int argc, char** argv) {
         const double cursorY = cameraY + (mouseY * density - height * 0.5) / scale;
         input.aim = SDL_atan2(cursorY - player.y, cursorX - player.x);
 
+        audio.listenAt(player.x, player.y);
         sim::stepPlayer(world, build, player, input, dt);
         if (online) {
             net.poll(build, dt);
@@ -783,7 +797,16 @@ int main(int argc, char** argv) {
         }
         world.update(dt);
         hud.update(dt);
+        const std::size_t roundsBefore = projectiles.list().size();
         const sim::NpcEvents animals = npcs.update(world, build, projectiles, dt, player);
+        if (projectiles.list().size() > roundsBefore) {
+            // Somebody else's gunfire: further off than any other sound, and
+            // quieter at its own spot than your own gun is.
+            const sim::Bullet& shot = projectiles.list().back();
+            if (const client::GunSound* report = client::gunSoundOf(sim::ItemId::Rifle)) {
+                audio.from(shot.x, shot.y, [&] { audio.gunshot(*report, 0.75); }, 1400);
+            }
+        }
         // Nothing warms you yet: the campfire arrives with the deployables.
         build.updateDeployables(world, dt);
         specks.update(dt);
@@ -870,6 +893,7 @@ int main(int argc, char** argv) {
         }
         if (animals.playerDamage > 0) {
             sim::hurtPlayer(player, inventory, animals.playerDamage);
+            audio.playerHurt();
             specks.burst(player.x, player.y, 8, client::rgb(0xc22b2b), 160, 0.45, 2.8);
             specks.shake(6, 0.25);
             hud.say("-" + std::to_string(static_cast<int>(animals.playerDamage)), player.x,
@@ -887,7 +911,12 @@ int main(int argc, char** argv) {
         }
 
         sim::tickReload(player, inventory, dt);
-        crafting.update(dt, inventory);
+        {
+            // A thing finished on the bench says so.
+            const std::size_t was = crafting.jobs().size();
+            crafting.update(dt, inventory);
+            if (crafting.jobs().size() < was) audio.craft();
+        }
         panel.update(dt, inventory);
         // Walking away from an open box, or being shut out of it, closes it.
         if (panel.container()) {
@@ -937,6 +966,11 @@ int main(int argc, char** argv) {
             const sim::FireResult shot =
                 sim::fire(player, inventory, projectiles, trigger, drawing, dt);
             if (shot.fired) {
+                if (const client::GunSound* report = client::gunSoundOf(shot.gun)) {
+                    audio.gunshot(*report);
+                } else {
+                    audio.hit();
+                }
                 // The flash at the muzzle, and a nudge on the camera for the
                 // bigger guns.
                 const double mx = player.x + SDL_cos(shot.angle) * 20;
@@ -946,18 +980,26 @@ int main(int argc, char** argv) {
             }
             if (shot.empty && trigger) {
                 hud.say("Reload  (R)", player.x, player.y - 26, client::rgb(0xd8483a));
+                audio.deny();
             }
         }
         explosives.update(world, build, npcs, player, inventory, dt);
         for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt, &player)) {
-            if (hit.npc) specks.burst(hit.x, hit.y, 7, client::rgb(0x8c1f1f), 170, 0.4, 2.6);
+            if (hit.npc) {
+                specks.burst(hit.x, hit.y, 7, client::rgb(0x8c1f1f), 170, 0.4, 2.6);
+                audio.from(hit.x, hit.y, [&] { audio.hitFlesh(); });
+                if (hit.killed) audio.from(hit.x, hit.y, [&] { audio.enemyDie(); });
+            }
             if (hit.node || hit.built) {
                 specks.burst(hit.x, hit.y, 5, client::rgb(0x6b7a5c), 120, 0.3, 2.0, 180);
+                audio.from(hit.x, hit.y, [&] { audio.hit(); });
             }
             if (hit.rocket) {
                 specks.burst(hit.x, hit.y, 46, client::rgb(0xff8c2e), 300, 1.0, 5.0);
                 specks.burst(hit.x, hit.y, 24, client::rgb(0xffd98a), 200, 0.7, 3.6);
                 specks.shake(14, 0.5);
+                // A blast carries further than anything else does.
+                audio.from(hit.x, hit.y, [&] { audio.roar(); }, 2200);
             }
             if (hit.rocket) {
                 // A rocket takes the piece it struck and everything round it.
@@ -966,6 +1008,7 @@ int main(int argc, char** argv) {
             }
             if (hit.player) {
                 sim::hurtPlayer(player, inventory, hit.damage);
+                audio.playerHurt();
                 specks.burst(player.x, player.y, 8, client::rgb(0xc22b2b), 160, 0.45, 2.8);
                 specks.shake(5, 0.2);
                 hud.say("-" + std::to_string(static_cast<int>(hit.damage)), player.x, player.y - 22,
@@ -1020,6 +1063,7 @@ int main(int argc, char** argv) {
                     hud.say(deployRefusal, player.x, player.y - 26, client::rgb(0xd8483a));
                 } else if (inventory.take(inHand, 1) > 0) {
                     build.deploy(deployKind, deployGx, deployGy, 0);
+                    audio.build();
                 }
                 player.attackTimer = 0.4;
             }
@@ -1047,8 +1091,10 @@ int main(int argc, char** argv) {
                     doorway->open = false;
                 }
             } else {
-                build.placeEdge(target.gx, target.gy, target.side, buildKind, 0);
+                build.placeEdge(target.gx, target.gy, target.side, buildKind, 0,
+                                sim::BuildTier::Twig, player.x, player.y);
             }
+            audio.build();
             player.attackTimer = 0.25;
         } else if (planning && refusal && (buttons & SDL_BUTTON_LMASK) != 0 &&
                    player.attackTimer <= 0) {
@@ -1091,6 +1137,7 @@ int main(int argc, char** argv) {
                     inventory.take(sim::ItemId::Wood, cost);
                     piece->hp = piece->maxHp;
                     hud.say("repaired", cursorX, cursorY, client::rgb(0xc9e08a));
+                    audio.build();
                     specks.burst(cursorX, cursorY, 8, client::rgb(0xc9e08a), 90, 0.4, 2.2);
                 }
             } else if (piece) {
@@ -1099,6 +1146,7 @@ int main(int argc, char** argv) {
                     hud.notify("Already sheet metal.");
                 } else if (build.upgrade(*piece, inventory)) {
                     hud.notify(std::string("Upgraded to ") + sim::tierDef(up).name + ".");
+                    audio.build();
                     specks.burst(cursorX, cursorY, 12, client::rgb(0x9aa8b4), 110, 0.5, 3);
                 } else {
                     const sim::Cost& cost = sim::tierDef(up).cost;
@@ -1153,6 +1201,7 @@ int main(int argc, char** argv) {
         const bool eating = sim::itemDef(inHand).category == sim::ItemCategory::Consumable;
         if (eating && (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
             if (sim::consume(player, inventory, inHand)) {
+                audio.craft();
                 hud.say(sim::itemDef(inHand).name, player.x, player.y - 26, client::rgb(0x8cf08c));
             }
         }
@@ -1165,13 +1214,29 @@ int main(int argc, char** argv) {
                             sim::itemDef(blow.gained.id).name,
                         blow.x, blow.y - 10, client::rgb(0xefeadd));
             }
-            if (blow.landed && !blow.hitNpc) {
+            if (blow.landed && !blow.hitNpc && !blow.built) {
                 specks.burst(blow.x, blow.y - 4, 6, client::nodeColor(blow.kind), 130, 0.4, 2.4,
                              220);
+                audio.from(blow.x, blow.y, [&] {
+                    switch (blow.kind) {
+                        case sim::NodeKind::Tree: audio.chopWood(); break;
+                        case sim::NodeKind::Metal: audio.hitMetal(); break;
+                        case sim::NodeKind::Sulfur: audio.hitSulfur(); break;
+                        case sim::NodeKind::Barrel: audio.hitStructureMetal(); break;
+                        default: audio.hitStone(); break;
+                    }
+                });
+                if (blow.broke) audio.from(blow.x, blow.y, [&] { audio.treeFall(); });
+            }
+            if (blow.built) {
+                audio.from(blow.x, blow.y, [&] { audio.hitStructureWood(); });
             }
             if (blow.hitNpc) {
                 specks.burst(blow.x, blow.y, 6, client::rgb(0x8c1f1f), 150, 0.35, 2.5);
+                audio.from(blow.x, blow.y, [&] { audio.hitFlesh(); });
+                if (blow.killed) audio.from(blow.x, blow.y, [&] { audio.enemyDie(); });
             }
+            if (blow.swung && !blow.landed) audio.hit();
             if (blow.hitNpc && blow.killed) {
                 hud.say(std::string("Killed a ") + sim::npcDef(blow.npcKind).name, blow.x, blow.y - 22,
                         client::rgb(0xefeadd));
@@ -1720,6 +1785,7 @@ int main(int argc, char** argv) {
                 {nullptr, "Y / N", "accept or refuse"},
                 {nullptr, "ENTER", "say something, online"},
                 {nullptr, "H", "how the island works"},
+                {nullptr, "- / =", "quieter, louder"},
                 {nullptr, "F11", "full screen"},
                 {nullptr, "ESC", "back out"},
             };
@@ -1885,6 +1951,7 @@ int main(int argc, char** argv) {
         sim::saveSession(savePath, session, world, build);
     }
 
+    audio.close();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
