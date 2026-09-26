@@ -348,54 +348,6 @@ void paintBroadleaf(Paint& paint, float ox, float oy, float r, int variant) {
 	}
 }
 
-/**
- * The inside of a boulder: a highlight, stipple down the shaded side, the
- * facets, and for ore the flecks of what it is worth. Everything cut to the
- * rock's own outline, so no mark lands beside the rock it belongs to.
- */
-void markStone(Paint& paint, const std::vector<Point>& pts, float ox, float oy, float r,
-			   sim::NodeKind kind, int variant) {
-	// The lit face. Light, not an object, so it has no line round it.
-	paint.fillPoly(ellipsePoints(ox - r * 0.2f, oy - r * 0.25f, r * 0.4f, r * 0.22f, -0.4f),
-				   Color{255, 255, 255, 40});
-
-	// Stipple down the side away from the light, which is how a press shades.
-	const float step = halftoneStep() * 0.55f;
-	for (float sy = -r; sy < r; sy += step) {
-		for (float sx = -r; sx < r; sx += step) {
-			const float shade = (sx + sy) / (r * 2);
-			if (shade < 0.12f) continue;
-			const float off = (static_cast<int>((sy + r) / step) % 2) * step / 2;
-			if (!insidePoly(pts, ox + sx + off, oy + sy)) continue;
-			paint.fillCircle(ox + sx + off, oy + sy, stippleDot() * (0.6f + shade * 0.9f), kInk);
-		}
-	}
-
-	// Ore: flecks of the metal or the sulfur, chipped rather than round.
-	if (kind == sim::NodeKind::Metal || kind == sim::NodeKind::Sulfur) {
-		const Color fleck = kind == sim::NodeKind::Metal ? rgb(0xe0d0b0) : rgb(0xf4ec9a);
-		for (int i = 0; i < 4; ++i) {
-			const float a = (((variant + i * 23) % 100) / 100.0f) * kTau;
-			const float fx = ox + std::cos(a) * r * 0.42f;
-			const float fy = oy + std::sin(a) * r * 0.32f;
-			const float fr = r * 0.13f;
-			paint.fillPoly({{fx - fr, fy - fr * 0.2f},
-							{fx - fr * 0.1f, fy - fr},
-							{fx + fr, fy - fr * 0.1f},
-							{fx + fr * 0.2f, fy + fr}},
-						   fleck);
-		}
-	}
-
-	// Facets: from a ridge near the top out to every other corner, drawn with
-	// the pen the outline was drawn with. A comic has one weight on a rock.
-	const float ridgeX = ox - r * 0.12f;
-	const float ridgeY = oy - r * 0.14f;
-	for (std::size_t i = variant % 2; i < pts.size(); i += 2) {
-		markInside(paint, pts, ridgeX, ridgeY, pts[i].x, pts[i].y, pen(), kInk);
-	}
-}
-
 /** A drift of snow across the top of a boulder, cut to the rock's own edge. */
 void snowStone(Paint& paint, const std::vector<Point>& pts, float ox, float oy, float r,
 			   int variant) {
@@ -441,19 +393,130 @@ void snowStone(Paint& paint, const std::vector<Point>& pts, float ox, float oy, 
 	paint.outlinePoly(pts, pen(), kInk);
 }
 
-/** A boulder or an ore node: one lumpy outline with its facets marked inside. */
+/** A colour lightened or darkened by a fraction, for shading one facet. */
+Color shade(Color c, float amount) {
+	const auto mix = [&](std::uint8_t v) {
+		const float f = amount >= 0 ? v + (255 - v) * amount : v * (1 + amount);
+		return static_cast<std::uint8_t>(std::clamp(f, 0.0f, 255.0f));
+	};
+	return Color{mix(c.r), mix(c.g), mix(c.b), c.a};
+}
+
+/**
+ * A boulder, and the ore that comes out of one.
+ *
+ * Not an outline with lines drawn inside it: a rock seen from above is a set of
+ * broken planes, and the only thing that makes one read as stone rather than as
+ * a grey puddle is that each plane catches the light differently. So the shape
+ * is built as a fan of facets off an off-centre ridge, each one filled at its
+ * own brightness by which way it faces, each one inked. The silhouette comes
+ * out of the facets rather than being drawn round them.
+ *
+ * Ore is the same rock with its own colour and with the metal or the sulfur
+ * showing in the cracks between the planes.
+ */
 void paintStone(Paint& paint, float ox, float oy, float r, sim::NodeKind kind, int variant,
 				bool snowy) {
-	const int points = 7;
-	std::vector<Point> pts;
+	const Color body = nodeColor(kind);
+	// The light comes from up and to the left, as it does on everything here.
+	constexpr float kLightX = -0.55f;
+	constexpr float kLightY = -0.84f;
+
+	// A lumpy ring, and a ridge off the middle for the facets to run from.
+	const int points = 9;
+	std::vector<Point> hull;
 	for (int i = 0; i < points; ++i) {
 		const float a = static_cast<float>(i) / points * kTau;
-		const float wob = 0.75f + (((variant * (i + 3)) % 37) / 37.0f) * 0.45f;
-		pts.push_back({ox + std::cos(a) * r * wob, oy + std::sin(a) * r * 0.78f * wob});
+		const float wob = 0.72f + (((variant * (i + 3)) % 37) / 37.0f) * 0.5f;
+		hull.push_back({ox + std::cos(a) * r * wob, oy + std::sin(a) * r * 0.8f * wob});
 	}
-	paint.inkedPoly(pts, nodeColor(kind), pen());
-	markStone(paint, pts, ox, oy, r, kind, variant);
-	if (snowy) snowStone(paint, pts, ox, oy, r, variant);
+	// A crest rather than a peak. Every facet running to one point made a
+	// sliced cake; a rock breaks along a line, and the planes fall away from
+	// that line to either side of it.
+	const float crestAngle = v(variant, 4) * kTau;
+	const float crestLen = r * (0.22f + v(variant, 5) * 0.22f);
+	const float midX = ox - r * (0.04f + v(variant, 6) * 0.12f);
+	const float midY = oy - r * (0.06f + v(variant, 7) * 0.14f);
+	const Point crestA{midX + std::cos(crestAngle) * crestLen,
+					   midY + std::sin(crestAngle) * crestLen * 0.8f};
+	const Point crestB{midX - std::cos(crestAngle) * crestLen,
+					   midY - std::sin(crestAngle) * crestLen * 0.8f};
+
+	// The facets. Each is one edge of the ring taken back to whichever end of
+	// the crest is nearer, shaded by which way that edge faces the light.
+	for (int i = 0; i < points; ++i) {
+		const Point& a = hull[i];
+		const Point& b = hull[(i + 1) % points];
+		const float ex = (a.x + b.x) * 0.5f;
+		const float ey = (a.y + b.y) * 0.5f;
+		const float toA = (ex - crestA.x) * (ex - crestA.x) + (ey - crestA.y) * (ey - crestA.y);
+		const float toB = (ex - crestB.x) * (ex - crestB.x) + (ey - crestB.y) * (ey - crestB.y);
+		const Point& root = toA <= toB ? crestA : crestB;
+		const float mx = ex - root.x;
+		const float my = ey - root.y;
+		const float len = std::max(0.0001f, std::sqrt(mx * mx + my * my));
+		// One at the face square to the light, minus one at the face away.
+		const float lit = (mx / len) * kLightX + (my / len) * kLightY;
+		// Never white and never black: a rock is stone all over, only turned.
+		const float amount = lit * 0.3f - 0.06f;
+		// Four sided where the crest is not the nearer end, so the two halves
+		// meet along the crest instead of leaving a wedge between them.
+		const Point& far = toA <= toB ? crestB : crestA;
+		paint.inkedPoly({root, a, b, far}, shade(body, amount), pen() * 0.55f);
+	}
+	// The crest itself, at the weight of the outline: it is the break in the
+	// rock, not a mark on it.
+	paint.line(crestA.x, crestA.y, crestB.x, crestB.y, pen() * 0.8f, kInk);
+	// The pen round the whole thing, heavier than the lines between planes.
+	paint.outlinePoly(hull, pen(), kInk);
+
+	// Ore shows in the cracks: a fleck at the foot of every other facet, in
+	// the line where two planes meet, which is where a vein would break out.
+	if (kind == sim::NodeKind::Metal || kind == sim::NodeKind::Sulfur) {
+		const Color fleck = kind == sim::NodeKind::Metal ? rgb(0xd9c7a4) : rgb(0xfaf07e);
+		for (int i = static_cast<int>(variant) % 2; i < points; i += 2) {
+			const Point& a = hull[i];
+			// Part way down the crack from the crest to the corner.
+			const float t = 0.45f + v(variant, 30 + i) * 0.3f;
+			const float fx = crestA.x + (a.x - crestA.x) * t;
+			const float fy = crestA.y + (a.y - crestA.y) * t;
+			const float fr = r * (0.09f + v(variant, 50 + i) * 0.06f);
+			paint.inkedPoly({{fx - fr, fy - fr * 0.25f},
+							 {fx - fr * 0.15f, fy - fr},
+							 {fx + fr, fy - fr * 0.1f},
+							 {fx + fr * 0.25f, fy + fr}},
+							fleck, fine());
+		}
+	}
+
+	// Stipple down the side away from the light, which is how a press shades,
+	// laid over the facets so it crosses them rather than sitting in one.
+	const float step = halftoneStep() * 0.6f;
+	for (float sy = -r; sy < r; sy += step) {
+		for (float sx = -r; sx < r; sx += step) {
+			const float deep = (sx * -kLightX + sy * -kLightY) / r;
+			if (deep < 0.25f) continue;
+			const float off = (static_cast<int>((sy + r) / step) % 2) * step / 2;
+			if (!insidePoly(hull, ox + sx + off, oy + sy)) continue;
+			paint.fillCircle(ox + sx + off, oy + sy, stippleDot() * (0.5f + deep * 0.7f), kInk);
+		}
+	}
+
+	// A chip or two fallen at its foot, which is what says it has been worked
+	// and what stops a field of them reading as a field of the same rock.
+	const int chips = 1 + static_cast<int>(v(variant, 70) * 3);
+	for (int i = 0; i < chips; ++i) {
+		const float a = v(variant, 80 + i) * kTau;
+		const float d = r * (1.0f + v(variant, 90 + i) * 0.25f);
+		const float cx = ox + std::cos(a) * d;
+		const float cy = oy + std::sin(a) * d * 0.7f;
+		const float cr = r * (0.1f + v(variant, 100 + i) * 0.09f);
+		paint.inkedPoly({{cx - cr, cy}, {cx - cr * 0.3f, cy - cr * 0.85f}, {cx + cr, cy - cr * 0.2f},
+						 {cx + cr * 0.4f, cy + cr * 0.8f}},
+						shade(body, -0.16f), pen() * 0.6f);
+	}
+
+	if (snowy) snowStone(paint, hull, ox, oy, r, variant);
 }
 
 /**

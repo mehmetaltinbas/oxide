@@ -308,4 +308,19 @@ void World::scatterNodes(Rng& rng) {
 	indexNodes();
 }
 
+void World::plant(NodeKind kind, double x, double y, std::uint32_t seed) {
+	const NodeDef& def = nodeDef(kind);
+	ResourceNode node{};
+	node.id = static_cast<int>(nodes_.size()) + 1;
+	node.kind = kind;
+	node.x = x;
+	node.y = y;
+	node.radius = def.radius;
+	node.hp = def.hp;
+	node.maxHp = def.hp;
+	node.seed = seed;
+	nodes_.push_back(node);
+	indexNodes();
+}
+
 }  // namespace sim

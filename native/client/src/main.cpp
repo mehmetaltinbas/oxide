@@ -158,6 +158,8 @@ int main(int argc, char** argv) {
 	double startZoom = 1.0;
 	/** One of every animal in a row, for looking at how they are drawn. */
 	bool zoo = false;
+	/** One of every node kind in a row, for looking at how they are drawn. */
+	bool rocks = false;
 	/** Every item picture in a grid, for looking at them all at once. */
 	bool icons = false;
 	/** An arrow and a rifle round frozen in the air, for looking at them. */
@@ -234,6 +236,8 @@ int main(int argc, char** argv) {
 			arrowShot = true;
 		} else if (SDL_strcmp(argv[i], "--icons") == 0) {
 			icons = true;
+		} else if (SDL_strcmp(argv[i], "--rocks") == 0) {
+			rocks = true;
 		} else if (SDL_strcmp(argv[i], "--zoo") == 0) {
 			zoo = true;
 		} else if (SDL_strcmp(argv[i], "--zoom") == 0 && i + 1 < argc) {
@@ -417,7 +421,7 @@ int main(int argc, char** argv) {
 	// generated and must not write over anybody's save on the way out.
 	const bool asGenerated = startX >= 0 || atMonument >= 0 || shotPath != nullptr ||
 							 benchFrames > 0 || showBase || poseDraw >= 0 || poseSwing >= 0 ||
-							 showPopups || clearAround || zoo || icons || arrowShot;
+							 showPopups || clearAround || zoo || icons || arrowShot || rocks;
 	// Whether there is one to go back to, for the title screen to say so.
 	bool hasSave = false;
 	if (!online) {
@@ -547,6 +551,15 @@ int main(int argc, char** argv) {
 	client::MapScreen map(renderer);
 	if (clearAround) {
 		world.clearNaturalIn(player.x - 400, player.y - 400, player.x + 400, player.y + 400);
+	}
+	if (rocks) {
+		// One of each, in a line in front of you, on clear ground.
+		world.clearNaturalIn(player.x - 800, player.y - 400, player.x + 800, player.y + 400);
+		for (int i = 0; i < sim::kNodeKindCount; ++i) {
+			const auto kind = static_cast<sim::NodeKind>(i);
+			world.plant(kind, player.x - 420 + i * 170, player.y - 60,
+						static_cast<std::uint32_t>(i * 7919 + 13));
+		}
 	}
 	if (zoo) {
 		// One of each, in a line in front of you, standing still.

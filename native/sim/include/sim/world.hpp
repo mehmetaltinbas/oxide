@@ -55,6 +55,12 @@ public:
 	const std::vector<ResourceNode>& nodes() const { return nodes_; }
 
 	/**
+	 * Puts one of a kind down where you say, for the development screens that
+	 * lay every kind out in a row to be looked at side by side.
+	 */
+	void plant(NodeKind kind, double x, double y, std::uint32_t seed);
+
+	/**
 	 * Everything standing in a rectangle of the world, appended to `out`.
 	 *
 	 * Drawing asks this every frame for whatever is on screen, so it reads a
