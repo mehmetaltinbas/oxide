@@ -21,13 +21,31 @@ struct RoomEntry {
     int max = 0;
 };
 
-/** Somebody else on the island, as the server last described them. */
+/** Where somebody was on one tick, as the server described them. */
+struct Pose {
+    std::uint16_t id = 0;
+    double x = 0;
+    double y = 0;
+    double aim = 0;
+    bool alive = true;
+    bool sprinting = false;
+    bool swimming = false;
+    std::uint8_t team = 0;
+};
+
+/** One tick's worth of everybody near you. */
+struct Snapshot {
+    std::uint32_t tick = 0;
+    std::vector<Pose> poses;
+};
+
+/** Somebody else on the island, as they are drawn. */
 struct Other {
     std::uint16_t id = 0;
     std::string name = "survivor";
     double x = 0;
     double y = 0;
-    /** Where they were a moment ago, so they glide rather than step. */
+    /** Where they are drawn: a hundred milliseconds behind, and smoothed. */
     double drawX = 0;
     double drawY = 0;
     double aim = 0;
@@ -114,9 +132,15 @@ private:
     std::unordered_map<std::uint16_t, Other> others_;
     std::vector<std::string> chat_;
     std::vector<RoomEntry> rooms_;
+    /** The last dozen ticks, and the moment being drawn on our own clock. */
+    std::vector<Snapshot> snapshots_;
+    double playout_ = 0;
+    bool playoutStarted_ = false;
     bool haveRooms_ = false;
     std::string refusal_;
     std::uint16_t inviteFrom_ = 0;
+    /** Seconds left to answer it, because an offer does not stand all day. */
+    double inviteLeft_ = 0;
 
     void handle(const std::uint8_t* bytes, std::size_t size, sim::BuildSystem& build);
 };

@@ -27,7 +27,7 @@ struct PlayerVitals {
     /** How close you must be to pick up, harvest, open or use something. */
     static constexpr double kInteract = 39;
     /** A box is a big thing to stand at, so it is reached a little further. */
-    static constexpr double kDeployableReachBonus = 22;
+    static constexpr double kDeployableReachBonus = 20;
     /** How far from you a box, a fire or a bag can be put down. */
     static constexpr double kDeployReach = 200;
     /** How far out you can lay a foundation or a wall. */

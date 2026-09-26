@@ -45,7 +45,7 @@ struct CraftJob {
 class Crafting {
 public:
     /** How many jobs may be waiting at once. */
-    static constexpr int kQueueMax = 6;
+    static constexpr int kQueueMax = 8;
 
     /** Queues one, taking its cost. Says whether it went on. */
     bool queue(Inventory& inventory, const Recipe& recipe, int benchTier);

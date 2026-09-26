@@ -1,5 +1,6 @@
 #include "net_client.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 namespace client {
@@ -230,30 +231,38 @@ void NetClient::handle(const std::uint8_t* bytes, std::size_t size, sim::BuildSy
             break;
         }
         case ServerMessage::Snapshot: {
+            Snapshot shot;
+            shot.tick = in.u32();
             in.u32();  // the input the server has seen, for dropping what it has
             serverX_ = in.f32();
             serverY_ = in.f32();
             team_ = in.u8();
             const std::uint16_t count = in.u16();
-            // Anyone not in this snapshot is out of sight rather than gone, so
-            // they are kept until the server says they left.
             for (std::uint16_t i = 0; i < count && in.ok(); ++i) {
-                const std::uint16_t id = in.u16();
-                Other& other = others_[id];
-                other.id = id;
-                const double wasX = other.x;
-                const double wasY = other.y;
-                other.x = in.f32();
-                other.y = in.f32();
-                other.aim = in.f32();
+                Pose pose;
+                pose.id = in.u16();
+                pose.x = in.f32();
+                pose.y = in.f32();
+                pose.aim = in.f32();
                 const std::uint8_t flags = in.u8();
-                other.alive = (flags & NetPlayerFlags::kAlive) != 0;
-                other.sprinting = (flags & NetPlayerFlags::kSprinting) != 0;
-                other.swimming = (flags & NetPlayerFlags::kSwimming) != 0;
-                other.team = in.u8();
-                // No walk cycle comes over the wire, so their feet move as they
-                // do: the stride is read off how far they travelled.
-                other.walkPhase += std::hypot(other.x - wasX, other.y - wasY) * 0.08;
+                pose.alive = (flags & NetPlayerFlags::kAlive) != 0;
+                pose.sprinting = (flags & NetPlayerFlags::kSprinting) != 0;
+                pose.swimming = (flags & NetPlayerFlags::kSwimming) != 0;
+                pose.team = in.u8();
+                shot.poses.push_back(pose);
+                // Anyone in a snapshot is somebody we know about, even before
+                // there are two states to draw them between.
+                Other& other = others_[pose.id];
+                other.id = pose.id;
+            }
+            if (!in.ok()) break;
+            // Kept in order, and only a dozen: a burst of jitter must not be
+            // able to empty the buffer, and nothing older is any use.
+            snapshots_.push_back(std::move(shot));
+            std::sort(snapshots_.begin(), snapshots_.end(),
+                      [](const Snapshot& a, const Snapshot& b) { return a.tick < b.tick; });
+            if (snapshots_.size() > static_cast<std::size_t>(kSnapshotBuffer)) {
+                snapshots_.erase(snapshots_.begin());
             }
             break;
         }
@@ -335,6 +344,7 @@ void NetClient::handle(const std::uint8_t* bytes, std::size_t size, sim::BuildSy
         case ServerMessage::Team: team_ = in.u8(); break;
         case ServerMessage::Invited: {
             inviteFrom_ = in.u16();
+            inviteLeft_ = 20;
             chat_.push_back(in.text() + " asked you to team up   (Y to accept)");
             break;
         }
@@ -354,12 +364,68 @@ void NetClient::poll(sim::BuildSystem& build, double dt) {
             chat_.push_back("disconnected");
         }
     }
-    // Everyone else glides towards where they were last said to be, rather
-    // than stepping thirty times a second.
+    if (inviteLeft_ > 0) {
+        inviteLeft_ -= dt;
+        if (inviteLeft_ <= 0) inviteFrom_ = 0;
+    }
+    // Everyone else is drawn a hundred milliseconds in the past, between the
+    // two states either side of that moment. Drawing whatever arrived last has
+    // them stepping thirty times a second while your own survivor glides.
+    if (snapshots_.size() < 2) return;
+    const double newest = static_cast<double>(snapshots_.back().tick);
+    const double want = newest - kInterpolationDelay * kTickHz;
+    if (!playoutStarted_) {
+        playout_ = want;
+        playoutStarted_ = true;
+    } else {
+        playout_ += dt * kTickHz;
+        // Steered gently towards where it should be rather than snapped: the
+        // arrival times carry the network's jitter, and following them makes
+        // everybody stretch and squeeze as they walk.
+        const double drift = want - playout_;
+        if (std::abs(drift) > 12) {
+            playout_ = want;
+        } else {
+            playout_ += drift * 0.08;
+        }
+    }
+
+    const Snapshot* before = nullptr;
+    const Snapshot* after = nullptr;
+    for (const Snapshot& shot : snapshots_) {
+        if (static_cast<double>(shot.tick) <= playout_) before = &shot;
+        if (!after && static_cast<double>(shot.tick) >= playout_) after = &shot;
+    }
+    if (!before) before = &snapshots_.front();
+    if (!after) after = &snapshots_.back();
+    const double span = static_cast<double>(after->tick) - before->tick;
+    const double t = span > 0 ? std::clamp((playout_ - before->tick) / span, 0.0, 1.0) : 0.0;
+
     for (auto& [id, other] : others_) {
-        const double blend = std::min(1.0, dt * 12);
-        other.drawX += (other.x - other.drawX) * blend;
-        other.drawY += (other.y - other.drawY) * blend;
+        const Pose* from = nullptr;
+        const Pose* to = nullptr;
+        for (const Pose& pose : before->poses) {
+            if (pose.id == id) from = &pose;
+        }
+        for (const Pose& pose : after->poses) {
+            if (pose.id == id) to = &pose;
+        }
+        if (!from && !to) continue;
+        if (!from) from = to;
+        if (!to) to = from;
+        const double wasX = other.drawX;
+        const double wasY = other.drawY;
+        other.drawX = from->x + (to->x - from->x) * t;
+        other.drawY = from->y + (to->y - from->y) * t;
+        other.x = to->x;
+        other.y = to->y;
+        other.aim = to->aim;
+        other.alive = to->alive;
+        other.sprinting = to->sprinting;
+        other.swimming = to->swimming;
+        other.team = to->team;
+        // No walk cycle comes over the wire, so their feet move as they do.
+        other.walkPhase += std::hypot(other.drawX - wasX, other.drawY - wasY) * 0.08;
     }
 }
 

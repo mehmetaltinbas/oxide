@@ -18,13 +18,26 @@ namespace sim::net {
  * server that disagree about the shape of a message are worse than one that
  * refuses to connect.
  */
-inline constexpr std::uint16_t kProtocolVersion = 2;
+inline constexpr std::uint16_t kProtocolVersion = 3;
 
 /** The port the server listens on unless told otherwise. */
 inline constexpr std::uint16_t kDefaultPort = 8787;
 
 /** How often the server steps and speaks. */
 inline constexpr int kTickHz = 30;
+
+/**
+ * How far in the past everyone else is drawn, in seconds.
+ *
+ * The server sends thirty states a second, so an update is up to 33ms stale
+ * before the next arrives, and drawing whatever came last has everybody else
+ * stepping while your own survivor, predicted locally, glides. Holding the
+ * picture back three ticks means there is nearly always a state either side of
+ * the moment being drawn, so it can be smoothed between them.
+ */
+inline constexpr double kInterpolationDelay = 0.1;
+/** How many states to keep, enough that a burst of jitter cannot empty it. */
+inline constexpr int kSnapshotBuffer = 12;
 
 /** How far a player is told about: what is beyond this is not their business. */
 inline constexpr double kInterestRadius = 2400;

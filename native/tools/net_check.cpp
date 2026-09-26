@@ -76,6 +76,7 @@ void read(Fake& fake) {
                 fake.y = in.f32();
                 break;
             case ServerMessage::Snapshot: {
+                in.u32();  // the tick it belongs to
                 in.u32();
                 fake.x = in.f32();
                 fake.y = in.f32();

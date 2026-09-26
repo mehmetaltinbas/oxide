@@ -246,6 +246,7 @@ int main(int argc, char** argv) {
     auto next = std::chrono::steady_clock::now();
     bool running = true;
     double clock = 0;
+    std::uint32_t tick = 0;
 
     while (running) {
         ENetEvent event;
@@ -514,6 +515,7 @@ int main(int argc, char** argv) {
             }
         }
         clock += step;
+        ++tick;
 
         // And what each of them can see of it. Only what is near: a player on
         // the far side of the island is not their business, and not sending it
@@ -522,6 +524,9 @@ int main(int argc, char** argv) {
             if (client.room == 0) continue;
             Writer out;
             out.u8(static_cast<std::uint8_t>(ServerMessage::Snapshot));
+            // The tick it belongs to, so a client can lay the states it has in
+            // order and draw between them rather than at whatever arrived last.
+            out.u32(tick);
             out.u32(client.ack);
             out.f32(static_cast<float>(client.player.x));
             out.f32(static_cast<float>(client.player.y));
