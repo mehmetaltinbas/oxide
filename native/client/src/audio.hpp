@@ -98,6 +98,17 @@ public:
 	void craft();
 	void deny();
 	void pickup();
+	/**
+	 * The three noises a magazine change makes, in the order they happen: the
+	 * catch letting the old one go, the new one seating, and the bolt.
+	 *
+	 * Three separate sounds rather than one, because a reload is three things
+	 * happening with gaps between them and one noise for all of it reads as a
+	 * click rather than as a gun being worked.
+	 */
+	void magOut();
+	void magIn();
+	void boltRelease();
 	void roar();
 	void howl();
 	void gunshot(const GunSound& sound, double loudness = 1);

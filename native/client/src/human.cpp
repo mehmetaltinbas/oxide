@@ -140,6 +140,28 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 			hands[0] = {hands[0].x + (pose.hand.x - 6 - hands[0].x) * deep,
 						hands[0].y + (pose.hand.y + 7 - hands[0].y) * deep};
 		}
+		if (look.reloading >= 0 && look.reloadFed) {
+			// The fresh magazine, carried up to the gun in the off hand and
+			// let go once it is in: it is there for the first two thirds of
+			// the reload and gone for the last, which is the bolt.
+			const float carry = std::min(1.0f, look.reloading / 0.62f);
+			if (look.reloading < 0.62f) {
+				// Offset off the hand rather than under it: drawn dead on the
+				// knuckles it was buried by the gun it was going into.
+				const float mx = hands[0].x - 3.5f;
+				const float my = hands[0].y + 4.0f;
+				const float half = 5.0f;
+				const float wide = 2.0f;
+				const float lean = 0.5f - carry * 0.5f;
+				const auto at = [&](float a, float b) {
+					return f.at(mx + a * std::cos(lean) - b * std::sin(lean),
+								my + a * std::sin(lean) + b * std::cos(lean));
+				};
+				paint.inkedPoly({at(-half, -wide), at(half, -wide * 0.7f), at(half, wide * 0.7f),
+								 at(-half, wide)},
+								rgb(0x555a62), kInkFine);
+			}
+		}
 		if (look.held == sim::ItemId::Bow) {
 			// A bow is held differently from everything else: the bow arm goes
 			// straight out ahead of the face and the other hand is at the nock,

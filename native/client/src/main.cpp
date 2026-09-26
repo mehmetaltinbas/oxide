@@ -160,6 +160,8 @@ int main(int argc, char** argv) {
 	bool zoo = false;
 	/** One of every node kind in a row, for looking at how they are drawn. */
 	bool rocks = false;
+	/** How far through a reload to freeze, for looking at the hands. */
+	double reloadAt = -1;
 	/** Every item picture in a grid, for looking at them all at once. */
 	bool icons = false;
 	/** An arrow and a rifle round frozen in the air, for looking at them. */
@@ -236,6 +238,8 @@ int main(int argc, char** argv) {
 			arrowShot = true;
 		} else if (SDL_strcmp(argv[i], "--icons") == 0) {
 			icons = true;
+		} else if (SDL_strcmp(argv[i], "--reload") == 0 && i + 1 < argc) {
+			reloadAt = SDL_atof(argv[++i]);
 		} else if (SDL_strcmp(argv[i], "--rocks") == 0) {
 			rocks = true;
 		} else if (SDL_strcmp(argv[i], "--zoo") == 0) {
@@ -421,7 +425,7 @@ int main(int argc, char** argv) {
 	// generated and must not write over anybody's save on the way out.
 	const bool asGenerated = startX >= 0 || atMonument >= 0 || shotPath != nullptr ||
 							 benchFrames > 0 || showBase || poseDraw >= 0 || poseSwing >= 0 ||
-							 showPopups || clearAround || zoo || icons || arrowShot || rocks;
+							 showPopups || clearAround || zoo || icons || arrowShot || rocks || reloadAt >= 0;
 	// Whether there is one to go back to, for the title screen to say so.
 	bool hasSave = false;
 	if (!online) {
@@ -1159,13 +1163,49 @@ int main(int argc, char** argv) {
 			player.bowDraw = sim::kBowDrawSeconds * poseDraw;
 			player.aim = 0;
 		}
+		if (reloadAt >= 0) {
+			// Held part way through a magazine change, for a screenshot.
+			const sim::Gun& show = sim::itemDef(inventory.held()).gun;
+			player.loaded = inventory.held();
+			player.reloadTotal = show.reloadSeconds;
+			player.reloadLeft = show.reloadSeconds * (1 - reloadAt);
+		}
 		if (poseSwing >= 0) {
 			player.swingLength = 0.34;
 			player.swingAnim = 0.34 * (1 - poseSwing);
 			player.aim = 0;
 		}
 
-		sim::tickReload(player, inventory, dt);
+		{
+			// A reload, in the beats it actually has. Measured across the tick
+			// rather than before it: the clock has to be read on both sides of
+			// tickReload or nothing is ever seen to pass a mark.
+			const sim::Gun& loading = sim::itemDef(player.loaded).gun;
+			const double was = player.reloadLeft;
+			const double total = player.reloadTotal;
+			const int roundsWas = player.rounds;
+			sim::tickReload(player, inventory, dt);
+			const double now = player.reloadLeft;
+			if (loading.singly) {
+				// A shell at a time: one noise each as it goes in.
+				if (player.rounds > roundsWas) audio.magIn();
+			} else if (loading.magazine > 1 && total > 0) {
+				// The old one out and on the floor, the new one home, the bolt
+				// let go. As fractions of this gun's own reload, so a slow one
+				// takes its time over all three rather than snapping at the end.
+				const auto passed = [&](double at) {
+					const double mark = total * (1 - at);
+					return was > mark && now <= mark;
+				};
+				if (passed(0.12)) {
+					audio.magOut();
+					specks.spentMagazine(player.x + SDL_cos(player.aim) * 10,
+										 player.y + SDL_sin(player.aim) * 10, player.aim);
+				}
+				if (passed(0.62)) audio.magIn();
+				if (passed(0.92)) audio.boltRelease();
+			}
+		}
 		{
 			// A thing finished on the bench says so.
 			const std::size_t was = crafting.jobs().size();
@@ -1634,6 +1674,8 @@ int main(int argc, char** argv) {
 			look.punchLeft = punchLeft;
 			// Every gun, not just the ones with a magazine: a reload is a
 			// reload and the hands do the same thing whatever is in them.
+			look.reloadFed = sim::itemDef(player.loaded).gun.magazine > 1 &&
+							 !sim::itemDef(player.loaded).gun.singly;
 			look.reloading = player.reloadTotal > 0 && player.reloadLeft > 0
 								 ? static_cast<float>(1 - player.reloadLeft / player.reloadTotal)
 								 : -1.0f;

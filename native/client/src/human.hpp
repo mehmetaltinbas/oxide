@@ -47,6 +47,8 @@ struct HumanLook {
 	 * this says what you are doing about it.
 	 */
 	float reloading = -1;
+	/** Whether that reload is a magazine change, so one is drawn in the hand. */
+	bool reloadFed = false;
 };
 
 /**

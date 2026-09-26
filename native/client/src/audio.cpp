@@ -280,6 +280,27 @@ void Audio::deny() { tone(160, 0.14, 1, 0.25, 110); }
 
 void Audio::pickup() { tone(880, 0.07, 2, 0.18); }
 
+void Audio::magOut() {
+	// The catch, then the magazine clattering out of the well.
+	tone(1400, 0.035, 1, 0.16);
+	noise(0.09, 0.13, 2600, 1, 0.03);
+	tone(220, 0.12, 3, 0.1, 150, 0.06);
+}
+
+void Audio::magIn() {
+	// Heavier: a full magazine going home takes the heel of a hand.
+	noise(0.05, 0.16, 1800, 1);
+	tone(180, 0.09, 1, 0.22, 120);
+	tone(760, 0.05, 1, 0.12, 0, 0.04);
+}
+
+void Audio::boltRelease() {
+	// Metal on metal, twice, and done.
+	tone(1900, 0.03, 1, 0.17);
+	noise(0.06, 0.12, 3400, 1, 0.02);
+	tone(1200, 0.04, 1, 0.13, 900, 0.05);
+}
+
 void Audio::roar() {
 	tone(90, 0.9, 3, 0.35, 55);
 	noise(0.8, 0.25, 500);

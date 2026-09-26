@@ -35,6 +35,16 @@ public:
 	/** One ember drifting up off a fire. */
 	void ember(double x, double y);
 
+	/**
+	 * A spent magazine thrown clear of a gun.
+	 *
+	 * Drawn rather than dotted: it is a thing, and a puff of specks would read
+	 * as damage. It tumbles, slides to a stop, lies there a moment and is
+	 * gone, which is what says a reload happened without leaving litter on the
+	 * island for ever.
+	 */
+	void spentMagazine(double x, double y, double facing);
+
 	void update(double dt);
 	void draw(Paint& paint, double cameraX, double cameraY, double scale, int width,
 			  int height) const;
@@ -44,6 +54,19 @@ public:
 	void shakeOffset(double& x, double& y) const;
 
 private:
+	/** One of them, lying where it was thrown. */
+	struct Casing {
+		double x;
+		double y;
+		double vx;
+		double vy;
+		double angle;
+		double spin;
+		double life;
+		double total;
+	};
+
+	std::vector<Casing> casings_;
 	std::vector<Particle> specks_;
 	double shakeLeft_ = 0;
 	double shakeTotal_ = 0;
