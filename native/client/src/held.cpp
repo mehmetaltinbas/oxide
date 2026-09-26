@@ -540,19 +540,12 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			detail(-0.11f, -0.28f, -0.11f, 0.28f, 0.028f);
 			break;
 		case sim::ItemId::Arrow:
-			// A stone-tipped arrow, point to the north east: a thin shaft, the
-			// binding that holds the head on, and a forked nock at the tail.
-			// Mostly stick, so the stick is thin and the head carries the eye.
-			// An arrow is mostly stick: the head is about a fifth of its length
-			// and no wider than a thumb. It was drawn as a spearhead on a
-			// stub, which is what made it read as a spear.
+			// A stone-tipped arrow, point to the north east. Mostly stick: the
+			// head is about a fifth of its length and no wider than a thumb.
+			// It was drawn as a spearhead on a stub, which is what made it read
+			// as a spear. No nock: at this size two prongs and the notch
+			// between them are three pixels of noise at the wrong end.
 			stroke(-0.36f, 0.36f, 0.25f, -0.25f, 0.042f, kWood);
-			// The fork at the back, where the string sits: two prongs with the
-			// notch open between them, not a solid wedge.
-			fill(pts({{-0.46f, 0.31f}, {-0.34f, 0.3f}, {-0.31f, 0.34f}, {-0.41f, 0.37f}}),
-				 rgb(0xb08a55));
-			fill(pts({{-0.31f, 0.46f}, {-0.3f, 0.34f}, {-0.34f, 0.31f}, {-0.37f, 0.41f}}),
-				 rgb(0xb08a55));
 			// Binding, two turns of cord just under the head.
 			stroke(0.19f, -0.15f, 0.24f, -0.2f, 0.055f, rgb(0xc9a06a));
 			stroke(0.15f, -0.11f, 0.2f, -0.16f, 0.05f, rgb(0xc9a06a));

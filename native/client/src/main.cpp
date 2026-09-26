@@ -1894,13 +1894,8 @@ int main(int argc, char** argv) {
 				paint.line(tailAt.x, tailAt.y, neck.x, neck.y, 1.1f + client::kInkFine,
 						   client::kInk);
 				paint.line(tailAt.x, tailAt.y, neck.x, neck.y, 1.1f, client::rgb(0x9a7346));
-				// The fork at the back, where the string sits.
-				paint.fillPoly({at(-len, -1.6f), at(-len * 0.74f, -0.5f), at(-len * 0.74f, 0.5f),
-								at(-len, 1.6f), at(-len * 0.86f, 0)},
-							   client::rgb(0xb08a55));
-				paint.outlinePoly({at(-len, -1.6f), at(-len * 0.74f, -0.5f),
-								   at(-len * 0.74f, 0.5f), at(-len, 1.6f), at(-len * 0.86f, 0)},
-								  client::kInkFine, client::kInk);
+				// No nock: in the air it is behind you and three pixels wide,
+				// and all it did was thicken the wrong end of the arrow.
 				// The binding that holds the head on.
 				paint.line(at(len * 0.5f, -1.0f).x, at(len * 0.5f, -1.0f).y,
 						   at(len * 0.5f, 1.0f).x, at(len * 0.5f, 1.0f).y, 1.3f,

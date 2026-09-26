@@ -439,6 +439,42 @@ int main() {
 					gap0);
 	}
 
+	// A wolf comes at you and an elk runs from you. Both directions, because
+	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
+	// the wolf read the second one.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem empty;
+		sim::Projectiles none;
+		const auto towards = [&](sim::NpcKind kind) {
+			sim::NpcSystem wild;
+			wild.mutableList().clear();
+			sim::Player you{};
+			you.x = 10368;
+			you.y = 10368;
+			you.alive = true;
+			sim::Npc npc{};
+			npc.id = 1;
+			npc.kind = kind;
+			npc.x = you.x + 200;
+			npc.y = you.y;
+			npc.hp = sim::npcDef(kind).hp;
+			npc.homeX = npc.x;
+			npc.homeY = npc.y;
+			npc.leash = 4000;
+			wild.mutableList().push_back(npc);
+			for (int i = 0; i < 60 * 4; ++i) wild.update(island, empty, none, dt, you);
+			// Negative means it closed on you, positive means it ran.
+			return std::hypot(wild.list()[0].x - you.x, wild.list()[0].y - you.y) - 200;
+		};
+		const double wolf = towards(sim::NpcKind::Wolf);
+		const double elk = towards(sim::NpcKind::Elk);
+		std::printf("temper: wolf %s you by %.0f, elk %s you by %.0f\n",
+					wolf < 0 ? "closed on" : "RAN FROM", std::abs(wolf),
+					elk > 0 ? "ran from" : "CLOSED ON", std::abs(elk));
+	}
+
 	// Nothing walks through a barrel, whoever it is: the one collision routine.
 	{
 		sim::World island;

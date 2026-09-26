@@ -64,7 +64,12 @@ struct NpcDef {
 	/** What it hunts, unprovoked, when it sees one. */
 	NpcKind eats[3];
 	int eatsCount;
-	/** Whether it bolts from anything stronger, the player included. */
+	/**
+	 * Whether it bolts from anything stronger than it.
+	 *
+	 * About other animals only. A wolf is skittish because it runs from a
+	 * bear, and that must not be read as running from you: see `fleesPlayer`.
+	 */
 	bool skittish;
 	/**
 	 * How far off it notices you and starts something.
@@ -81,6 +86,16 @@ const NpcDef& npcDef(NpcKind kind);
 bool livesIn(const NpcDef& def, Biome biome);
 /** Whether it hunts that, unprovoked. */
 bool hunts(const NpcDef& def, NpcKind prey);
+
+/**
+ * Whether it runs from a player.
+ *
+ * Only something that does not hunt. `skittish` is about the pecking order
+ * between animals, and a wolf is in it: it bolts from a bear. Reading that one
+ * flag as "runs away from you" had wolves fleeing the thing they are supposed
+ * to be the danger to.
+ */
+inline bool fleesPlayer(const NpcDef& def) { return def.skittish && !def.hostile; }
 
 /** What an animal is doing. */
 enum class NpcState : std::uint8_t { Wander, Chase, Attack, Return, Flee };

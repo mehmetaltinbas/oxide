@@ -139,7 +139,7 @@ void NpcSystem::hurt(World& world, Npc& npc, double amount, double fromX, double
 	// nowhere has to send a deer running even though whoever loosed it is too
 	// far off to see.
 	npc.alarm = kAlarmSeconds;
-	if (npcDef(npc.kind).skittish) {
+	if (fleesPlayer(npcDef(npc.kind))) {
 		// Away from it.
 		npc.state = NpcState::Flee;
 		npc.facing = std::atan2(npc.y - fromY, npc.x - fromX);
@@ -445,7 +445,7 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 		// Peaceful things run from you on sight, not only once you have hit
 		// them: you do not walk up to a deer, and a deer that has been shot at
 		// does not stand and take the second arrow either.
-		if (def.skittish && player.alive && (provoked || toPlayer < kSkittishRange)) {
+		if (fleesPlayer(def) && player.alive && (provoked || toPlayer < kSkittishRange)) {
 			npc.state = NpcState::Flee;
 			npc.facing = std::atan2(npc.y - player.y, npc.x - player.x);
 			const double bolt = toPlayer < 420 ? def.speed : def.speed * 0.5;
