@@ -151,7 +151,7 @@ export class Hud {
 
         // Frame counter sits above everything, deliberately quiet.
         const fps = Math.round(game.fps);
-        ui.textOnDark(`${Math.min(fps, 120)} / 120 fps`, 16, 12, {
+        ui.textOnDark(`${fps} fps`, 16, 12, {
             size: 'micro',
             color: fps >= 50 ? UI.onDarkFaint : fps >= 30 ? UI.hot : UI.warn,
         });

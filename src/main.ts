@@ -72,28 +72,38 @@ window.addEventListener('keydown', (e) => {
 });
 
 const STEP = 1 / 60;
+
 /**
- * Frame ceiling. Above this there is nothing left to see: the simulation is a
- * fixed 60Hz: and uncapped rAF on a high-refresh display just burns battery
- * and spins fans for no visible gain.
+ * The next frame, as soon as the machine will give it.
+ *
+ * `requestAnimationFrame` hands a frame back at the display's refresh and not
+ * one sooner, so on a 120Hz panel it answers the panel's question rather than
+ * this game's: how long does a frame actually take to build. A message posted
+ * to ourselves comes back on the next turn of the event loop with no such
+ * ceiling and no four millisecond clamp, so the counter reads what the drawing
+ * costs.
+ *
+ * The cost of that is a hot machine: nothing throttles this loop, and a
+ * backgrounded tab keeps running where rAF would have stopped it.
  */
-const MAX_FPS = 120;
-const MIN_FRAME_MS = 1000 / MAX_FPS;
+const channel = new MessageChannel();
+let pending: ((now: number) => void) | null = null;
+channel.port1.onmessage = (): void => {
+    const run = pending;
+    pending = null;
+    if (run) run(performance.now());
+};
+function schedule(next: (now: number) => void): void {
+    pending = next;
+    channel.port2.postMessage(0);
+}
 
 let accumulator = 0;
 let last = performance.now();
-let lastDrawn = 0;
 
 function frame(now: number): void {
-    // Skip the frame entirely if we are ahead of the cap; the next rAF will land
-    // closer to the target.
-    if (now - lastDrawn < MIN_FRAME_MS - 0.5) {
-        requestAnimationFrame(frame);
-        return;
-    }
     const elapsed = Math.min((now - last) / 1000, 0.25);
     last = now;
-    lastDrawn = now;
     accumulator += elapsed;
 
     // Smoothed so the counter is readable rather than jittering every frame.
@@ -125,7 +135,7 @@ function frame(now: number): void {
     game.endFrame();
 
     input.endFrame();
-    requestAnimationFrame(frame);
+    schedule(frame);
 }
 
 // The lettering is loaded before the first frame is drawn. `font-display:
@@ -133,9 +143,9 @@ function frame(now: number): void {
 // itself: without this the first frames are laid out in monospace and then jump
 // when the real face arrives.
 if (document.fonts) {
-    void document.fonts.ready.then(() => requestAnimationFrame(frame));
+    void document.fonts.ready.then(() => schedule(frame));
 } else {
-    requestAnimationFrame(frame);
+    schedule(frame);
 }
 
 // Exposed for debugging in the console: window.oxide.game
