@@ -38,11 +38,20 @@ bool canAfford(const Inventory& inventory, const Recipe& recipe);
 int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTier,
 				   bool free = false);
 
-/** One thing being made: what, and how long is left of it. */
+/**
+ * One order on the bench: what, how many, and how long is left of the one
+ * currently under the hammer.
+ *
+ * Twenty arrows is one order of twenty, not twenty orders. A queue that fills
+ * up with identical single jobs is unreadable and unarrangeable, and eight of
+ * them was a queue you could fill by asking for one stack of anything.
+ */
 struct CraftJob {
 	int id;
 	const Recipe* recipe;
 	double left;
+	/** How many are still to be made, this one included. */
+	int count = 1;
 	/** Whether it cost anything, so a cancelled sandbox job refunds nothing. */
 	bool paid = true;
 };
@@ -56,8 +65,10 @@ struct CraftJob {
  */
 class Crafting {
 public:
-	/** How many jobs may be waiting at once. */
-	static constexpr int kQueueMax = 8;
+	/** How many orders may be waiting at once, whatever their size. */
+	static constexpr int kQueueMax = 10;
+	/** And how many of one thing a single order may be for. */
+	static constexpr int kBatchMax = 999;
 
 	/**
 	 * Sandbox: any recipe, at any bench, for nothing.
@@ -68,8 +79,11 @@ public:
 	void setFree(bool free) { free_ = free; }
 	bool isFree() const { return free_; }
 
-	/** Queues one, taking its cost. Says whether it went on. */
-	bool queue(Inventory& inventory, const Recipe& recipe, int benchTier);
+	/**
+	 * Puts an order on the bench, taking what all of it costs up front. Says
+	 * whether it went on. An order for more than one lands as one entry.
+	 */
+	bool queue(Inventory& inventory, const Recipe& recipe, int benchTier, int count = 1);
 	/** Takes one back off and returns what it cost. */
 	void cancel(Inventory& inventory, int jobId);
 

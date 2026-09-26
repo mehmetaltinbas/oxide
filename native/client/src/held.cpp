@@ -237,6 +237,14 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
  */
 void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, float angle) {
 	const float u = size;
+	// The pen, in proportion to the picture rather than in flat pixels.
+	//
+	// A fixed pixel width is a trap on a dense display: the belt's icons are
+	// laid out in points and drawn at twice that, so a flat 1.0 came out half a
+	// point wide and vanished. Reading kGlyphInk as "ink per twenty six pixels
+	// of icon" makes it hold at any size and any display.
+	const float ink = kGlyphInk * std::max(1.0f, u / 26.0f);
+	const float mark = kGlyphMark * std::max(1.0f, u / 26.0f);
 	const float ca = std::cos(angle);
 	const float sa = std::sin(angle);
 	const auto P = [&](float ux, float uy) {
@@ -251,7 +259,7 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 	// A filled shape: the pen goes round it, at the weight a glyph is inked at.
 	const auto fill = [&](const std::vector<Point>& shape, Color color) {
 		paint.fillPoly(shape, color);
-		paint.outlinePoly(shape, kGlyphInk, kInk);
+		paint.outlinePoly(shape, ink, kInk);
 	};
 	// The same, with the shape's own edge colour drawn back over the pen.
 	// The shape's own edge colour, with the pen laid UNDER it rather than over.
@@ -261,7 +269,7 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 	const auto edged = [&](const std::vector<Point>& shape, Color color, Color edge) {
 		paint.fillPoly(shape, color);
 		const float own = paint.inWorld(0.045f * u);
-		paint.outlinePoly(shape, own + kGlyphInk * 2, kInk);
+		paint.outlinePoly(shape, own + ink * 2, kInk);
 		paint.outlinePoly(shape, own, edge);
 	};
 	const auto box = [&](float ux, float uy, float uw, float uh, Color color) {
@@ -270,7 +278,7 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 	// A disc is round whatever the picture is turned to, so it needs no frame.
 	const auto disc = [&](float ux, float uy, float ur, Color color) {
 		const Point at = P(ux, uy);
-		paint.inkedCircle(at.x, at.y, ur * u, color, kGlyphInk);
+		paint.inkedCircle(at.x, at.y, ur * u, color, ink);
 	};
 	const auto plainDisc = [&](float ux, float uy, float ur, Color color) {
 		const Point at = P(ux, uy);
@@ -280,14 +288,14 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 	const auto detail = [&](float x0, float y0, float x1, float y1, float w) {
 		const Point a = P(x0, y0);
 		const Point b = P(x1, y1);
-		paint.line(a.x, a.y, b.x, b.y, std::max(paint.inWorld(w * u), kGlyphMark), kInk);
+		paint.line(a.x, a.y, b.x, b.y, std::max(paint.inWorld(w * u), mark), kInk);
 	};
 	// A shape drawn as a line: ink under it, its own colour over.
 	const auto stroke = [&](float x0, float y0, float x1, float y1, float w, Color color) {
 		const Point a = P(x0, y0);
 		const Point b = P(x1, y1);
 		const float thick = paint.inWorld(w * u);
-		paint.line(a.x, a.y, b.x, b.y, thick + kGlyphInk * 2, kInk);
+		paint.line(a.x, a.y, b.x, b.y, thick + ink * 2, kInk);
 		paint.line(a.x, a.y, b.x, b.y, thick, color);
 	};
 	// An arc drawn as a line, for a bow's limb and a lock's shackle.
@@ -299,7 +307,7 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 		}
 		(void)0;
 		const float thick = paint.inWorld(w * u);
-		paint.outlinePoly(along, thick + kGlyphInk * 2, kInk, false);
+		paint.outlinePoly(along, thick + ink * 2, kInk, false);
 		paint.outlinePoly(along, thick, color, false);
 	};
 	// The wooden handle every tool hangs off.
@@ -496,7 +504,7 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 				head.push_back(P(ux, uy));
 			}
 			const float bar = paint.inWorld(0.1f * u);
-			paint.outlinePoly(head, bar + kGlyphInk * 2, kInk, false);
+			paint.outlinePoly(head, bar + ink * 2, kInk, false);
 			paint.outlinePoly(head, bar, kSteel, false);
 			fill(pts({{-0.3f, -0.02f}, {-0.34f, -0.12f}, {-0.22f, -0.1f}}), kSteelDark);
 			fill(pts({{0.3f, -0.02f}, {0.34f, -0.12f}, {0.22f, -0.1f}}), kSteelDark);

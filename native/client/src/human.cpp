@@ -62,7 +62,18 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 	// A blow comes from the hips: the whole upper body turns with it, and the
 	// arms and the head are drawn in that turned frame.
 	const MeleeStyle style = meleeStyleOf(look.held);
-	const MeleePose pose = meleeMotion(style, look.swingT, look.phase);
+	MeleePose pose = meleeMotion(style, look.swingT, look.phase);
+	// Reloading: the muzzle swings down and in and comes back up as it ends,
+	// which from above is the gun turning across the body and back.
+	if (look.reloading >= 0) {
+		// Full at the middle of the reload and nothing at either end, so it
+		// leaves the carry and returns to it rather than snapping.
+		const float deep = std::sin(std::min(1.0f, look.reloading) * 3.14159265f);
+		pose.angle += deep * 0.95f;
+		pose.hand.x -= deep * 4.0f;
+		pose.hand.y += deep * 5.0f;
+		pose.stretch *= 1 - deep * 0.25f;
+	}
 	const BodyFrame f = look.swimming ? stance : stance.turned(pose.twist);
 	// Everything below is measured in body units, so the pen is told what one
 	// of those is worth on screen. A body is drawn at a radius of 13 and the
@@ -114,6 +125,21 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 		// where the swing puts it rather than where the stride would.
 		hands[1] = look.held != sim::ItemId::None ? pose.hand
 												  : Point{12.5f, -2 - step * 0.9f};
+		// Empty handed, the blow is the fist itself: the punching hand takes
+		// the swing's own position and the other stays at the hip, and which
+		// one it is alternates so it reads as fighting rather than a twitch.
+		if (look.held == sim::ItemId::None && look.swingT >= 0) {
+			const int fist = look.punchLeft ? 0 : 1;
+			hands[fist] = {look.punchLeft ? -pose.hand.x : pose.hand.x, pose.hand.y};
+			hands[1 - fist] = {look.punchLeft ? 11.0f : -11.0f, 1.0f};
+		}
+		if (look.reloading >= 0 && look.held != sim::ItemId::Bow) {
+			// The off hand leaves its grip and goes to the magazine well,
+			// which sits just behind and under the gun's own hand.
+			const float deep = std::sin(std::min(1.0f, look.reloading) * 3.14159265f);
+			hands[0] = {hands[0].x + (pose.hand.x - 6 - hands[0].x) * deep,
+						hands[0].y + (pose.hand.y + 7 - hands[0].y) * deep};
+		}
 		if (look.held == sim::ItemId::Bow) {
 			// A bow is held differently from everything else: the bow arm goes
 			// straight out ahead of the face and the other hand is at the nock,

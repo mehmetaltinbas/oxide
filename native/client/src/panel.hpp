@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <SDL3/SDL.h>
+
 #include "paint.hpp"
 #include "sim/craft.hpp"
 #include "sim/deployable.hpp"
@@ -55,6 +57,14 @@ public:
 	void setBench(int tier) { bench_ = tier; }
 	/** Creative mode adds a shelf of every item there is. */
 	void setSandbox(bool on) { sandbox_ = on; }
+
+	/**
+	 * A key pressed while the amount box has the caret: a digit, a backspace,
+	 * or enter to leave it. Says whether the box took it.
+	 */
+	bool typeAmount(SDL_Keycode key);
+	/** Whether the amount box is taking keys, so the game's own do not fire. */
+	bool typingAmount() const { return amountCaret_; }
 
 	/** Looks at one pack slot, as a click on it would. */
 	void inspect(int packSlot) {
@@ -167,6 +177,8 @@ private:
 	int category_ = 0;
 	int selected_ = -1;
 	int amount_ = 1;
+	/** Whether the amount box is being typed into. */
+	bool amountCaret_ = false;
 
 	struct Move {
 		bool intoContainer = false;

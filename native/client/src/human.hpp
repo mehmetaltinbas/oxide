@@ -31,6 +31,22 @@ struct HumanLook {
 	float swingT = -1;
 	/** How far a bow is drawn back, nought to one. */
 	float bowDraw = 0;
+	/**
+	 * Which fist is coming, when there is nothing in either.
+	 *
+	 * A punch alternates: throwing every one off the same shoulder reads as a
+	 * twitch rather than as someone fighting.
+	 */
+	bool punchLeft = false;
+	/**
+	 * How far through a reload, nought to one, or below zero when not.
+	 *
+	 * Every gun reloads the same way from above: the muzzle comes down and in,
+	 * the off hand leaves its grip and goes to the magazine well, and both come
+	 * back up as it finishes. One arc beside you says a reload is happening;
+	 * this says what you are doing about it.
+	 */
+	float reloading = -1;
 };
 
 /**

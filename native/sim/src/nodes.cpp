@@ -138,7 +138,11 @@ void World::scatterNodes(Rng& rng) {
 		node.kind = kind;
 		node.x = x;
 		node.y = y;
-		node.radius = def.radius * rng.range(0.85, 1.2);
+		// A tree is never smaller than its full size: the small ones read as
+		// saplings, and a forest of saplings looks like a mistake rather than
+		// like variety. Everything else still varies both ways.
+		node.radius = kind == NodeKind::Tree ? def.radius * rng.range(1.0, 1.25)
+											 : def.radius * rng.range(0.85, 1.2);
 		node.hp = def.hp;
 		node.maxHp = def.hp;
 		node.respawn = 0;

@@ -96,17 +96,22 @@ int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTi
 	return most;
 }
 
-bool Crafting::queue(Inventory& inventory, const Recipe& recipe, int benchTier) {
+bool Crafting::queue(Inventory& inventory, const Recipe& recipe, int benchTier, int count) {
+	count = std::clamp(count, 1, kBatchMax);
 	if (static_cast<int>(jobs_.size()) >= kQueueMax) return false;
-	// What you can make is what you are standing next to.
+	// What you can make is what you are standing next to. The whole order is
+	// paid for up front, as one job always was: a cancelled order hands back
+	// exactly what it took and no more.
 	if (!free_) {
 		if (recipe.bench > benchTier) return false;
-		if (!canAfford(inventory, recipe)) return false;
 		for (int i = 0; i < recipe.costCount; ++i) {
-			inventory.take(recipe.cost[i].id, recipe.cost[i].count);
+			if (inventory.count(recipe.cost[i].id) < recipe.cost[i].count * count) return false;
+		}
+		for (int i = 0; i < recipe.costCount; ++i) {
+			inventory.take(recipe.cost[i].id, recipe.cost[i].count * count);
 		}
 	}
-	jobs_.push_back(CraftJob{nextId_++, &recipe, recipe.seconds, !free_});
+	jobs_.push_back(CraftJob{nextId_++, &recipe, recipe.seconds, count, !free_});
 	return true;
 }
 
@@ -118,8 +123,9 @@ void Crafting::cancel(Inventory& inventory, int jobId) {
 		jobs_.erase(it);
 		return;
 	}
+	// Everything still owing on the order, which is what is left of it.
 	for (int i = 0; i < it->recipe->costCount; ++i) {
-		inventory.add(it->recipe->cost[i].id, it->recipe->cost[i].count);
+		inventory.add(it->recipe->cost[i].id, it->recipe->cost[i].count * it->count);
 	}
 	jobs_.erase(it);
 }
@@ -141,7 +147,7 @@ std::vector<ItemStack> Crafting::abandon() {
 	for (const CraftJob& job : jobs_) {
 		if (!job.paid) continue;
 		for (int i = 0; i < job.recipe->costCount; ++i) {
-			back.push_back(ItemStack{job.recipe->cost[i].id, job.recipe->cost[i].count});
+			back.push_back(ItemStack{job.recipe->cost[i].id, job.recipe->cost[i].count * job.count});
 		}
 	}
 	jobs_.clear();
@@ -157,6 +163,11 @@ void Crafting::update(double dt, Inventory& inventory) {
 	const int left = inventory.add(job.recipe->out, job.recipe->amount);
 	if (left > 0) {
 		job.left = 0.25;
+		return;
+	}
+	// One off the order; the rest of it starts on the next one straight away.
+	if (--job.count > 0) {
+		job.left = job.recipe->seconds;
 		return;
 	}
 	jobs_.erase(jobs_.begin());

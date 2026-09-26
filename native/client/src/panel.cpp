@@ -553,15 +553,26 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 			enabled ? ui::kInk : ui::kDisabled, label, Face::BodyBold, Align::Centre);
 	};
 	stepper("-", detX, amount_ > 1);
-	paint.fillRoundRect(detX + 40 * uiScale, qy, 58 * uiScale, stepW, ui::kRadiusSmall,
-						ui::kSurfaceAlt);
-	paint.outlineRoundRect(detX + 40 * uiScale, qy, 58 * uiScale, stepW, ui::kRadiusSmall, 1,
-						   ui::kHairline);
+	// The number is a box you can type in, not only a readout between two
+	// buttons: asking for two hundred arrows with the plus key is not asking.
+	const float boxW = 58 * uiScale;
+	const bool boxHover = ui::inside(mouseX, mouseY, detX + 40 * uiScale, qy, boxW, stepW);
+	paint.fillRoundRect(detX + 40 * uiScale, qy, boxW, stepW, ui::kRadiusSmall,
+						amountCaret_ ? ui::kSelected : boxHover ? ui::kHover : ui::kSurfaceAlt);
+	paint.outlineRoundRect(detX + 40 * uiScale, qy, boxW, stepW, ui::kRadiusSmall,
+						   amountCaret_ ? 1.5f * uiScale : 1,
+						   amountCaret_ ? ui::kAccentInk : ui::kHairline);
 	char amount[8];
 	SDL_snprintf(amount, sizeof(amount), "%d", amount_);
+	const float typed = widthOf(paint, amount, 15 * uiScale, Face::BodyBold);
 	say(paint, detX + 69 * uiScale, qy + 7 * uiScale, 15 * uiScale, ui::kInk, amount,
 		Face::BodyBold, Align::Centre);
-	stepper("+", detX + 104 * uiScale, amount_ < std::max(1, possible));
+	if (amountCaret_) {
+		// A bar after the number, so it is plain the keyboard is going here.
+		paint.fillRect(detX + 69 * uiScale + typed * 0.5f + 3 * uiScale, qy + 8 * uiScale,
+					   1.5f * uiScale, 18 * uiScale, ui::kAccentInk);
+	}
+	stepper("+", detX + 104 * uiScale, amount_ < std::min(sim::Crafting::kBatchMax, possible));
 	const float maxX = detX + 144 * uiScale;
 	const bool maxHover = ui::inside(mouseX, mouseY, maxX, qy, 52 * uiScale, stepW);
 	paint.fillRoundRect(maxX, qy, 52 * uiScale, stepW, ui::kRadiusSmall,
@@ -581,8 +592,11 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 										   : ui::kAccent);
 	say(paint, detX + detW * 0.5f, buttonY + 11 * uiScale, 16 * uiScale,
 		can ? ui::kInk : ui::kDisabled, "Craft", Face::BodyBold, Align::Centre);
-	say(paint, detX + detW * 0.5f, buttonY + 48 * uiScale, 11 * uiScale, ui::kFaint,
-		"shift +10   ·   ctrl all", Face::Body, Align::Centre);
+	char howMany[64];
+	SDL_snprintf(howMany, sizeof(howMany), "up to %d at a time   \xc2\xb7   %d orders on the bench",
+				 sim::Crafting::kBatchMax, sim::Crafting::kQueueMax);
+	say(paint, detX + detW * 0.5f, buttonY + 48 * uiScale, 11 * uiScale, ui::kFaint, howMany,
+		Face::Body, Align::Centre);
 }
 
 // ---- the shelf, and whatever is open
@@ -880,31 +894,56 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 	const float qy = l.y + l.h - 124 * uiScale;
 	const float stepW = 34 * uiScale;
 	const int possible = sim::craftableCount(inventory, recipe, bench_, sandbox_);
+	const float buttonY = qy + 46 * uiScale;
+	amountCaret_ = ui::inside(x, y, detX + 40 * uiScale, qy, 58 * uiScale, stepW);
+	if (amountCaret_) return true;
 	if (ui::inside(x, y, detX, qy, stepW, stepW)) {
 		amount_ = std::max(1, amount_ - 1);
 		return true;
 	}
 	if (ui::inside(x, y, detX + 104 * uiScale, qy, stepW, stepW)) {
-		amount_ = std::min(std::max(1, possible), amount_ + 1);
+		amount_ = std::min(std::min(sim::Crafting::kBatchMax, std::max(1, possible)), amount_ + 1);
 		return true;
 	}
 	if (ui::inside(x, y, detX + 144 * uiScale, qy, 52 * uiScale, stepW)) {
-		amount_ = std::max(1, possible);
+		amount_ = std::min(sim::Crafting::kBatchMax, std::max(1, possible));
 		return true;
 	}
-	if (ui::inside(x, y, detX, qy + 46 * uiScale, detW, 42 * uiScale)) {
-		// However many were asked for, one job each, up to what the queue holds.
-		for (int i = 0; i < amount_; ++i) {
-			if (static_cast<int>(crafting.jobs().size()) >= sim::Crafting::kQueueMax) {
-				queueFull_ = true;
-				break;
-			}
-			if (!crafting.queue(inventory, recipe, bench_)) break;
+	if (ui::inside(x, y, detX, buttonY, detW, 42 * uiScale)) {
+		// One order, however many it is for. It used to queue a job per item,
+		// which filled the bench with twenty identical chips for one stack.
+		if (static_cast<int>(crafting.jobs().size()) >= sim::Crafting::kQueueMax) {
+			queueFull_ = true;
+		} else {
+			crafting.queue(inventory, recipe, bench_, amount_);
 		}
 		amount_ = 1;
 		return true;
 	}
 	return true;
+}
+
+bool Panel::typeAmount(SDL_Keycode key) {
+	if (!open_ || !amountCaret_) return false;
+	if (key >= SDLK_0 && key <= SDLK_9) {
+		const int digit = static_cast<int>(key - SDLK_0);
+		// Nine hundred and ninety nine is the ceiling, so a fourth digit is
+		// simply not taken rather than silently wrapping the number.
+		const int next = amount_ * 10 + digit;
+		if (next <= sim::Crafting::kBatchMax) amount_ = next;
+		return true;
+	}
+	if (key == SDLK_BACKSPACE) {
+		amount_ /= 10;
+		if (amount_ < 1) amount_ = 1;
+		return true;
+	}
+	if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_ESCAPE) {
+		amountCaret_ = false;
+		if (amount_ < 1) amount_ = 1;
+		return true;
+	}
+	return false;
 }
 
 // ---- dragging a stack about

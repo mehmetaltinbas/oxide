@@ -86,9 +86,13 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 2,
 	 true,
 	 0},
-	// Top of the chain. Slow, enormous, and the one thing on the island that
-	// runs from nothing at all.
-	{NpcKind::Bear, "Bear", 340, 92, 22, 42, 40, 1.3, true, false, kNoGun,
+	// Top of the chain, and the one thing on the island that runs from nothing
+	// at all. 150 against a sprint of 185: it runs down anybody who walks away
+	// from it and never catches anybody who sprints, which is the shape of
+	// every threat here. It was 92, at which it could not catch a walking
+	// player either, so the thing that is supposed to make the forest somewhere
+	// you do not go yet was something you strolled past.
+	{NpcKind::Bear, "Bear", 340, 150, 22, 42, 40, 1.3, true, false, kNoGun,
 	 {{ItemId::MeatRaw, 8, 16},
 	  {ItemId::Leather, 20, 36},
 	  {ItemId::Bone, 10, 20},

@@ -623,6 +623,8 @@ int main(int argc, char** argv) {
 	/** Whether the death screen is up, and whether space has been pressed. */
 	bool showHelp = false;
 	bool fullscreen = false;
+	/** Which fist the next bare-handed blow comes off. */
+	bool punchLeft = false;
 	bool paused = false;
 	/** The card you land on, until you say how you want to play. */
 	bool title = connectTo.empty() && !showPanel && !showMap && poseSwing < 0 &&
@@ -688,6 +690,12 @@ int main(int argc, char** argv) {
 				} else {
 					zoom = std::clamp(zoom * (1 + event.wheel.y * 0.1), kZoomMin, kZoomMax);
 				}
+			}
+			if (event.type == SDL_EVENT_KEY_DOWN && panel.typingAmount() &&
+				panel.typeAmount(event.key.key)) {
+				// The amount box has the keyboard: a number key is a digit,
+				// not a belt slot.
+				continue;
 			}
 			if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
 				event.key.key <= SDLK_6) {
@@ -1212,12 +1220,10 @@ int main(int argc, char** argv) {
 				specks.burst(mx, my, 6, client::rgb(0xffd98a), 220, 0.12, 2.6, 0, shot.angle, 0.7);
 				specks.shake(sim::itemDef(shot.gun).gun.damage > 50 ? 3.5 : 2.0, 0.12);
 			}
-			if (shot.empty && trigger) {
-				// The click of a weapon that will not fire, and nothing else.
-				// The belt already shows nought rounds; a sentence on top of
-				// that is the interface not trusting itself.
-				audio.deny();
-			}
+			// A weapon with nothing in it makes no noise at all. The belt
+			// already reads nought rounds, and a click every time you press
+			// the button is a nag rather than information.
+			(void)shot.empty;
 		}
 		explosives.update(world, build, npcs, player, inventory, dt);
 		for (const sim::BulletHit& hit : projectiles.update(world, npcs, build, dt, &player)) {
@@ -1428,6 +1434,9 @@ int main(int argc, char** argv) {
 		if (!gun && !planning && !eating && handsFree && inHand != sim::ItemId::Hammer &&
 			(buttons & SDL_BUTTON_LMASK) != 0) {
 			const sim::SwingResult blow = sim::swing(world, npcs, build, player, inventory);
+			// One fist then the other. Flipped as the blow is thrown rather
+			// than as it lands, or a punch that hits nothing never alternates.
+			if (blow.swung) punchLeft = !punchLeft;
 			if (blow.landed && blow.gained.count > 0) {
 				// Off the top of the thing struck, not out of its middle: a
 				// tree stands four radii above its foot, a rock about one.
@@ -1609,6 +1618,12 @@ int main(int argc, char** argv) {
 			look.held = inventory.held();
 			look.bowDraw = static_cast<float>(player.bowDraw / sim::kBowDrawSeconds);
 			// Where the swing has got to, as a fraction of its own length.
+			look.punchLeft = punchLeft;
+			// Every gun, not just the ones with a magazine: a reload is a
+			// reload and the hands do the same thing whatever is in them.
+			look.reloading = player.reloadTotal > 0 && player.reloadLeft > 0
+								 ? static_cast<float>(1 - player.reloadLeft / player.reloadTotal)
+								 : -1.0f;
 			look.swingT = player.swingAnim > 0 && player.swingLength > 0
 							  ? static_cast<float>(1 - player.swingAnim / player.swingLength)
 							  : -1;

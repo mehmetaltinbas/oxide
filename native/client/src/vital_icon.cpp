@@ -1,5 +1,6 @@
 #include "vital_icon.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -16,6 +17,16 @@ struct Unit {
 	float size;
 
 	Point at(float x, float y) const { return {cx + x * size, cy + y * size}; }
+
+	/**
+	 * The pen for an icon this big.
+	 *
+	 * In proportion to the picture rather than in flat pixels: these are laid
+	 * out in points and drawn at whatever the display's density is, so a fixed
+	 * width came out half a point wide on a retina screen and the hearts and
+	 * drumsticks had no line round them at all.
+	 */
+	float pen() const { return kGlyphInk * std::max(1.0f, size / 16.0f); }
 };
 
 /**
@@ -24,7 +35,7 @@ struct Unit {
  */
 void drawDrumstick(Paint& paint, const Unit& u, Color color) {
 	const Color bone = rgb(0xf2ead8);
-	const float pen = kInkWidth * 0.5f;
+	const float pen = u.pen();
 
 	// The shaft, as a thick line with the pen under it.
 	const Point from = u.at(0.02f, 0.04f);
@@ -64,7 +75,7 @@ void drawDrumstick(Paint& paint, const Unit& u, Color color) {
 
 void drawVitalIcon(Paint& paint, Vital vital, float cx, float cy, float size, Color color) {
 	const Unit u{cx, cy, size};
-	const float pen = kInkWidth * 0.5f;
+	const float pen = u.pen();
 
 	if (vital == Vital::Food) {
 		drawDrumstick(paint, u, color);

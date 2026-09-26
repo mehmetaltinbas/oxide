@@ -65,7 +65,13 @@ forgot about it, and nothing else would have caught that.
 
 A player walks at 132 and sprints at 185, which is the number the rest are set
 against: an elk at 165 can be run down on foot and you will arrive with nothing
-left, and a bear at 92 never catches anybody who runs.
+left.
+
+Every threat has the same shape: **faster than a walk, slower than a sprint**.
+A bear at 150 runs down anybody who strolls away from it and never catches
+anybody who sprints. It was 92, at which it could not catch a walking player
+either, so the thing that is supposed to make the forest somewhere you do not
+go yet was something you ambled past.
 
 The wolf's 176 is the number the rest hangs off, and it is pinned from both
 sides. It has to sit **under a sprint**, or a wolf is a death sentence rather
