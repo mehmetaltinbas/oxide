@@ -137,11 +137,16 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 				 : 0.0f;
 	const float stride = 1.6f + std::min(1.4f, pace) * 2.2f;
 	const float gait = std::sin(static_cast<float>(npc.animPhase)) * stride * scale;
-	// Anything that hunts on four legs hits with a paw. A bear does not headbutt
-	// and neither does a wolf, and throwing the whole body forward is what that
-	// looked like: the reach below is left alone for them and the blow is a
-	// swipe, drawn after the body.
-	const bool claws = def.hostile && !def.human;
+	// Nothing on this island fights with its face. A bear does not headbutt, a
+	// wolf does not either, and neither does a kangaroo: throwing the whole
+	// body forward is what that looked like, so the reach below is left alone
+	// for all of them and the blow is drawn after the body as a limb.
+	//
+	// A kangaroo does it differently enough to be worth its own case: it sits
+	// back on that tail and drives both hind feet forward at once, which is the
+	// one thing everybody knows about them.
+	const bool claws = !def.human;
+	const bool kicks = npc.kind == sim::NpcKind::Kangaroo;
 	// Running, the body reaches forward and narrows; anything that hits with
 	// its head, rather than a paw, throws itself at what it is hitting.
 	const float reach =
@@ -289,7 +294,37 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 			 r * 0.09f, eye, false);
 	}
 
-	if (claws && striking) {
+	if (kicks && striking) {
+		// Both hind feet forward together, past the head, with the tail
+		// planted behind: a kangaroo kicks off its tail like a tripod.
+		const float out = 0.4f + lunge * 1.15f;
+		const Color pad = hurt ? rgb(0xffb0b0) : rgb(0x5f4028);
+		for (int side = -1; side <= 1; side += 2) {
+			const float sd = static_cast<float>(side);
+			const float along = r * (0.3f + out * 1.25f);
+			const float across = sd * r * (0.52f - out * 0.08f);
+			const Point hip = f.at(-r * 0.35f, sd * r * 0.6f);
+			const Point foot = f.at(along, across);
+			paint.line(hip.x, hip.y, foot.x, foot.y, r * 0.2f + kInkWidth * scale, kInk);
+			paint.line(hip.x, hip.y, foot.x, foot.y, r * 0.2f, dark);
+			// The foot itself, long and turned along the kick.
+			paint.inkedPoly({f.at(along - r * 0.34f, across - r * 0.19f),
+							 f.at(along + r * 0.4f, across - r * 0.1f),
+							 f.at(along + r * 0.4f, across + r * 0.1f),
+							 f.at(along - r * 0.34f, across + r * 0.19f)},
+							pad, kInkFine);
+			// Three claws off the end of it.
+			const Color claw = hurt ? rgb(0xffb0b0) : rgb(0xe8e2d0);
+			for (int i = -1; i <= 1; ++i) {
+				const float spread = i * 0.11f;
+				paint.inkedPoly(
+					{f.at(along + r * 0.36f, across + r * (spread - 0.05f)),
+					 f.at(along + r * 0.62f, across + r * spread * 1.3f),
+					 f.at(along + r * 0.36f, across + r * (spread + 0.05f))},
+					claw, kInkFine);
+			}
+		}
+	} else if (claws && striking) {
 		// A foreleg out and across, with three claws on the end of it: which
 		// side it swings from is the animal's own, so a pack does not swipe in
 		// unison. The paw is furthest out just as the blow lands.
