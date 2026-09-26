@@ -543,12 +543,15 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			// A stone-tipped arrow, point to the north east. Mostly stick: the
 			// head is about a fifth of its length and no wider than a thumb.
 			// It was drawn as a spearhead on a stub, which is what made it read
-			// as a spear. No nock: at this size two prongs and the notch
-			// between them are three pixels of noise at the wrong end.
+			// as a spear. No binding round the joint: a band of cord across the
+			// shaft at this size is a lump, not a lashing.
 			stroke(-0.36f, 0.36f, 0.25f, -0.25f, 0.042f, kWood);
-			// Binding, two turns of cord just under the head.
-			stroke(0.19f, -0.15f, 0.24f, -0.2f, 0.055f, rgb(0xc9a06a));
-			stroke(0.15f, -0.11f, 0.2f, -0.16f, 0.05f, rgb(0xc9a06a));
+			// The fork at the back, where the string sits: two prongs with the
+			// notch open between them, not a solid wedge.
+			fill(pts({{-0.46f, 0.31f}, {-0.34f, 0.3f}, {-0.31f, 0.34f}, {-0.41f, 0.37f}}),
+				 rgb(0xb08a55));
+			fill(pts({{-0.31f, 0.46f}, {-0.3f, 0.34f}, {-0.34f, 0.31f}, {-0.37f, 0.41f}}),
+				 rgb(0xb08a55));
 			// The knapped head: narrow, barbed at the shoulders, long point.
 			edged(pts({{0.45f, -0.45f},
 					   {0.27f, -0.32f},

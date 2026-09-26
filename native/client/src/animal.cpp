@@ -137,9 +137,15 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 				 : 0.0f;
 	const float stride = 1.6f + std::min(1.4f, pace) * 2.2f;
 	const float gait = std::sin(static_cast<float>(npc.animPhase)) * stride * scale;
-	// Running, the body reaches forward and narrows; striking, it throws itself
-	// at what it is hitting.
-	const float reach = 1 + std::min(1.0f, pace) * 0.16f + (1 - lunge) * 0.22f * (striking ? 1 : 0);
+	// Anything that hunts on four legs hits with a paw. A bear does not headbutt
+	// and neither does a wolf, and throwing the whole body forward is what that
+	// looked like: the reach below is left alone for them and the blow is a
+	// swipe, drawn after the body.
+	const bool claws = def.hostile && !def.human;
+	// Running, the body reaches forward and narrows; anything that hits with
+	// its head, rather than a paw, throws itself at what it is hitting.
+	const float reach =
+		1 + std::min(1.0f, pace) * 0.16f + (claws ? 0.0f : (1 - lunge) * 0.22f * (striking ? 1 : 0));
 	const float narrow = 1 - std::min(1.0f, pace) * 0.1f;
 	// And it bobs, which is what stops a run reading as a slide.
 	const float bob = std::sin(static_cast<float>(npc.animPhase) * 2) * std::min(1.0f, pace) * 0.05f;
@@ -281,6 +287,34 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 		const float s = static_cast<float>(side);
 		oval(paint, f, headX + r * b.headSize * 0.35f, s * r * b.headSize * 0.42f, r * 0.09f,
 			 r * 0.09f, eye, false);
+	}
+
+	if (claws && striking) {
+		// A foreleg out and across, with three claws on the end of it: which
+		// side it swings from is the animal's own, so a pack does not swipe in
+		// unison. The paw is furthest out just as the blow lands.
+		const float side = (npc.seed % 2 == 0) ? 1.0f : -1.0f;
+		const float out = 0.5f + lunge * 0.85f;
+		// The paw stays on its own side of the animal rather than crossing the
+		// centre line: swung across the face it read as a moustache.
+		// Well outside the body: a wolf's head reaches r * 1.6 forward and is
+		// r * 0.7 wide, so anything nearer than this lands on its own face.
+		const float pawAlong = r * (0.7f + out * 0.8f);
+		const float pawAcross = side * r * (1.25f - out * 0.22f);
+		const Point shoulder = f.at(r * 0.4f, side * r * b.bodyWide * 0.75f);
+		const Point paw = f.at(pawAlong, pawAcross);
+		paint.line(shoulder.x, shoulder.y, paw.x, paw.y, r * 0.22f + kInkWidth * scale, kInk);
+		paint.line(shoulder.x, shoulder.y, paw.x, paw.y, r * 0.22f, dark);
+		oval(paint, f, pawAlong, pawAcross, r * 0.21f, r * 0.18f, dark, true);
+		const Color claw = hurt ? rgb(0xffb0b0) : rgb(0xe8e2d0);
+		for (int i = -1; i <= 1; ++i) {
+			// Three of them, fanned forward off the front of the paw.
+			const float spread = i * 0.34f;
+			paint.inkedPoly({f.at(pawAlong + r * 0.12f, pawAcross + r * (spread - 0.09f)),
+							 f.at(pawAlong + r * 0.52f, pawAcross + r * (spread * 1.5f)),
+							 f.at(pawAlong + r * 0.12f, pawAcross + r * (spread + 0.09f))},
+							claw, kInkFine);
+		}
 	}
 
 	paint.useWorldScale(wasScale);

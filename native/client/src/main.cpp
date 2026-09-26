@@ -565,6 +565,9 @@ int main(int argc, char** argv) {
 			npc.homeY = npc.y;
 			npc.leash = 1;
 			npc.seed = static_cast<std::uint32_t>(i * 977);
+			// Frozen mid-blow, so a screenshot shows what a strike looks like.
+			npc.state = sim::NpcState::Attack;
+			npc.attackTimer = sim::npcDef(npc.kind).attackCooldown * 0.35;
 			npcs.mutableList().push_back(npc);
 			++at;
 		}
@@ -1001,6 +1004,15 @@ int main(int argc, char** argv) {
 		hud.update(dt);
 		const std::size_t roundsBefore = projectiles.list().size();
 		const sim::NpcEvents animals = npcs.update(world, build, projectiles, dt, player);
+		if (zoo) {
+			// Held mid-blow, every frame, because update would otherwise put
+			// them straight back to wandering and the picture would show a
+			// line of animals standing about.
+			for (sim::Npc& show : npcs.mutableList()) {
+				show.state = sim::NpcState::Attack;
+				show.attackTimer = sim::npcDef(show.kind).attackCooldown * 0.35;
+			}
+		}
 		if (projectiles.list().size() > roundsBefore) {
 			// Somebody else's gunfire: further off than any other sound, and
 			// quieter at its own spot than your own gun is.
@@ -1894,12 +1906,14 @@ int main(int argc, char** argv) {
 				paint.line(tailAt.x, tailAt.y, neck.x, neck.y, 1.1f + client::kInkFine,
 						   client::kInk);
 				paint.line(tailAt.x, tailAt.y, neck.x, neck.y, 1.1f, client::rgb(0x9a7346));
-				// No nock: in the air it is behind you and three pixels wide,
-				// and all it did was thicken the wrong end of the arrow.
-				// The binding that holds the head on.
-				paint.line(at(len * 0.5f, -1.0f).x, at(len * 0.5f, -1.0f).y,
-						   at(len * 0.5f, 1.0f).x, at(len * 0.5f, 1.0f).y, 1.3f,
-						   client::rgb(0xc9a06a));
+				// The fork at the back, where the string sits. No binding round
+				// the joint: a band across the shaft at this size is a lump.
+				paint.fillPoly({at(-len, -1.6f), at(-len * 0.74f, -0.5f), at(-len * 0.74f, 0.5f),
+								at(-len, 1.6f), at(-len * 0.86f, 0)},
+							   client::rgb(0xb08a55));
+				paint.outlinePoly({at(-len, -1.6f), at(-len * 0.74f, -0.5f),
+								   at(-len * 0.74f, 0.5f), at(-len, 1.6f), at(-len * 0.86f, 0)},
+								  client::kInkFine, client::kInk);
 				// The stone head: barbed at the shoulders, tapering to a point.
 				const std::vector<client::Point> head{
 					at(len, 0),            at(len * 0.72f, -1.5f), at(len * 0.6f, -1.9f),

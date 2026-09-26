@@ -457,7 +457,7 @@ int main() {
 			sim::Npc npc{};
 			npc.id = 1;
 			npc.kind = kind;
-			npc.x = you.x + 200;
+			npc.x = you.x + 120;
 			npc.y = you.y;
 			npc.hp = sim::npcDef(kind).hp;
 			npc.homeX = npc.x;
@@ -466,7 +466,7 @@ int main() {
 			wild.mutableList().push_back(npc);
 			for (int i = 0; i < 60 * 4; ++i) wild.update(island, empty, none, dt, you);
 			// Negative means it closed on you, positive means it ran.
-			return std::hypot(wild.list()[0].x - you.x, wild.list()[0].y - you.y) - 200;
+			return std::hypot(wild.list()[0].x - you.x, wild.list()[0].y - you.y) - 120;
 		};
 		const double wolf = towards(sim::NpcKind::Wolf);
 		const double elk = towards(sim::NpcKind::Elk);

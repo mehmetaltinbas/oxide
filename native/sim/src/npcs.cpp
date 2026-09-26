@@ -33,11 +33,11 @@ constexpr double kMindSeconds = 6.0;
 /**
  * How close you get to something peaceful before it bolts.
  *
- * Far enough that walking up to a deer is not a way to get one, close enough
- * that a bow shot from cover still has a target. A hit makes it run whatever
- * the distance.
+ * Close. At 260 anything you could see was already running, so the herds were
+ * never seen grazing, only fleeing; at 150 you watch an elk until you take a
+ * step too many. A hit makes it run whatever the distance.
  */
-constexpr double kSkittishRange = 260;
+constexpr double kSkittishRange = 150;
 /** How long a frightened animal keeps running after it is hurt. */
 constexpr double kAlarmSeconds = 7.0;
 
@@ -511,11 +511,14 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 		} else {
 			npc.state = NpcState::Wander;
 			Rng rng(rolls_ += 0x9e3779b9u);
-			if (npc.stateTime > rng.range(1.5, 4)) {
+			if (npc.stateTime > rng.range(2.5, 6)) {
 				npc.stateTime = 0;
 				npc.facing = rng.unit() * kTau;
 			}
-			const double drift = rng.unit() < 0.6 ? def.speed * 0.3 : 0;
+			// Roaming is an amble, not a jog. A grazing animal that crosses
+			// the field at a third of full speed reads as one that is already
+			// running from something.
+			const double drift = rng.unit() < 0.55 ? def.speed * 0.16 : 0;
 			wantX = std::cos(npc.facing) * drift;
 			wantY = std::sin(npc.facing) * drift;
 		}

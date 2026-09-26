@@ -69,8 +69,11 @@ left, a wolf at 184 is just slower than a sprint, and a bear at 92 never
 catches anybody who runs. A wolf has to outrun what it hunts or the chain does
 nothing, which is why it is the fastest thing on the island bar you.
 
-Anything skittish bolts when you come within 260 units of it, not only once you
-have hit it: you do not walk up to a deer.
+Anything that runs from you bolts within 150 units, not only once you have hit
+it: you do not walk up to an elk. It was 260, at which range everything you
+could see was already running, so the herds were never seen grazing. Roaming
+itself is an amble at a sixth of top speed, because a grazing animal crossing
+the field at a third of it reads as one already running from something.
 
 ### What each is worth
 
