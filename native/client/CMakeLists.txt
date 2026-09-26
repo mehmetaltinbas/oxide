@@ -17,7 +17,8 @@ add_executable(oxide_client
     src/monument_draw.cpp
     src/map_screen.cpp
     src/net_client.cpp
-    src/particles.cpp
+	src/particles.cpp
+	src/glow.cpp
     src/audio.cpp
     src/vital_icon.cpp
     src/text.cpp

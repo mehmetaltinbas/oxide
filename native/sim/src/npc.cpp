@@ -26,7 +26,8 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 0,
 	 {},
 	 0,
-	 true},
+	 true,
+	 0},
 	// The meat animal. A sprint is 185 and a deer is 172, so you can run one
 	// down on foot and you will arrive with nothing left; a bow is the sane
 	// way. One deer is a full day of food and most of a set of hide.
@@ -41,7 +42,9 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 1,
 	 {},
 	 0,
-	 true},
+	 true,
+	 0},
+
 	// Everywhere that is not trees: grass, tundra and sand alike, which is
 	// what keeps the desert from being a free walk. At 184 it runs down a deer
 	// and very nearly runs down you: a sprint just about holds it off, and
@@ -57,7 +60,8 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 4,
 	 {NpcKind::Chicken, NpcKind::Deer},
 	 2,
-	 true},
+	 true,
+	 0},
 	// Top of the chain. Slow, enormous, and the one thing on the island that
 	// runs from nothing at all.
 	{NpcKind::Bear, "Bear", 340, 92, 22, 42, 40, 1.3, true, false, kNoGun,
@@ -71,7 +75,8 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 9,
 	 {NpcKind::Deer, NpcKind::Wolf},
 	 2,
-	 false},
+	 false,
+	 0},
 	// The monuments' own: sealed in a suit, and armed. Placed by hand rather
 	// than scattered, so they have no country of their own.
 	{NpcKind::Scientist, "Scientist", 130, 118, 12, 14, 30, 1.0, true, true,
@@ -86,7 +91,8 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 7,
 	 {},
 	 0,
-	 false},
+	 false,
+	 0},
 	// Better trained than the scientists, in the field green of an army.
 	{NpcKind::Soldier, "Soldier", 170, 126, 12, 18, 30, 0.9, true, true,
 	 {24, 520, 1.0, 950, 0.06},
@@ -101,7 +107,8 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 8,
 	 {},
 	 0,
-	 false},
+	 false,
+	 0},
 };
 
 }  // namespace

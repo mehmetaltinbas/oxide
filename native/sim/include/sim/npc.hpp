@@ -66,6 +66,13 @@ struct NpcDef {
 	int eatsCount;
 	/** Whether it bolts from anything stronger, the player included. */
 	bool skittish;
+	/**
+	 * How far off it notices you and starts something.
+	 *
+	 * A wolf commits from across a field; a snake will not leave the yard of
+	 * sand it is lying on. Zero takes the default, which is a field.
+	 */
+	double sight;
 };
 
 const NpcDef& npcDef(NpcKind kind);

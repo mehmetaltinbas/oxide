@@ -381,7 +381,9 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 		double wantX = 0;
 		double wantY = 0;
 		// Anything with a gun opens up from much further off than a bear does.
-		const double aggroRange = def.gun.damage > 0 ? def.gun.range * 0.85 : 300;
+		const double aggroRange = def.gun.damage > 0  ? def.gun.range * 0.85
+								  : def.sight > 0 ? def.sight
+												  : 300;
 
 		// The island's own business, before yours: something running from a
 		// bear is not interested in you, and a wolf on a deer will finish

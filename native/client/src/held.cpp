@@ -543,28 +543,30 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			// A stone-tipped arrow, point to the north east: a thin shaft, the
 			// binding that holds the head on, and a forked nock at the tail.
 			// Mostly stick, so the stick is thin and the head carries the eye.
-			stroke(-0.34f, 0.34f, 0.16f, -0.16f, 0.05f, kWood);
+			// An arrow is mostly stick: the head is about a fifth of its length
+			// and no wider than a thumb. It was drawn as a spearhead on a
+			// stub, which is what made it read as a spear.
+			stroke(-0.36f, 0.36f, 0.25f, -0.25f, 0.042f, kWood);
 			// The fork at the back, where the string sits: two prongs with the
 			// notch open between them, not a solid wedge.
-			fill(pts({{-0.46f, 0.3f}, {-0.31f, 0.27f}, {-0.28f, 0.32f}, {-0.4f, 0.36f}}),
+			fill(pts({{-0.46f, 0.31f}, {-0.34f, 0.3f}, {-0.31f, 0.34f}, {-0.41f, 0.37f}}),
 				 rgb(0xb08a55));
-			fill(pts({{-0.3f, 0.46f}, {-0.27f, 0.31f}, {-0.32f, 0.28f}, {-0.36f, 0.4f}}),
+			fill(pts({{-0.31f, 0.46f}, {-0.3f, 0.34f}, {-0.34f, 0.31f}, {-0.37f, 0.41f}}),
 				 rgb(0xb08a55));
 			// Binding, two turns of cord just under the head.
-			stroke(0.07f, -0.01f, 0.15f, -0.09f, 0.075f, rgb(0xc9a06a));
-			stroke(0.0f, 0.06f, 0.08f, -0.02f, 0.065f, rgb(0xc9a06a));
-			// The knapped head: barbed shoulders and a long point.
-			edged(pts({{0.46f, -0.46f},
-					   {0.13f, -0.28f},
-					   {0.04f, -0.34f},
-					   {0.11f, -0.18f},
-					   {0.18f, -0.11f},
-					   {0.34f, -0.04f},
-					   {0.28f, -0.13f}}),
+			stroke(0.19f, -0.15f, 0.24f, -0.2f, 0.055f, rgb(0xc9a06a));
+			stroke(0.15f, -0.11f, 0.2f, -0.16f, 0.05f, rgb(0xc9a06a));
+			// The knapped head: narrow, barbed at the shoulders, long point.
+			edged(pts({{0.45f, -0.45f},
+					   {0.27f, -0.32f},
+					   {0.21f, -0.34f},
+					   {0.24f, -0.26f},
+					   {0.26f, -0.24f},
+					   {0.34f, -0.21f},
+					   {0.32f, -0.27f}}),
 				  rgb(0xb8b2a6), rgb(0x7f7a70));
-			// Two flakes off the face of it, which is what says knapped stone.
-			detail(0.33f, -0.33f, 0.16f, -0.21f, 0.022f);
-			detail(0.3f, -0.22f, 0.19f, -0.15f, 0.02f);
+			// One flake off the face of it, which is what says knapped stone.
+			detail(0.38f, -0.38f, 0.28f, -0.29f, 0.018f);
 			break;
 		case sim::ItemId::Revolver:
 			box(-0.1f, -0.12f, 0.38f, 0.11f, rgb(0x4a4a52));

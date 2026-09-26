@@ -12,6 +12,7 @@
 #include "deploy_draw.hpp"
 #include "monument_draw.hpp"
 #include "held.hpp"
+#include "glow.hpp"
 #include "hud.hpp"
 #include "map_screen.hpp"
 #include "net_client.hpp"
@@ -544,11 +545,11 @@ int main(int argc, char** argv) {
 		world.clearNaturalIn(player.x - 700, player.y - 300, player.x + 700, player.y + 300);
 		npcs.mutableList().clear();
 		int at = 0;
-		for (int i = 0; i < 5; ++i) {
+		for (int i = 0; i < 4; ++i) {
 			sim::Npc npc{};
 			npc.id = 9000 + i;
 			npc.kind = static_cast<sim::NpcKind>(i);
-			npc.x = player.x - 420 + at * 190;
+			npc.x = player.x - 480 + at * 175;
 			npc.y = player.y - 40;
 			npc.facing = 0;
 			npc.hp = sim::npcDef(npc.kind).hp;
@@ -564,7 +565,7 @@ int main(int argc, char** argv) {
 		hud.say("+4 Wood", player.x - 40, player.y - 40, client::rgb(0xefeadd));
 		hud.say("+12 Leather", player.x + 50, player.y + 10, client::rgb(0xefeadd));
 		hud.say("-22", player.x, player.y - 70, client::rgb(0xffd9d9));
-		hud.say("Killed a Boar", player.x - 10, player.y + 60, client::rgb(0xefeadd));
+		hud.say("Killed a Wolf", player.x - 10, player.y + 60, client::rgb(0xefeadd));
 	}
 	if (showMap) map.toggle();
 	// What the building plan would put down, cycled with B.
@@ -585,6 +586,7 @@ int main(int argc, char** argv) {
 	}
 
 	client::Terrain terrain(renderer);
+	client::Night night(renderer);
 	client::Sprites sprites(renderer);
 	client::Paint paint(renderer);
 	paint.useText(&lettering);
@@ -1841,7 +1843,7 @@ int main(int argc, char** argv) {
 				// A knapped head, a thin shaft and a forked nock: the arrow is
 				// mostly stick, so the stick is thin and the head is what you
 				// see. Laid out along its flight, nock behind and point ahead.
-				const float len = 17.0f;
+				const float len = 13.0f;
 				const float px = ux;
 				const float py = uy;
 				// Across the arrow, for the head's barbs and the nock's fork.
@@ -1853,9 +1855,10 @@ int main(int argc, char** argv) {
 										 by + py * along * static_cast<float>(scale) +
 											 ay * across * static_cast<float>(scale)};
 				};
-				// The shaft, from the nock up to the binding.
+				// The shaft, which is most of it: the head is about a fifth of
+				// an arrow's length, not a third.
 				const client::Point tailAt = at(-len, 0);
-				const client::Point neck = at(-len * 0.28f, 0);
+				const client::Point neck = at(len * 0.6f, 0);
 				paint.line(tailAt.x, tailAt.y, neck.x, neck.y, 1.1f + client::kInkFine,
 						   client::kInk);
 				paint.line(tailAt.x, tailAt.y, neck.x, neck.y, 1.1f, client::rgb(0x9a7346));
@@ -1867,18 +1870,18 @@ int main(int argc, char** argv) {
 								   at(-len * 0.74f, 0.5f), at(-len, 1.6f), at(-len * 0.86f, 0)},
 								  client::kInkFine, client::kInk);
 				// The binding that holds the head on.
-				paint.line(at(-len * 0.34f, -1.1f).x, at(-len * 0.34f, -1.1f).y,
-						   at(-len * 0.34f, 1.1f).x, at(-len * 0.34f, 1.1f).y, 1.4f,
+				paint.line(at(len * 0.5f, -1.0f).x, at(len * 0.5f, -1.0f).y,
+						   at(len * 0.5f, 1.0f).x, at(len * 0.5f, 1.0f).y, 1.3f,
 						   client::rgb(0xc9a06a));
 				// The stone head: barbed at the shoulders, tapering to a point.
 				const std::vector<client::Point> head{
-					at(len * 0.72f, 0),     at(len * 0.2f, -2.1f), at(len * 0.02f, -2.6f),
-					at(-len * 0.2f, -1.5f), at(-len * 0.1f, 0),    at(-len * 0.2f, 1.5f),
-					at(len * 0.02f, 2.6f),  at(len * 0.2f, 2.1f)};
+					at(len, 0),            at(len * 0.72f, -1.5f), at(len * 0.6f, -1.9f),
+					at(len * 0.66f, -0.6f), at(len * 0.66f, 0.6f), at(len * 0.6f, 1.9f),
+					at(len * 0.72f, 1.5f)};
 				paint.inkedPoly(head, client::rgb(0xb8b2a6), client::kInkFine);
 				// One flake off the face of it, which is what says knapped.
-				paint.line(at(len * 0.34f, -0.6f).x, at(len * 0.34f, -0.6f).y,
-						   at(-len * 0.04f, -1.5f).x, at(-len * 0.04f, -1.5f).y,
+				paint.line(at(len * 0.9f, -0.35f).x, at(len * 0.9f, -0.35f).y,
+						   at(len * 0.68f, -0.9f).x, at(len * 0.68f, -0.9f).y,
 						   client::kInkFine * 0.7f, client::rgb(0x7f7a70));
 			} else {
 				const float core = width * (0.4f + 0.6f * left);
@@ -1905,39 +1908,39 @@ int main(int argc, char** argv) {
 		}
 
 		if (dark > 0.02) {
-			// Night is laid over the world, and every fire cuts a hole in it.
-			SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_MUL);
-			// Deeper than it was: at 0.94 the island still read as dusk.
-			SDL_SetRenderDrawColorFloat(renderer, 1.0f - static_cast<float>(dark) * 0.985f,
-										1.0f - static_cast<float>(dark) * 0.97f,
-										1.0f - static_cast<float>(dark) * 0.9f, 1.0f);
-			const SDL_FRect all{0, 0, static_cast<float>(width), static_cast<float>(height)};
-			SDL_RenderFillRect(renderer, &all);
-			SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
-			SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
-			const auto glow = [&](double wx, double wy, double radius) {
+			// The night is a veil over the whole screen and every fire erases
+			// part of it, rather than painting light on top of the world: a
+			// light that is added washes out everything under it, and what you
+			// get is a glowing smudge with no ground inside it.
+			night.begin(width, height, client::rgb(0x080c14), static_cast<float>(dark) * 0.97f);
+			const auto glow = [&](double wx, double wy, double radius, float strength) {
 				const float sx = static_cast<float>((wx - camX) * scale) + width * 0.5f;
 				const float sy = static_cast<float>((wy - camY) * scale) + height * 0.5f;
-				const float r = static_cast<float>(radius * scale);
-				// Rings rather than a gradient: SDL has no radial fill, and a
-				// dozen fading rings read as one soft light.
-				for (int i = 18; i >= 1; --i) {
-					const float t = i / 18.0f;
-					const std::uint8_t a =
-						static_cast<std::uint8_t>(13 * (1 - t) * (1 - t) * dark * 2.2);
-					paint.fillCircle(sx, sy, r * t, client::Color{255, 220, 165, a});
-				}
+				night.cut(sx, sy, static_cast<float>(radius * scale), strength);
 			};
 			// A survivor casts no light of their own. A torch in the hand does,
 			// which is the whole point of carrying one.
 			if (player.alive && inventory.held() == sim::ItemId::Torch) {
-				glow(player.x, player.y, 210);
+				glow(player.x, player.y, 340, 0.95f);
 			}
 			for (const sim::Deployable& thing : build.deployables()) {
-				if (thing.lit) glow(thing.x, thing.y, 250);
+				if (thing.lit) glow(thing.x, thing.y, 400, 1.0f);
 			}
-			SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+			night.present();
+			// The fire's own colour back over the hole it cut, gently.
+			if (player.alive && inventory.held() == sim::ItemId::Torch) {
+				const float sx = static_cast<float>((player.x - camX) * scale) + width * 0.5f;
+				const float sy = static_cast<float>((player.y - camY) * scale) + height * 0.5f;
+				night.warm(sx, sy, static_cast<float>(340 * scale), client::rgb(0xff9a3c),
+						   static_cast<float>(dark) * 0.22f);
+			}
+			for (const sim::Deployable& thing : build.deployables()) {
+				if (!thing.lit) continue;
+				const float sx = static_cast<float>((thing.x - camX) * scale) + width * 0.5f;
+				const float sy = static_cast<float>((thing.y - camY) * scale) + height * 0.5f;
+				night.warm(sx, sy, static_cast<float>(400 * scale), client::rgb(0xff8a30),
+						   static_cast<float>(dark) * 0.26f);
+			}
 		}
 
 		specks.draw(paint, camX, camY, scale, width, height);
