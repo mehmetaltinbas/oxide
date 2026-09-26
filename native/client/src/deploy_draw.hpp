@@ -11,6 +11,7 @@ namespace client {
  * Each is drawn from above at the size it actually blocks, so what you walk
  * into is what you can see.
  */
-void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, float y, float scale);
+void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, float y,
+                    float scale, float clock = 0);
 
 }  // namespace client

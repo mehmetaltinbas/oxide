@@ -10,6 +10,9 @@ namespace client {
 
 namespace {
 
+/** The right shoulder, where every swing pivots. */
+constexpr Point kShoulder{10, -1};
+
 Color shade(Color c, float amount = 0.72f) {
     return Color{static_cast<std::uint8_t>(c.r * amount), static_cast<std::uint8_t>(c.g * amount),
                  static_cast<std::uint8_t>(c.b * amount), c.a};
@@ -61,11 +64,33 @@ void drawHuman(Paint& paint, const HumanLook& look) {
     const MeleePose pose = meleeMotion(style, look.swingT, look.phase);
     const BodyFrame f = look.swimming ? stance : stance.turned(pose.twist);
     const float step = std::sin(look.phase) * 4 * look.stride;
+    // Hurt, every part of them takes the same colour.
+    const auto tint = [&](Color c) { return look.hurt.a > 0 ? look.hurt : c; };
+    const Color skin = tint(look.skin);
+    const Color hair = tint(look.hair);
+    const Color shirt = tint(look.shirt);
+    const Color legs = tint(look.legs);
+
+    if (look.swimming) {
+        // Expanding rings behind a swimmer, timed to the stroke.
+        for (int i = 0; i < 3; ++i) {
+            const float phase = std::fmod(look.phase * 0.5f + i / 3.0f, 1.0f);
+            const float rr = (12 + phase * 22) * look.radius / 13.0f;
+            std::vector<Point> ring;
+            for (int k = 0; k < 20; ++k) {
+                const float a = static_cast<float>(k) / 20 * 6.28318530718f;
+                ring.push_back({look.x + std::cos(a) * rr, look.y + std::sin(a) * rr * 0.45f});
+            }
+            paint.outlinePoly(ring, 2 * look.radius / 13.0f,
+                              Color{190, 225, 245,
+                                    static_cast<std::uint8_t>(87 * (1 - phase))});
+        }
+    }
 
     // Feet, under everything, one ahead of the other.
     if (!look.swimming) {
-        blob(paint, stance, -4.6f, -step + 1, 3, 4.6f, shade(look.legs), true);
-        blob(paint, stance, 4.6f, step + 1, 3, 4.6f, shade(look.legs), true);
+        blob(paint, stance, -4.6f, -step + 1, 3, 4.6f, shade(legs), true);
+        blob(paint, stance, 4.6f, step + 1, 3, 4.6f, shade(legs), true);
     }
 
     // Arms, before the torso, so the shoulder sits over the top of the arm. A
@@ -92,7 +117,7 @@ void drawHuman(Paint& paint, const HumanLook& look) {
         }
     }
     const Point shoulders[2] = {{-10, -1}, {10, -1}};
-    const Color sleeve = shade(look.shirt);
+    const Color sleeve = shade(shirt);
     for (int i = 0; i < 2; ++i) {
         limb(paint, f, shoulders[i].x, shoulders[i].y, hands[i].x, hands[i].y, 5.2f, sleeve);
         // The item goes under the fist, so the hand closes over its grip.
@@ -102,10 +127,26 @@ void drawHuman(Paint& paint, const HumanLook& look) {
         if (holding && look.held != sim::ItemId::Bow && !pose.overHand) {
             drawHeldItem(paint, f, look.held, pose, look.bowDraw);
         }
-        blob(paint, f, hands[i].x, hands[i].y, 2.9f, 2.9f, look.skin, true);
+        blob(paint, f, hands[i].x, hands[i].y, 2.9f, 2.9f, skin, true);
         if (holding && look.held != sim::ItemId::Bow && pose.overHand) {
             drawHeldItem(paint, f, look.held, pose, look.bowDraw);
         }
+    }
+
+    if (look.swingT >= 0 && look.swingT < 0.34f && look.held != sim::ItemId::None &&
+        !look.swimming && meleeStyleOf(look.held) == MeleeStyle::Chop) {
+        // Motion lines behind the head while it is still travelling.
+        const float sweep = 1 - look.swingT / 0.34f;
+        std::vector<Point> arc;
+        for (int i = 0; i <= 10; ++i) {
+            const float u = i / 10.0f;
+            const float a = 1.6f + (pose.angle - 1.6f) * u;
+            const float reach = 12.5f + 20.0f;
+            arc.push_back(f.at(kShoulder.x + std::sin(a) * reach,
+                               kShoulder.y - std::cos(a) * reach));
+        }
+        paint.outlinePoly(arc, 1.6f * f.scale,
+                          Color{20, 17, 13, static_cast<std::uint8_t>(120 * sweep)}, false);
     }
 
     if (look.held == sim::ItemId::Bow && !look.swimming) {
@@ -138,17 +179,17 @@ void drawHuman(Paint& paint, const HumanLook& look) {
         chestEdge.push_back(f.at(x, y));
     }
     paint.fillPoly(chestEdge, kInk);
-    paint.fillPoly(chest, look.shirt);
+    paint.fillPoly(chest, shirt);
 
     // The head: ears first, so the skull covers their inner half, then the
     // nose, which is the one thing that says which way a face is turned when
     // all you can see is the top of a head.
     const float hy = -1.2f;
-    blob(paint, f, -6.6f, hy - 0.4f, 1.6f, 2.3f, look.skin, true);
-    blob(paint, f, 6.6f, hy - 0.4f, 1.6f, 2.3f, look.skin, true);
-    blob(paint, f, 0, hy, 6.8f, 6.8f, look.skin, true);
-    blob(paint, f, 0, hy - 7, 1.5f, 1.9f, look.skin, true);
-    blob(paint, f, 0, hy + 1.7f, 6.6f, 6.6f, look.hair, true);
+    blob(paint, f, -6.6f, hy - 0.4f, 1.6f, 2.3f, skin, true);
+    blob(paint, f, 6.6f, hy - 0.4f, 1.6f, 2.3f, skin, true);
+    blob(paint, f, 0, hy, 6.8f, 6.8f, skin, true);
+    blob(paint, f, 0, hy - 7, 1.5f, 1.9f, skin, true);
+    blob(paint, f, 0, hy + 1.7f, 6.6f, 6.6f, hair, true);
 }
 
 }  // namespace client

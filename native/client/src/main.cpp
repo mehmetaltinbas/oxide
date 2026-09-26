@@ -1278,6 +1278,9 @@ int main(int argc, char** argv) {
             look.phase = static_cast<float>(player.walkPhase);
             look.radius = static_cast<float>(sim::PlayerRules::kRadius * scale);
             look.swimming = player.swimming;
+            // Struck, you flash: the one thing that says a blow landed on you
+            // rather than near you.
+            if (player.hurtFlash > 0) look.hurt = client::rgb(0xff9a9a);
             look.held = inventory.held();
             look.bowDraw = static_cast<float>(player.bowDraw / sim::kBowDrawSeconds);
             // Where the swing has got to, as a fraction of its own length.
@@ -1390,9 +1393,19 @@ int main(int argc, char** argv) {
 
         for (const sim::Deployable& thing : build.deployables()) {
             if (thing.kind == sim::DeployKind::SleepingBag) continue;
+            if (hidden(thing.x, thing.y)) continue;
             const float sx = static_cast<float>((thing.x - camX) * scale) + width * 0.5f;
             const float sy = static_cast<float>((thing.y - camY) * scale) + height * 0.5f;
-            client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale));
+            client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale),
+                                   static_cast<float>(clock));
+            if (thing.hp < thing.maxHp) {
+                const float w = 36 * static_cast<float>(density);
+                const float h = 5 * static_cast<float>(density);
+                paint.fillRect(sx - w / 2 - 2, sy + 20 * static_cast<float>(scale) - 2, w + 4,
+                               h + 4, client::kInk);
+                paint.fillRect(sx - w / 2, sy + 20 * static_cast<float>(scale),
+                               w * thing.hp / thing.maxHp, h, client::rgb(0xffffff));
+            }
         }
 
         // A roof over every sealed room but the one you are in: a base is a

@@ -31,9 +31,11 @@ void box(Paint& paint, float x, float y, float halfW, float halfH, Color color) 
 
 }  // namespace
 
-void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, float y,
-                    float scale) {
+void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, float y, float scale,
+                    float clock) {
     const float r = static_cast<float>(sim::kDeployHalf) * scale;
+    // A flame is never still: it breathes on its own clock.
+    const float flicker = 0.75f + std::sin(clock * 11.0f) * 0.25f;
     switch (deployable.kind) {
         case sim::DeployKind::Campfire: {
             // A ring of stones with the wood stacked inside it, and a flame in
@@ -49,11 +51,13 @@ void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, fl
             paint.line(x - r * 0.4f, y - r * 0.3f, x + r * 0.42f, y + r * 0.28f, r * 0.2f,
                        rgb(0x8a5a2e));
             if (deployable.lit) {
-                paint.fillPoly({{x - r * 0.3f, y + r * 0.2f}, {x, y - r * 0.75f},
-                                {x + r * 0.3f, y + r * 0.2f}},
+                paint.fillPoly({{x - r * 0.3f * flicker, y + r * 0.2f},
+                                {x, y - r * 0.75f * flicker},
+                                {x + r * 0.3f * flicker, y + r * 0.2f}},
                                rgb(0xff8c2e));
-                paint.fillPoly({{x - r * 0.14f, y + r * 0.1f}, {x, y - r * 0.4f},
-                                {x + r * 0.14f, y + r * 0.1f}},
+                paint.fillPoly({{x - r * 0.14f * flicker, y + r * 0.1f},
+                                {x, y - r * 0.4f * flicker},
+                                {x + r * 0.14f * flicker, y + r * 0.1f}},
                                rgb(0xffd98a));
             }
             break;
