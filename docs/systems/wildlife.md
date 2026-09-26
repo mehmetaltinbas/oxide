@@ -65,9 +65,19 @@ forgot about it, and nothing else would have caught that.
 
 A player walks at 132 and sprints at 185, which is the number the rest are set
 against: an elk at 165 can be run down on foot and you will arrive with nothing
-left, a wolf at 184 is just slower than a sprint, and a bear at 92 never
-catches anybody who runs. A wolf has to outrun what it hunts or the chain does
-nothing, which is why it is the fastest thing on the island bar you.
+left, and a bear at 92 never catches anybody who runs.
+
+The wolf's 176 is the number the rest hangs off, and it is pinned from both
+sides. It has to sit **under a sprint**, or a wolf is a death sentence rather
+than a decision. It has to sit **over an elk's 165**, or it never eats and the
+food chain does nothing. That leaves nine units of margin against a sprint,
+which is a break you have to commit to rather than one you stroll away with. It
+was 184 for a while, a sprint to within a rounding error, and you could not get
+away from one at all.
+
+`play_check` asserts both halves: `outrun` sprints a player away from a wolf
+for ten seconds and reports the gap, and `chain` puts a wolf on an elk and
+requires it to catch one.
 
 Anything that runs from you bolts within 150 units, not only once you have hit
 it: you do not walk up to an elk. It was 260, at which range everything you

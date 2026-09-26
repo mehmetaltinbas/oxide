@@ -475,6 +475,45 @@ int main() {
 					elk > 0 ? "ran from" : "CLOSED ON", std::abs(elk));
 	}
 
+	// A sprint gets you away from a wolf, and only just. Both halves matter:
+	// under a sprint or a wolf is a death sentence, over an elk or it starves.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem empty;
+		sim::Projectiles none;
+		sim::NpcSystem wild;
+		wild.mutableList().clear();
+		sim::Player runner{};
+		runner.x = 10368;
+		runner.y = 10368;
+		runner.alive = true;
+		sim::Npc wolf{};
+		wolf.id = 1;
+		wolf.kind = sim::NpcKind::Wolf;
+		wolf.x = runner.x - 90;
+		wolf.y = runner.y;
+		wolf.hp = sim::npcDef(sim::NpcKind::Wolf).hp;
+		wolf.homeX = wolf.x;
+		wolf.homeY = wolf.y;
+		wolf.leash = 6000;
+		wild.mutableList().push_back(wolf);
+		sim::PlayerInput away;
+		away.moveX = 1;
+		away.sprint = true;
+		away.aim = 0;
+		for (int i = 0; i < 60 * 10; ++i) {
+			// Open ground, so this measures speed and not a tree in the way.
+			island.clearNaturalIn(runner.x - 300, runner.y - 300, runner.x + 900,
+								  runner.y + 300);
+			sim::stepPlayer(island, empty, runner, away, dt);
+			wild.update(island, empty, none, dt, runner);
+		}
+		const double gap = runner.x - wild.list()[0].x;
+		std::printf("outrun: sprinting away from a wolf for ten seconds, gap %.0f from 90\n",
+					gap);
+	}
+
 	// Nothing walks through a barrel, whoever it is: the one collision routine.
 	{
 		sim::World island;

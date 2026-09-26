@@ -64,11 +64,16 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 false,
 	 0},
 
-	// Everywhere that is not trees: grass, tundra and sand alike, which is
-	// what keeps the desert from being a free walk. At 184 it runs down a deer
-	// and very nearly runs down you: a sprint just about holds it off, and
-	// nothing else does.
-	{NpcKind::Wolf, "Wolf", 80, 184, 13, 22, 28, 0.9, true, false, kNoGun,
+	// Everywhere that is not trees: grass, tundra and sand alike, which is what
+	// keeps the desert from being a free walk.
+	//
+	// 176 against a sprint of 185. It has to be under a sprint, or a wolf is a
+	// death sentence rather than a decision; it has to be over an elk's 165, or
+	// it never eats and the food chain does nothing. Nine units of margin is
+	// what is left, which is a break you have to commit to rather than one you
+	// stroll away with. It was 184, which is a sprint to within a rounding
+	// error: you could not get away at all.
+	{NpcKind::Wolf, "Wolf", 80, 176, 13, 22, 28, 0.9, true, false, kNoGun,
 	 {{ItemId::MeatRaw, 2, 4},
 	  {ItemId::Leather, 6, 12},
 	  {ItemId::Bone, 3, 6},
