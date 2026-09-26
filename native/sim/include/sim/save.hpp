@@ -12,14 +12,14 @@ namespace sim {
 
 /** Everything a session is, apart from the island itself. */
 struct Session {
-    std::uint32_t seed = 0;
-    double clock = 0;
-    /** When it was written, so what was away can rot while you were. */
-    std::int64_t savedAt = 0;
-    /** How long the island ran without you, filled in by the load. */
-    double hoursAway = 0;
-    Player player;
-    Inventory inventory;
+	std::uint32_t seed = 0;
+	double clock = 0;
+	/** When it was written, so what was away can rot while you were. */
+	std::int64_t savedAt = 0;
+	/** How long the island ran without you, filled in by the load. */
+	double hoursAway = 0;
+	Player player;
+	Inventory inventory;
 };
 
 /**
@@ -33,7 +33,7 @@ struct Session {
  * a different shape of the game is refused rather than misread.
  */
 bool saveSession(const std::string& path, const Session& session, const World& world,
-                 const BuildSystem& build);
+				 const BuildSystem& build);
 
 /** Returns false when there is nothing to load, or it is of the wrong vintage. */
 bool loadSession(const std::string& path, Session& session, World& world, BuildSystem& build);

@@ -4,12 +4,12 @@
  * numbers rather than a new sound routine.
  */
 export interface GunSound {
-    /** The crack: the sharp front of the report. */
-    crack: { hz: number; dur: number; peak: number; filter: BiquadFilterType };
-    /** The thump: the low body of it, a tone sliding down. */
-    thump: { from: number; to: number; dur: number; peak: number; wave: OscillatorType };
-    /** The tail: the report rolling off, a long quiet low rumble. */
-    tail?: { hz: number; dur: number; peak: number };
-    /** Mechanical clicks after the shot, as offsets in seconds: a pump racking. */
-    mech?: number[];
+	/** The crack: the sharp front of the report. */
+	crack: { hz: number; dur: number; peak: number; filter: BiquadFilterType };
+	/** The thump: the low body of it, a tone sliding down. */
+	thump: { from: number; to: number; dur: number; peak: number; wave: OscillatorType };
+	/** The tail: the report rolling off, a long quiet low rumble. */
+	tail?: { hz: number; dur: number; peak: number };
+	/** Mechanical clicks after the shot, as offsets in seconds: a pump racking. */
+	mech?: number[];
 }

@@ -4,6 +4,6 @@
  * before this was a number; halved, so cloth is something you look for.
  */
 export const NETTLES = {
-    perTile: 0.1,
-    spacing: 52,
+	perTile: 0.1,
+	spacing: 52,
 } as const;

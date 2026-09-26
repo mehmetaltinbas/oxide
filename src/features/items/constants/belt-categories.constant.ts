@@ -5,10 +5,10 @@ import { ItemCategory } from 'src/features/items/types/item-category.type';
  * main inventory and never auto-placed into a belt slot. See docs/systems/inventory.md.
  */
 export const BELT_CATEGORIES: ItemCategory[] = [
-    'tool',
-    'weapon',
-    'consumable',
-    'deployable',
-    'explosive',
-    'clothing',
+	'tool',
+	'weapon',
+	'consumable',
+	'deployable',
+	'explosive',
+	'clothing',
 ];

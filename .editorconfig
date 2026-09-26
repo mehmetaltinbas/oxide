@@ -1,18 +1,22 @@
-# Indentation is four spaces, everywhere, for everyone.
-# Most editors honour this file with no plugin; the ones that don't are covered
-# by Prettier, which every `npm run format` and `npm run check` run enforces.
+# Indentation for this project, in the one file every editor reads.
+#
+# Tabs, rendered four wide. A tab is one level of indentation and nothing else;
+# spaces after it are alignment, for a continuation sitting under an open
+# bracket. See docs/architecture/indentation.md.
 root = true
 
 [*]
 charset = utf-8
 end_of_line = lf
-indent_style = space
-indent_size = 4
 insert_final_newline = true
 trim_trailing_whitespace = true
+indent_style = tab
+indent_size = 4
+tab_width = 4
 
 [*.md]
 trim_trailing_whitespace = false
 
-[*.{json,yml,yaml}]
+[*.{yml,yaml,json}]
+indent_style = space
 indent_size = 2

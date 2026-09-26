@@ -10,15 +10,15 @@ import { PlayerState } from 'src/features/survival/types/player-state.interface'
  * orchestrator. See docs/architecture/project-structure.md.
  */
 export interface SurvivalHooks {
-    player(): PlayerState;
-    containers(): Container[];
-    heldItem(): ItemStack | null;
-    /** Creative mode: nothing drains and nothing hurts. */
-    sandbox(): boolean;
-    /** How dark it is right now, which is most of how cold it is. */
-    darkness(): number;
-    dropStack(stack: ItemStack, x: number, y: number): void;
-    notify(text: string): void;
-    /** The player ran out of health. */
-    die(): void;
+	player(): PlayerState;
+	containers(): Container[];
+	heldItem(): ItemStack | null;
+	/** Creative mode: nothing drains and nothing hurts. */
+	sandbox(): boolean;
+	/** How dark it is right now, which is most of how cold it is. */
+	darkness(): number;
+	dropStack(stack: ItemStack, x: number, y: number): void;
+	notify(text: string): void;
+	/** The player ran out of health. */
+	die(): void;
 }

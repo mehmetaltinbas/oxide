@@ -15,52 +15,52 @@ inline constexpr int kMonumentKindCount = 6;
 
 /** One entry of a monument's loot table: how much of what, when it rolls. */
 struct LootEntry {
-    ItemId id;
-    int low;
-    int high;
+	ItemId id;
+	int low;
+	int high;
 };
 
 struct MonumentDef {
-    MonumentKind kind;
-    const char* name;
-    double radius;
-    /** Radiation a second at the heart of it, and nought for the safe ones. */
-    double rads;
-    int scientists;
-    /** The military base is held by soldiers rather than scientists. */
-    bool soldiers;
-    int crates;
-    LootEntry loot[8];
-    int lootCount;
-    /** How many of it an island gets. */
-    int count;
-    /** A lighthouse stands on the shore; cabins are in the trees and the snow. */
-    bool coast;
-    bool forestOrSnow;
-    /** The big three are never neighbours, whatever size the island is. */
-    bool major;
+	MonumentKind kind;
+	const char* name;
+	double radius;
+	/** Radiation a second at the heart of it, and nought for the safe ones. */
+	double rads;
+	int scientists;
+	/** The military base is held by soldiers rather than scientists. */
+	bool soldiers;
+	int crates;
+	LootEntry loot[8];
+	int lootCount;
+	/** How many of it an island gets. */
+	int count;
+	/** A lighthouse stands on the shore; cabins are in the trees and the snow. */
+	bool coast;
+	bool forestOrSnow;
+	/** The big three are never neighbours, whatever size the island is. */
+	bool major;
 };
 
 const MonumentDef& monumentDef(MonumentKind kind);
 
 /** One of them, standing somewhere. */
 struct Monument {
-    int id;
-    MonumentKind kind;
-    double x;
-    double y;
-    double radius;
+	int id;
+	MonumentKind kind;
+	double x;
+	double y;
+	double radius;
 };
 
 /** A crate of loot at a monument, which fills again a while after it is emptied. */
 struct LootCrate {
-    int id;
-    MonumentKind monument;
-    double x;
-    double y;
-    Container container;
-    bool looted;
-    double respawn;
+	int id;
+	MonumentKind monument;
+	double x;
+	double y;
+	Container container;
+	bool looted;
+	double respawn;
 };
 
 /**

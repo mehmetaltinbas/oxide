@@ -5,7 +5,7 @@
  * `nockRest` and `pull` match the string in `drawBow`.
  */
 export const BOW_HOLD = {
-    grip: [1.5, -17] as [number, number],
-    nockRest: 4.5,
-    pull: 9,
+	grip: [1.5, -17] as [number, number],
+	nockRest: 4.5,
+	pull: 9,
 };

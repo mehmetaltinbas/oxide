@@ -13,18 +13,18 @@ namespace client {
 
 /** A number that floats up off something and fades: what you just gained. */
 struct Popup {
-    std::string text;
-    double x;
-    double y;
-    double life;
-    Color color;
+	std::string text;
+	double x;
+	double y;
+	double life;
+	Color color;
 };
 
 /** Where one belt slot sits on the screen, in device pixels. */
 struct BeltSlot {
-    float x = 0;
-    float y = 0;
-    float size = 0;
+	float x = 0;
+	float y = 0;
+	float size = 0;
 };
 
 /**
@@ -47,58 +47,58 @@ int beltSlotUnder(float px, float py, int width, int height, float uiScale);
  */
 class Hud {
 public:
-    void say(const std::string& text, double x, double y, Color color);
+	void say(const std::string& text, double x, double y, Color color);
 
-    /**
-     * A line of chat with yourself: what just happened, in the corner, where
-     * it does not sit on top of the thing it is about.
-     */
-    void notify(const std::string& text);
-    void update(double dt);
+	/**
+	 * A line of chat with yourself: what just happened, in the corner, where
+	 * it does not sit on top of the thing it is about.
+	 */
+	void notify(const std::string& text);
+	void update(double dt);
 
-    /** The popups, in world coordinates, drawn with the world. */
-    void drawPopups(SDL_Renderer* renderer, double cameraX, double cameraY, double scale, int width,
-                    int height) const;
+	/** The popups, in world coordinates, drawn with the world. */
+	void drawPopups(SDL_Renderer* renderer, double cameraX, double cameraY, double scale, int width,
+					int height) const;
 
-    /**
-     * `uiScale` is how dense the display is: the interface is laid out in
-     * points and drawn in pixels, so on a retina screen it doubles rather than
-     * coming out half the size it was meant to be.
-     */
-    void draw(Paint& paint, const sim::Inventory& inventory, int health, int width, int height,
-              const char* prompt, float uiScale) const;
+	/**
+	 * `uiScale` is how dense the display is: the interface is laid out in
+	 * points and drawn in pixels, so on a retina screen it doubles rather than
+	 * coming out half the size it was meant to be.
+	 */
+	void draw(Paint& paint, const sim::Inventory& inventory, int health, int width, int height,
+			  const char* prompt, float uiScale) const;
 
-    /**
-     * What is loaded and what is left, the reload's progress, and how far a
-     * bow is drawn. Rounds below zero means nothing is being aimed.
-     */
-    void setAmmo(int carried, int loaded, double reloading, double bowDraw);
+	/**
+	 * What is loaded and what is left, the reload's progress, and how far a
+	 * bow is drawn. Rounds below zero means nothing is being aimed.
+	 */
+	void setAmmo(int carried, int loaded, double reloading, double bowDraw);
 
-    /** Food, water, warmth, what you have taken in, and what is being applied. */
-    void setVitals(double calories, double hydration, double temperature, double radiation,
-                   bool bleeding, double applying);
+	/** Food, water, warmth, what you have taken in, and what is being applied. */
+	void setVitals(double calories, double hydration, double temperature, double radiation,
+				   bool bleeding, double applying);
 
-    /** The clock, for anything that beats or blinks. */
-    void setClock(double seconds) { clock_ = seconds; }
+	/** The clock, for anything that beats or blinks. */
+	void setClock(double seconds) { clock_ = seconds; }
 
-    /** The lettering, which the interface needs as much as the world does. */
-    void useText(Text* text) { lettering_ = text; }
+	/** The lettering, which the interface needs as much as the world does. */
+	void useText(Text* text) { lettering_ = text; }
 
 private:
-    std::vector<Popup> popups_;
-    std::vector<Popup> notices_;
-    int carried_ = -1;
-    int loaded_ = 0;
-    double reloading_ = 0;
-    double bowDraw_ = 0;
-    double calories_ = 100;
-    double hydration_ = 100;
-    double temperature_ = 20;
-    double radiation_ = 0;
-    bool bleeding_ = false;
-    double applying_ = 0;
-    double clock_ = 0;
-    Text* lettering_ = nullptr;
+	std::vector<Popup> popups_;
+	std::vector<Popup> notices_;
+	int carried_ = -1;
+	int loaded_ = 0;
+	double reloading_ = 0;
+	double bowDraw_ = 0;
+	double calories_ = 100;
+	double hydration_ = 100;
+	double temperature_ = 20;
+	double radiation_ = 0;
+	bool bleeding_ = false;
+	double applying_ = 0;
+	double clock_ = 0;
+	Text* lettering_ = nullptr;
 };
 
 }  // namespace client

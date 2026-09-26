@@ -12,6 +12,6 @@ namespace client {
  * into is what you can see.
  */
 void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, float y,
-                    float scale, float clock = 0);
+					float scale, float clock = 0);
 
 }  // namespace client

@@ -19,40 +19,40 @@ import { OreMix } from 'src/features/world/types/ore-mix.interface';
  * and so gunpowder, down in the heat.
  */
 export const ORES: {
-    referenceArea: number;
-    spacing: number;
-    regions: { biomes: Biome[]; count: number; mix: [OreMix, OreMix, OreMix] }[];
+	referenceArea: number;
+	spacing: number;
+	regions: { biomes: Biome[]; count: number; mix: [OreMix, OreMix, OreMix] }[];
 } = {
-    referenceArea: 20736 * 20736,
-    /** How far an ore node keeps from anything else, as before. */
-    spacing: 76,
-    regions: [
-        {
-            biomes: ['grass', 'forest'],
-            count: 500,
-            mix: [
-                { kind: 'stone_node', share: 0.45 },
-                { kind: 'metal_node', share: 0.3 },
-                { kind: 'sulfur_node', share: 0.25 },
-            ],
-        },
-        {
-            biomes: ['snow'],
-            count: 750,
-            mix: [
-                { kind: 'metal_node', share: 0.45 },
-                { kind: 'stone_node', share: 0.3 },
-                { kind: 'sulfur_node', share: 0.25 },
-            ],
-        },
-        {
-            biomes: ['desert'],
-            count: 750,
-            mix: [
-                { kind: 'sulfur_node', share: 0.45 },
-                { kind: 'stone_node', share: 0.3 },
-                { kind: 'metal_node', share: 0.25 },
-            ],
-        },
-    ],
+	referenceArea: 20736 * 20736,
+	/** How far an ore node keeps from anything else, as before. */
+	spacing: 76,
+	regions: [
+		{
+			biomes: ['grass', 'forest'],
+			count: 500,
+			mix: [
+				{ kind: 'stone_node', share: 0.45 },
+				{ kind: 'metal_node', share: 0.3 },
+				{ kind: 'sulfur_node', share: 0.25 },
+			],
+		},
+		{
+			biomes: ['snow'],
+			count: 750,
+			mix: [
+				{ kind: 'metal_node', share: 0.45 },
+				{ kind: 'stone_node', share: 0.3 },
+				{ kind: 'sulfur_node', share: 0.25 },
+			],
+		},
+		{
+			biomes: ['desert'],
+			count: 750,
+			mix: [
+				{ kind: 'sulfur_node', share: 0.45 },
+				{ kind: 'stone_node', share: 0.3 },
+				{ kind: 'metal_node', share: 0.25 },
+			],
+		},
+	],
 };

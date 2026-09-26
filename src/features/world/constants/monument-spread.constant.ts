@@ -14,7 +14,7 @@ import { WORLD_W } from 'src/features/world/constants/world-w.constant';
  * an island with little room still gets all three rather than losing one.
  */
 export const MONUMENT_SPREAD = {
-    apart: Math.min(WORLD_W, WORLD_H) / 3,
-    relax: 0.85,
-    rounds: 12,
+	apart: Math.min(WORLD_W, WORLD_H) / 3,
+	relax: 0.85,
+	rounds: 12,
 } as const;

@@ -4,9 +4,9 @@
  * almost-equal paddings. See docs/design-system/design-tokens.md.
  */
 export const SPACE = {
-    xs: 4,
-    sm: 8,
-    md: 14,
-    lg: 24,
-    xl: 40,
+	xs: 4,
+	sm: 8,
+	md: 14,
+	lg: 24,
+	xl: 40,
 } as const;

@@ -15,16 +15,16 @@
  * and the game should look ordinary rather than broken in that moment.
  */
 export const TYPE = {
-    /** Panel titles, the contract line, cash, damage numbers, nametags. */
-    display: "'Bangers', 'Comic Neue', ui-monospace, monospace",
-    /** Item names, tooltips, counts, hints: anything read rather than glanced. */
-    body: "'Comic Neue', ui-monospace, monospace",
-    /**
-     * Kept for anything that has to line up in columns.
-     *
-     * Comic Neue is proportional, so a changing number jitters its neighbours
-     * about. Where digits sit in a row and are read as a table, monospace is
-     * still the right answer and style comes second.
-     */
-    mono: 'ui-monospace, monospace',
+	/** Panel titles, the contract line, cash, damage numbers, nametags. */
+	display: "'Bangers', 'Comic Neue', ui-monospace, monospace",
+	/** Item names, tooltips, counts, hints: anything read rather than glanced. */
+	body: "'Comic Neue', ui-monospace, monospace",
+	/**
+	 * Kept for anything that has to line up in columns.
+	 *
+	 * Comic Neue is proportional, so a changing number jitters its neighbours
+	 * about. Where digits sit in a row and are read as a table, monospace is
+	 * still the right answer and style comes second.
+	 */
+	mono: 'ui-monospace, monospace',
 } as const;

@@ -81,9 +81,9 @@ and an enclosure flood that cost 22ms every time anything was built.
 ```ts
 const t = [];
 for (let i = 0; i < 1800; i++) {
-    const t0 = performance.now();
-    game.update(1 / 60);
-    t.push(performance.now() - t0);
+	const t0 = performance.now();
+	game.update(1 / 60);
+	t.push(performance.now() - t0);
 }
 t.sort((a, b) => a - b);
 // report p50, p95, p99 and the worst, an average hides the spike that is the problem

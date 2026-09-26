@@ -5,6 +5,6 @@
  * rolled, so it leans the same way on every frame.
  */
 export function seeded(seed: number, slot: number): number {
-    const n = Math.sin(seed * 12.9898 + slot * 78.233) * 43758.5453;
-    return n - Math.floor(n);
+	const n = Math.sin(seed * 12.9898 + slot * 78.233) * 43758.5453;
+	return n - Math.floor(n);
 }

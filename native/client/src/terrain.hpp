@@ -19,35 +19,35 @@ namespace client {
  */
 class Terrain {
 public:
-    explicit Terrain(SDL_Renderer* renderer) : renderer_(renderer) {}
-    ~Terrain();
+	explicit Terrain(SDL_Renderer* renderer) : renderer_(renderer) {}
+	~Terrain();
 
-    Terrain(const Terrain&) = delete;
-    Terrain& operator=(const Terrain&) = delete;
+	Terrain(const Terrain&) = delete;
+	Terrain& operator=(const Terrain&) = delete;
 
-    /** Draw the island under a view: world point at the centre, and a zoom. */
-    void draw(const sim::World& world, double cameraX, double cameraY, double zoom, int screenW,
-              int screenH);
+	/** Draw the island under a view: world point at the centre, and a zoom. */
+	void draw(const sim::World& world, double cameraX, double cameraY, double zoom, int screenW,
+			  int screenH);
 
-    /**
-     * The dot screen over the ground.
-     *
-     * Light enough to read as paper rather than as dirt, and the one thing
-     * that stops a flat biome colour looking like a vector drawing. Laid over
-     * the terrain and under everything that stands on it.
-     */
-    void drawScreen(double cameraX, double cameraY, double zoom, int screenW, int screenH);
+	/**
+	 * The dot screen over the ground.
+	 *
+	 * Light enough to read as paper rather than as dirt, and the one thing
+	 * that stops a flat biome colour looking like a vector drawing. Laid over
+	 * the terrain and under everything that stands on it.
+	 */
+	void drawScreen(double cameraX, double cameraY, double zoom, int screenW, int screenH);
 
 private:
-    static constexpr int kVariants = 4;
-    /** Painted at this many pixels a tile, then scaled to the zoom. */
-    static constexpr int kTilePixels = 96;
+	static constexpr int kVariants = 4;
+	/** Painted at this many pixels a tile, then scaled to the zoom. */
+	static constexpr int kTilePixels = 96;
 
-    SDL_Renderer* renderer_ = nullptr;
-    std::array<SDL_Texture*, sim::kBiomeCount * kVariants> tiles_{};
-    SDL_Texture* screen_ = nullptr;
+	SDL_Renderer* renderer_ = nullptr;
+	std::array<SDL_Texture*, sim::kBiomeCount * kVariants> tiles_{};
+	SDL_Texture* screen_ = nullptr;
 
-    SDL_Texture* tile(sim::Biome biome, int variant);
+	SDL_Texture* tile(sim::Biome biome, int variant);
 };
 
 }  // namespace client

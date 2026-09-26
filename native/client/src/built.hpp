@@ -7,10 +7,10 @@ namespace client {
 
 /** Where a piece would go, worked out from where the cursor is. */
 struct BuildTarget {
-    sim::BuildKind kind = sim::BuildKind::Foundation;
-    int gx = 0;
-    int gy = 0;
-    sim::EdgeSide side = sim::EdgeSide::North;
+	sim::BuildKind kind = sim::BuildKind::Foundation;
+	int gx = 0;
+	int gy = 0;
+	sim::EdgeSide side = sim::EdgeSide::North;
 };
 
 /** The cell under a point, and the edge nearest it. */
@@ -24,10 +24,10 @@ BuildTarget targetAt(double worldX, double worldY, sim::BuildKind kind);
  * draws itself from its own place on the grid.
  */
 void drawBuilt(Paint& paint, const sim::Structure& piece, double cameraX, double cameraY,
-               double scale, int width, int height);
+			   double scale, int width, int height);
 
 /** The same shape as a ghost: green where it may go, red where it may not. */
 void drawGhost(Paint& paint, const BuildTarget& target, sim::BuildTier tier, bool allowed,
-               double cameraX, double cameraY, double scale, int width, int height);
+			   double cameraX, double cameraY, double scale, int width, int height);
 
 }  // namespace client

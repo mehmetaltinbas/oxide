@@ -11,7 +11,7 @@
  * deliberate.
  */
 export const TRANSFER = {
-    baseSeconds: 0.34,
-    perItemSeconds: 0.004,
-    maxSeconds: 1.4,
+	baseSeconds: 0.34,
+	perItemSeconds: 0.004,
+	maxSeconds: 1.4,
 } as const;

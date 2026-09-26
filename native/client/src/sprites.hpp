@@ -12,10 +12,10 @@ namespace client {
 
 /** How a node is dressed: its own look, and whether it stands in the snow. */
 struct SpriteKey {
-    sim::NodeKind kind;
-    int variant;
-    bool snowy;
-    bool broadleaf;
+	sim::NodeKind kind;
+	int variant;
+	bool snowy;
+	bool broadleaf;
 };
 
 /**
@@ -29,36 +29,36 @@ struct SpriteKey {
  */
 class Sprites {
 public:
-    explicit Sprites(SDL_Renderer* renderer) : renderer_(renderer) {}
-    ~Sprites();
+	explicit Sprites(SDL_Renderer* renderer) : renderer_(renderer) {}
+	~Sprites();
 
-    Sprites(const Sprites&) = delete;
-    Sprites& operator=(const Sprites&) = delete;
+	Sprites(const Sprites&) = delete;
+	Sprites& operator=(const Sprites&) = delete;
 
-    /** How many looks each kind is drawn in. */
-    static constexpr int kVariants = 12;
-    /** The radius everything is baked at, before it is scaled to the node. */
-    static constexpr float kBakeRadius = 48.0f;
+	/** How many looks each kind is drawn in. */
+	static constexpr int kVariants = 12;
+	/** The radius everything is baked at, before it is scaled to the node. */
+	static constexpr float kBakeRadius = 48.0f;
 
-    /** Draw one node, its foot at the given screen point, at this scale. */
-    void draw(const sim::ResourceNode& node, float screenX, float screenY, float scale,
-              bool snowy, bool broadleaf, float alpha = 1.0f);
+	/** Draw one node, its foot at the given screen point, at this scale. */
+	void draw(const sim::ResourceNode& node, float screenX, float screenY, float scale,
+			  bool snowy, bool broadleaf, float alpha = 1.0f);
 
 private:
-    struct Baked {
-        SDL_Texture* texture = nullptr;
-        /** Where the foot of the thing sits inside the texture. */
-        float originX = 0;
-        float originY = 0;
-        float width = 0;
-        float height = 0;
-    };
+	struct Baked {
+		SDL_Texture* texture = nullptr;
+		/** Where the foot of the thing sits inside the texture. */
+		float originX = 0;
+		float originY = 0;
+		float width = 0;
+		float height = 0;
+	};
 
-    SDL_Renderer* renderer_ = nullptr;
-    /** kind, variant, snowy, broadleaf. */
-    std::array<Baked, sim::kNodeKindCount * kVariants * 2 * 2> baked_{};
+	SDL_Renderer* renderer_ = nullptr;
+	/** kind, variant, snowy, broadleaf. */
+	std::array<Baked, sim::kNodeKindCount * kVariants * 2 * 2> baked_{};
 
-    const Baked& bake(SpriteKey key);
+	const Baked& bake(SpriteKey key);
 };
 
 }  // namespace client

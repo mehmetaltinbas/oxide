@@ -10,7 +10,7 @@ import { NpcKind } from 'src/features/npcs/types/npc-kind.type';
  * enough to notice.
  */
 export const WILDLIFE: [NpcKind, number][] = [
-    ['boar', 90],
-    ['wolf', 55],
-    ['bear', 26],
+	['boar', 90],
+	['wolf', 55],
+	['bear', 26],
 ];

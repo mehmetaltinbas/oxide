@@ -13,13 +13,13 @@ import { DAY_SECONDS } from 'src/features/time/constants/day-seconds.constant';
  * not all pop back on the same tick.
  */
 export const REGROWTH = {
-    seconds: DAY_SECONDS,
-    /** Fraction of a day of random slack, applied either way. */
-    spread: 0.08,
-    /**
-     * Retry delay when the spot is still built over. Short on purpose: this is
-     * not the resource's timer, it is a check to run again once the base that
-     * is standing on it might have come down.
-     */
-    blockedRetrySeconds: 90,
+	seconds: DAY_SECONDS,
+	/** Fraction of a day of random slack, applied either way. */
+	spread: 0.08,
+	/**
+	 * Retry delay when the spot is still built over. Short on purpose: this is
+	 * not the resource's timer, it is a check to run again once the base that
+	 * is standing on it might have come down.
+	 */
+	blockedRetrySeconds: 90,
 } as const;

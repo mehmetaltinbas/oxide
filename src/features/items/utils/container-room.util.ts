@@ -10,11 +10,11 @@ import { ItemId } from 'src/features/items/types/item-id.type';
  * part of a stack that fits instead of refusing the whole thing.
  */
 export function containerRoom(c: Container, id: ItemId): number {
-    const max = ITEMS[id].stack;
-    let room = 0;
-    for (const s of c.slots) {
-        if (!s) room += max;
-        else if (s.id === id) room += max - s.count;
-    }
-    return room;
+	const max = ITEMS[id].stack;
+	let room = 0;
+	for (const s of c.slots) {
+		if (!s) room += max;
+		else if (s.id === id) room += max - s.count;
+	}
+	return room;
 }

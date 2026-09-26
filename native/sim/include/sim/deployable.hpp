@@ -8,14 +8,14 @@ namespace sim {
 
 /** The things you put down rather than build: they sit on a cell of their own. */
 enum class DeployKind : std::uint8_t {
-    Campfire,
-    Furnace,
-    ToolCupboard,
-    WoodenBox,
-    SleepingBag,
-    Workbench1,
-    Workbench2,
-    Workbench3,
+	Campfire,
+	Furnace,
+	ToolCupboard,
+	WoodenBox,
+	SleepingBag,
+	Workbench1,
+	Workbench2,
+	Workbench3,
 };
 
 /** How near you must stand to a bench for it to count. */
@@ -50,28 +50,28 @@ inline constexpr double kWoodBurnSeconds = 4;
 
 /** Somewhere to put things: a box, a fire's grate, a furnace's belly. */
 struct Container {
-    std::vector<ItemStack> slots;
+	std::vector<ItemStack> slots;
 
-    /** Takes what it can; returns what would not fit. */
-    int add(ItemId id, int count);
-    int count(ItemId id) const;
-    int take(ItemId id, int count);
+	/** Takes what it can; returns what would not fit. */
+	int add(ItemId id, int count);
+	int count(ItemId id) const;
+	int take(ItemId id, int count);
 };
 
 struct Deployable {
-    int id;
-    DeployKind kind;
-    double x;
-    double y;
-    int hp;
-    int maxHp;
-    int owner;
-    bool lit;
-    /** Seconds of fuel left, and how far through the current piece of work. */
-    double fuel;
-    double progress;
-    double flash;
-    Container container;
+	int id;
+	DeployKind kind;
+	double x;
+	double y;
+	int hp;
+	int maxHp;
+	int owner;
+	bool lit;
+	/** Seconds of fuel left, and how far through the current piece of work. */
+	double fuel;
+	double progress;
+	double flash;
+	Container container;
 };
 
 /** Which item puts which thing down, and nothing for the rest. */

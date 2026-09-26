@@ -3,5 +3,5 @@
  * tiles: one pass per tile of belt.
  */
 export const BIOME_SEPARATION = {
-    passes: 2,
+	passes: 2,
 } as const;

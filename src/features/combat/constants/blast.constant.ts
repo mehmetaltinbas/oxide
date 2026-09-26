@@ -4,5 +4,5 @@
  * the hit take most of it and the far side of the blast takes little.
  */
 export const BLAST = {
-    falloff: 1.5,
+	falloff: 1.5,
 } as const;

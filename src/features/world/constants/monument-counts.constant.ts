@@ -7,10 +7,10 @@
  * several of them.
  */
 export const MONUMENT_COUNTS: Record<string, number> = {
-    cabins: 8,
-    lighthouse: 6,
-    airfield: 1,
-    powerplant: 1,
-    military: 1,
-    town: 1,
+	cabins: 8,
+	lighthouse: 6,
+	airfield: 1,
+	powerplant: 1,
+	military: 1,
+	town: 1,
 };

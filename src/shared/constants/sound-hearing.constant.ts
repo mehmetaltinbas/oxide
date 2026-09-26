@@ -4,6 +4,6 @@
  * the next hill is faint and one beside you is loud.
  */
 export const SOUND_HEARING = {
-    range: 1100,
-    falloff: 1.5,
+	range: 1100,
+	falloff: 1.5,
 } as const;

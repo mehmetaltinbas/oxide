@@ -10,11 +10,11 @@
  * have to look away from is a timer you do not watch.
  */
 export const PROGRESS_ARC = {
-    /** Distance from the player's centre. */
-    radius: 20,
-    /** Middle of the arc, in radians. Zero is screen-right. */
-    center: 0,
-    /** Half its angular width, so it spans twice this. */
-    halfAngle: 0.8,
-    width: 4,
+	/** Distance from the player's centre. */
+	radius: 20,
+	/** Middle of the arc, in radians. Zero is screen-right. */
+	center: 0,
+	/** Half its angular width, so it spans twice this. */
+	halfAngle: 0.8,
+	width: 4,
 } as const;

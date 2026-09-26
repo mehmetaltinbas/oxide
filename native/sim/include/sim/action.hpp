@@ -11,31 +11,31 @@ namespace sim {
 
 /** What a blow did, so the client can draw and sound it. */
 struct SwingResult {
-    /** Whether the blow was thrown at all: a swing on cooldown is nothing. */
-    bool swung = false;
-    bool landed = false;
-    int nodeId = 0;
-    NodeKind kind = NodeKind::Tree;
-    double x = 0;
-    double y = 0;
-    bool broke = false;
-    /** What went into the pack, for the little number that floats up. */
-    ItemStack gained{};
-    /** The second thing off it, where there is one: stone out of ore. */
-    ItemStack alsoGained{};
-    /** How big what was struck is, so the number can float off its top. */
-    double radius = 0;
-    /** What would not fit, so the player can be told their pack is full. */
-    bool packFull = false;
-    /** An animal took the blow instead, and how much it felt. */
-    bool hitNpc = false;
-    NpcKind npcKind = NpcKind::Boar;
-    /** Whether that blow was the one that finished it. */
-    bool killed = false;
-    /** Or it landed on somebody's wall. */
-    bool built = false;
-    bool brokeBuilt = false;
-    double damage = 0;
+	/** Whether the blow was thrown at all: a swing on cooldown is nothing. */
+	bool swung = false;
+	bool landed = false;
+	int nodeId = 0;
+	NodeKind kind = NodeKind::Tree;
+	double x = 0;
+	double y = 0;
+	bool broke = false;
+	/** What went into the pack, for the little number that floats up. */
+	ItemStack gained{};
+	/** The second thing off it, where there is one: stone out of ore. */
+	ItemStack alsoGained{};
+	/** How big what was struck is, so the number can float off its top. */
+	double radius = 0;
+	/** What would not fit, so the player can be told their pack is full. */
+	bool packFull = false;
+	/** An animal took the blow instead, and how much it felt. */
+	bool hitNpc = false;
+	NpcKind npcKind = NpcKind::Deer;
+	/** Whether that blow was the one that finished it. */
+	bool killed = false;
+	/** Or it landed on somebody's wall. */
+	bool built = false;
+	bool brokeBuilt = false;
+	double damage = 0;
 };
 
 /**
@@ -45,15 +45,15 @@ struct SwingResult {
  * buildings arrive on top of this, in the order the old game took them.
  */
 SwingResult swing(World& world, NpcSystem& npcs, BuildSystem& build, Player& player,
-                  Inventory& inventory);
+				  Inventory& inventory);
 
 /** What picking something up did. */
 struct PickResult {
-    bool picked = false;
-    ItemStack stack{};
-    double x = 0;
-    double y = 0;
-    bool packFull = false;
+	bool picked = false;
+	ItemStack stack{};
+	double x = 0;
+	double y = 0;
+	bool packFull = false;
 };
 
 /**
@@ -61,19 +61,19 @@ struct PickResult {
  * by hand rather than swung at.
  */
 PickResult pickUp(World& world, const BuildSystem& build, const Player& player,
-                  Inventory& inventory);
+				  Inventory& inventory);
 
 /** What pulling the trigger did. */
 struct FireResult {
-    bool fired = false;
-    /** Nothing in the magazine: the click that tells you to reload. */
-    bool empty = false;
-    /** How many rounds went out, which is more than one for a shotgun. */
-    int rounds = 0;
-    double x = 0;
-    double y = 0;
-    double angle = 0;
-    ItemId gun = ItemId::None;
+	bool fired = false;
+	/** Nothing in the magazine: the click that tells you to reload. */
+	bool empty = false;
+	/** How many rounds went out, which is more than one for a shotgun. */
+	int rounds = 0;
+	double x = 0;
+	double y = 0;
+	double angle = 0;
+	ItemId gun = ItemId::None;
 };
 
 /**
@@ -84,7 +84,7 @@ struct FireResult {
  * letting the string down, running or swimming loses the draw.
  */
 FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, bool trigger,
-                bool drawing, double dt);
+				bool drawing, double dt);
 
 /** Starting a reload, and the seconds of it passing. */
 void reload(Player& player, const Inventory& inventory);

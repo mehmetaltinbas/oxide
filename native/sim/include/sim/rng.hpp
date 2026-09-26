@@ -15,16 +15,16 @@ namespace sim {
  */
 class Rng {
 public:
-    explicit Rng(std::uint32_t seed) : state_(seed) {}
+	explicit Rng(std::uint32_t seed) : state_(seed) {}
 
-    /** A number in [0, 1). */
-    double unit();
+	/** A number in [0, 1). */
+	double unit();
 
-    /** A number in [lo, hi). */
-    double range(double lo, double hi);
+	/** A number in [lo, hi). */
+	double range(double lo, double hi);
 
 private:
-    std::uint32_t state_;
+	std::uint32_t state_;
 };
 
 /**

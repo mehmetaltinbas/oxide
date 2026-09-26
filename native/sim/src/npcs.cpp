@@ -1,5 +1,6 @@
 #include "sim/npcs.hpp"
 
+#include "sim/collide.hpp"
 #include "sim/projectile.hpp"
 
 #include <algorithm>
@@ -13,15 +14,22 @@ constexpr double kTau = 6.28318530717959;
 
 /** The island's population. Meeting anything should be an event. */
 struct Population {
-    NpcKind kind;
-    int count;
+	NpcKind kind;
+	int count;
 };
 
-constexpr Population kWildlife[3] = {
-    {NpcKind::Boar, 90},
-    {NpcKind::Wolf, 55},
-    {NpcKind::Bear, 26},
+constexpr Population kWildlife[5] = {
+	{NpcKind::Chicken, 120},
+	{NpcKind::Deer, 95},
+	{NpcKind::Hyena, 45},
+	{NpcKind::Wolf, 55},
+	{NpcKind::Bear, 26},
 };
+
+/** How far off an animal notices another one worth chasing or running from. */
+constexpr double kSightRange = 340;
+/** How long it holds on to that thought after losing sight of it. */
+constexpr double kMindSeconds = 4.0;
 
 /** Everything killed comes back a day later, as every other resource does. */
 constexpr double kRegrowthSeconds = 3600;
@@ -29,364 +37,482 @@ constexpr double kRegrowthSpread = 0.08;
 
 /** Where wildlife may appear: in off the rim, and never on a road. */
 constexpr double kSpawnMargin = 120;
-constexpr int kSpawnTries = 40;
+constexpr int kSpawnTries = 400;
 
 double dist(double ax, double ay, double bx, double by) {
-    return std::hypot(ax - bx, ay - by);
+	return std::hypot(ax - bx, ay - by);
 }
 
 /** Turned towards an angle, by at most this much. */
 double approachAngle(double from, double to, double by) {
-    double d = to - from;
-    while (d > 3.14159265358979) d -= kTau;
-    while (d < -3.14159265358979) d += kTau;
-    return from + std::clamp(d, -by, by);
+	double d = to - from;
+	while (d > 3.14159265358979) d -= kTau;
+	while (d < -3.14159265358979) d += kTau;
+	return from + std::clamp(d, -by, by);
 }
 
 }  // namespace
 
 void NpcSystem::populate(const World& world, std::uint32_t seed) {
-    npcs_.clear();
-    Rng rng(seed ^ 0x5eedbeefu);
-    for (const Population& group : kWildlife) {
-        for (int i = 0; i < group.count; ++i) {
-            for (int tries = 0; tries < kSpawnTries; ++tries) {
-                const double x = rng.range(kSpawnMargin, kWorldWidth - kSpawnMargin);
-                const double y = rng.range(kSpawnMargin, kWorldHeight - kSpawnMargin);
-                const Biome biome = world.biomeAt(x, y);
-                if (biome == Biome::Water || biome == Biome::Road) continue;
-                const NpcDef& def = npcDef(group.kind);
-                Npc npc{};
-                npc.id = nextId_++;
-                npc.kind = group.kind;
-                npc.x = x;
-                npc.y = y;
-                npc.facing = rng.unit() * kTau;
-                npc.hp = def.hp;
-                npc.state = NpcState::Wander;
-                npc.homeX = x;
-                npc.homeY = y;
-                npc.leash = kNpcLeash;
-                npc.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
-                npcs_.push_back(npc);
-                break;
-            }
-        }
-    }
+	npcs_.clear();
+	Rng rng(seed ^ 0x5eedbeefu);
+	for (const Population& group : kWildlife) {
+		for (int i = 0; i < group.count; ++i) {
+			for (int tries = 0; tries < kSpawnTries; ++tries) {
+				const double x = rng.range(kSpawnMargin, kWorldWidth - kSpawnMargin);
+				const double y = rng.range(kSpawnMargin, kWorldHeight - kSpawnMargin);
+				const Biome biome = world.biomeAt(x, y);
+				if (biome == Biome::Water || biome == Biome::Road) continue;
+				const NpcDef& def = npcDef(group.kind);
+				// Only where it belongs: a deer is a thing you find in the
+				// trees and the snow, not a thing that turns up on a beach.
+				if (!livesIn(def, biome)) continue;
+				Npc npc{};
+				npc.id = nextId_++;
+				npc.kind = group.kind;
+				npc.x = x;
+				npc.y = y;
+				npc.facing = rng.unit() * kTau;
+				npc.hp = def.hp;
+				npc.state = NpcState::Wander;
+				npc.homeX = x;
+				npc.homeY = y;
+				npc.leash = kNpcLeash;
+				npc.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
+				npcs_.push_back(npc);
+				break;
+			}
+		}
+	}
 }
 
 void NpcSystem::inRect(double x0, double y0, double x1, double y1,
-                       std::vector<const Npc*>& out) const {
-    out.clear();
-    for (const Npc& npc : npcs_) {
-        if (npc.hp <= 0) continue;
-        if (npc.x < x0 || npc.x > x1 || npc.y < y0 || npc.y > y1) continue;
-        out.push_back(&npc);
-    }
+					   std::vector<const Npc*>& out) const {
+	out.clear();
+	for (const Npc& npc : npcs_) {
+		if (npc.hp <= 0) continue;
+		if (npc.x < x0 || npc.x > x1 || npc.y < y0 || npc.y > y1) continue;
+		out.push_back(&npc);
+	}
 }
 
 Npc* NpcSystem::nearest(double x, double y, double within) {
-    Npc* best = nullptr;
-    double bestD = within;
-    for (Npc& npc : npcs_) {
-        if (npc.hp <= 0) continue;
-        const double d = dist(x, y, npc.x, npc.y) - npcDef(npc.kind).radius;
-        if (d > bestD) continue;
-        best = &npc;
-        bestD = d;
-    }
-    return best;
+	Npc* best = nullptr;
+	double bestD = within;
+	for (Npc& npc : npcs_) {
+		if (npc.hp <= 0) continue;
+		const double d = dist(x, y, npc.x, npc.y) - npcDef(npc.kind).radius;
+		if (d > bestD) continue;
+		best = &npc;
+		bestD = d;
+	}
+	return best;
 }
 
 void NpcSystem::hurt(World& world, Npc& npc, double amount, double fromX, double fromY) {
-    // Anything hit turns on whoever hit it, however far off they were.
-    if (npc.hp <= 0) return;
-    npc.hp -= static_cast<int>(amount);
-    if (npc.hp <= 0) {
-        npc.hp = 0;
-        drop(world, npc);
-        // Owed back to the island: the same animal, where it lived, a day on.
-        Rng rng(rolls_ += 0x9e3779b9u);
-        const double slack = kRegrowthSeconds * kRegrowthSpread;
-        regrowth_.push_back(Regrowth{npc.kind, npc.guard, npc.homeX, npc.homeY, npc.leash,
-                                     kRegrowthSeconds + rng.range(-slack, slack)});
-        return;
-    }
-    npc.flash = 0.12;
-    // Anything that is hit fights back, whether or not it started hostile.
-    npc.state = NpcState::Chase;
-    npc.facing = std::atan2(fromY - npc.y, fromX - npc.x);
-    npc.shoreWait = 0;
+	// Anything hit turns on whoever hit it, however far off they were.
+	if (npc.hp <= 0) return;
+	npc.hp -= static_cast<int>(amount);
+	if (npc.hp <= 0) {
+		npc.hp = 0;
+		drop(world, npc);
+		// Owed back to the island: the same animal, where it lived, a day on.
+		Rng rng(rolls_ += 0x9e3779b9u);
+		const double slack = kRegrowthSeconds * kRegrowthSpread;
+		regrowth_.push_back(Regrowth{npc.kind, npc.guard, npc.homeX, npc.homeY, npc.leash,
+									 kRegrowthSeconds + rng.range(-slack, slack)});
+		return;
+	}
+	npc.flash = 0.12;
+	// Anything that is hit fights back, whether or not it started hostile.
+	npc.state = NpcState::Chase;
+	npc.facing = std::atan2(fromY - npc.y, fromX - npc.x);
+	npc.shoreWait = 0;
 }
 
 void NpcSystem::drop(World& world, const Npc& npc) {
-    const NpcDef& def = npcDef(npc.kind);
-    Rng rng(npc.seed * 2246822519u + 7u);
-    for (int i = 0; i < def.lootCount; ++i) {
-        const NpcLoot& loot = def.loot[i];
-        if (loot.id == ItemId::None) continue;
-        const int amount = static_cast<int>(std::lround(rng.range(loot.low, loot.high)));
-        if (amount <= 0) continue;
-        const double a = rng.unit() * kTau;
-        const double d = rng.range(4, 18);
-        world.dropStack(ItemStack{loot.id, amount}, npc.x + std::cos(a) * d,
-                        npc.y + std::sin(a) * d);
-    }
-    // Whatever they were shooting at you with is on the ground now.
-    if (def.gun.damage > 0) {
-        const ItemId weapon = npc.kind == NpcKind::Soldier ? ItemId::Ak47 : ItemId::Revolver;
-        world.dropStack(ItemStack{weapon, 1}, npc.x, npc.y);
-    }
+	const NpcDef& def = npcDef(npc.kind);
+	Rng rng(npc.seed * 2246822519u + 7u);
+	for (int i = 0; i < def.lootCount; ++i) {
+		const NpcLoot& loot = def.loot[i];
+		if (loot.id == ItemId::None) continue;
+		const int amount = static_cast<int>(std::lround(rng.range(loot.low, loot.high)));
+		if (amount <= 0) continue;
+		const double a = rng.unit() * kTau;
+		const double d = rng.range(4, 18);
+		world.dropStack(ItemStack{loot.id, amount}, npc.x + std::cos(a) * d,
+						npc.y + std::sin(a) * d);
+	}
+	// Whatever they were shooting at you with is on the ground now.
+	if (def.gun.damage > 0) {
+		const ItemId weapon = npc.kind == NpcKind::Soldier ? ItemId::Ak47 : ItemId::Revolver;
+		world.dropStack(ItemStack{weapon, 1}, npc.x, npc.y);
+	}
 }
 
 void NpcSystem::garrison(const World& world, std::uint32_t seed) {
-    Rng rng(seed ^ 0x9a7c15d3u);
-    for (const Monument& monument : world.monuments()) {
-        const MonumentDef& def = monumentDef(monument.kind);
-        const NpcKind kind = def.soldiers ? NpcKind::Soldier : NpcKind::Scientist;
-        for (int i = 0; i < def.scientists; ++i) {
-            // Posted around the place they hold, not dropped in the middle.
-            for (int tries = 0; tries < 40; ++tries) {
-                const double a = rng.unit() * kTau;
-                const double r = rng.range(monument.radius * 0.2, monument.radius * 0.85);
-                const double x = monument.x + std::cos(a) * r;
-                const double y = monument.y + std::sin(a) * r;
-                if (world.biomeAt(x, y) == Biome::Water) continue;
-                Npc npc{};
-                npc.id = nextId_++;
-                npc.kind = kind;
-                npc.x = x;
-                npc.y = y;
-                npc.facing = rng.unit() * kTau;
-                npc.hp = npcDef(kind).hp;
-                npc.state = NpcState::Wander;
-                npc.homeX = x;
-                npc.homeY = y;
-                // A guard holds its ground rather than wandering the island.
-                npc.leash = monument.radius * 0.9;
-                npc.guard = true;
-                npc.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
-                npcs_.push_back(npc);
-                break;
-            }
-        }
-    }
+	Rng rng(seed ^ 0x9a7c15d3u);
+	for (const Monument& monument : world.monuments()) {
+		const MonumentDef& def = monumentDef(monument.kind);
+		const NpcKind kind = def.soldiers ? NpcKind::Soldier : NpcKind::Scientist;
+		for (int i = 0; i < def.scientists; ++i) {
+			// Posted around the place they hold, not dropped in the middle.
+			for (int tries = 0; tries < 40; ++tries) {
+				const double a = rng.unit() * kTau;
+				const double r = rng.range(monument.radius * 0.2, monument.radius * 0.85);
+				const double x = monument.x + std::cos(a) * r;
+				const double y = monument.y + std::sin(a) * r;
+				if (world.biomeAt(x, y) == Biome::Water) continue;
+				Npc npc{};
+				npc.id = nextId_++;
+				npc.kind = kind;
+				npc.x = x;
+				npc.y = y;
+				npc.facing = rng.unit() * kTau;
+				npc.hp = npcDef(kind).hp;
+				npc.state = NpcState::Wander;
+				npc.homeX = x;
+				npc.homeY = y;
+				// A guard holds its ground rather than wandering the island.
+				npc.leash = monument.radius * 0.9;
+				npc.guard = true;
+				npc.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
+				npcs_.push_back(npc);
+				break;
+			}
+		}
+	}
 }
 
 NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles& projectiles,
-                            double dt, const Player& player) {
-    NpcEvents events;
-    const double active2 = kNpcActiveRadius * kNpcActiveRadius;
-    const bool swimming = world.biomeAt(player.x, player.y) == Biome::Water;
+							double dt, const Player& player) {
+	NpcEvents events;
+	const double active2 = kNpcActiveRadius * kNpcActiveRadius;
+	const bool swimming = world.biomeAt(player.x, player.y) == Biome::Water;
 
-    // What was killed comes back where it belonged, a day on.
-    for (std::size_t i = regrowth_.size(); i-- > 0;) {
-        regrowth_[i].seconds -= dt;
-        if (regrowth_[i].seconds > 0) continue;
-        Rng rng(rolls_ += 0x9e3779b9u);
-        Npc npc{};
-        npc.id = nextId_++;
-        npc.kind = regrowth_[i].kind;
-        npc.x = regrowth_[i].homeX;
-        npc.y = regrowth_[i].homeY;
-        npc.facing = rng.unit() * kTau;
-        npc.hp = npcDef(npc.kind).hp;
-        npc.state = NpcState::Wander;
-        npc.homeX = npc.x;
-        npc.homeY = npc.y;
-        npc.leash = regrowth_[i].leash;
-        npc.guard = regrowth_[i].guard;
-        npc.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
-        npcs_.push_back(npc);
-        regrowth_.erase(regrowth_.begin() + static_cast<long>(i));
-    }
-    // A body is cleared away once it has given up what it was worth.
-    npcs_.erase(std::remove_if(npcs_.begin(), npcs_.end(),
-                               [](const Npc& npc) { return npc.hp <= 0; }),
-                npcs_.end());
+	// What was killed comes back where it belonged, a day on.
+	for (std::size_t i = regrowth_.size(); i-- > 0;) {
+		regrowth_[i].seconds -= dt;
+		if (regrowth_[i].seconds > 0) continue;
+		Rng rng(rolls_ += 0x9e3779b9u);
+		Npc npc{};
+		npc.id = nextId_++;
+		npc.kind = regrowth_[i].kind;
+		npc.x = regrowth_[i].homeX;
+		npc.y = regrowth_[i].homeY;
+		npc.facing = rng.unit() * kTau;
+		npc.hp = npcDef(npc.kind).hp;
+		npc.state = NpcState::Wander;
+		npc.homeX = npc.x;
+		npc.homeY = npc.y;
+		npc.leash = regrowth_[i].leash;
+		npc.guard = regrowth_[i].guard;
+		npc.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
+		npcs_.push_back(npc);
+		regrowth_.erase(regrowth_.begin() + static_cast<long>(i));
+	}
+	// A body is cleared away once it has given up what it was worth.
+	npcs_.erase(std::remove_if(npcs_.begin(), npcs_.end(),
+							   [](const Npc& npc) { return npc.hp <= 0; }),
+				npcs_.end());
 
-    // What was killed comes back where it belonged, a day on.
-    for (std::size_t i = regrowth_.size(); i-- > 0;) {
-        regrowth_[i].seconds -= dt;
-        if (regrowth_[i].seconds > 0) continue;
-        Rng rng(rolls_ += 0x9e3779b9u);
-        Npc npc{};
-        npc.id = nextId_++;
-        npc.kind = regrowth_[i].kind;
-        npc.x = regrowth_[i].homeX;
-        npc.y = regrowth_[i].homeY;
-        npc.facing = rng.unit() * kTau;
-        npc.hp = npcDef(npc.kind).hp;
-        npc.state = NpcState::Wander;
-        npc.homeX = npc.x;
-        npc.homeY = npc.y;
-        npc.leash = regrowth_[i].leash;
-        npc.guard = regrowth_[i].guard;
-        npc.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
-        npcs_.push_back(npc);
-        regrowth_.erase(regrowth_.begin() + static_cast<long>(i));
-    }
-    // A body is cleared away once it has given up what it was worth.
-    npcs_.erase(std::remove_if(npcs_.begin(), npcs_.end(),
-                               [](const Npc& npc) { return npc.hp <= 0; }),
-                npcs_.end());
+	// What was killed comes back where it belonged, a day on.
+	for (std::size_t i = regrowth_.size(); i-- > 0;) {
+		regrowth_[i].seconds -= dt;
+		if (regrowth_[i].seconds > 0) continue;
+		Rng rng(rolls_ += 0x9e3779b9u);
+		Npc npc{};
+		npc.id = nextId_++;
+		npc.kind = regrowth_[i].kind;
+		npc.x = regrowth_[i].homeX;
+		npc.y = regrowth_[i].homeY;
+		npc.facing = rng.unit() * kTau;
+		npc.hp = npcDef(npc.kind).hp;
+		npc.state = NpcState::Wander;
+		npc.homeX = npc.x;
+		npc.homeY = npc.y;
+		npc.leash = regrowth_[i].leash;
+		npc.guard = regrowth_[i].guard;
+		npc.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
+		npcs_.push_back(npc);
+		regrowth_.erase(regrowth_.begin() + static_cast<long>(i));
+	}
+	// A body is cleared away once it has given up what it was worth.
+	npcs_.erase(std::remove_if(npcs_.begin(), npcs_.end(),
+							   [](const Npc& npc) { return npc.hp <= 0; }),
+				npcs_.end());
 
-    for (Npc& npc : npcs_) {
-        if (npc.hp <= 0) continue;
-        const double dx = npc.x - player.x;
-        const double dy = npc.y - player.y;
-        // Outside the active radius it is left frozen, which is what keeps the
-        // cost of this flat however big the island gets.
-        if (dx * dx + dy * dy > active2) continue;
+	// Who has an eye on whom.
+	//
+	// Only the animals near a player think at all, so this runs over a few
+	// dozen rather than over the island: a hunter takes the nearest thing on
+	// its list, and anything skittish takes the nearest thing that outranks it
+	// and runs the other way. The thought is held for a few seconds so a wolf
+	// does not forget a deer the moment it steps behind a tree.
+	static thread_local std::vector<Npc*> awake;
+	awake.clear();
+	for (Npc& npc : npcs_) {
+		if (npc.hp <= 0) continue;
+		const double dx = npc.x - player.x;
+		const double dy = npc.y - player.y;
+		if (dx * dx + dy * dy > active2) continue;
+		awake.push_back(&npc);
+	}
+	for (Npc* npc : awake) {
+		npc->mind = std::max(0.0, npc->mind - dt);
+		if (npc->mind > 0) continue;
+		const NpcDef& def = npcDef(npc->kind);
+		if (def.eatsCount == 0 && !def.skittish) continue;
+		Npc* prey = nullptr;
+		Npc* threat = nullptr;
+		double preyD = kSightRange;
+		double threatD = kSightRange;
+		for (Npc* other : awake) {
+			if (other == npc || other->hp <= 0) continue;
+			const double d = dist(npc->x, npc->y, other->x, other->y);
+			const NpcDef& theirs = npcDef(other->kind);
+			if (d < preyD && hunts(def, other->kind)) {
+				prey = other;
+				preyD = d;
+			}
+			if (def.skittish && d < threatD && theirs.rank > def.rank && theirs.eatsCount > 0) {
+				threat = other;
+				threatD = d;
+			}
+		}
+		// Running for your life beats lunch: a wolf with a bear on it forgets
+		// the deer.
+		if (threat) {
+			npc->target = -threat->id;
+			npc->mind = kMindSeconds;
+		} else if (prey) {
+			npc->target = prey->id;
+			npc->mind = kMindSeconds;
+		} else {
+			npc->target = 0;
+		}
+	}
 
-        const NpcDef& def = npcDef(npc.kind);
-        npc.stateTime += dt;
-        npc.attackTimer -= dt;
-        npc.gunTimer -= dt;
-        if (npc.flash > 0) npc.flash -= dt;
-        npc.animPhase += dt * (2 + std::hypot(npc.vx, npc.vy) / 40);
+	// One place where an animal actually moves, so nothing can be given a
+	// heading and then skip the walls, the trees and the water on the way.
+	const auto step = [&](Npc& npc, const NpcDef& def, double seconds) {
+		npc.vx += npc.knockX;
+		npc.vy += npc.knockY;
+		npc.knockX *= 1 - std::clamp(9 * seconds, 0.0, 1.0);
+		npc.knockY *= 1 - std::clamp(9 * seconds, 0.0, 1.0);
+		double nx = npc.x + npc.vx * seconds;
+		double ny = npc.y + npc.vy * seconds;
+		keepOutOfSolids(world, build, nx, ny, def.radius);
+		// Nobody walks into the sea. Stepping one axis at a time lets them run
+		// the shoreline instead, which is what someone who can swim but would
+		// rather not actually does. Anything already in the water is left free
+		// to move, or it would be stuck there for good.
+		const bool wading = world.biomeAt(npc.x, npc.y) == Biome::Water;
+		if (world.biomeAt(nx, ny) == Biome::Water && !wading) {
+			if (world.biomeAt(nx, npc.y) != Biome::Water) {
+				ny = npc.y;
+			} else if (world.biomeAt(npc.x, ny) != Biome::Water) {
+				nx = npc.x;
+			} else {
+				nx = npc.x;
+				ny = npc.y;
+			}
+		}
+		npc.x = std::clamp(nx, def.radius, static_cast<double>(kWorldWidth) - def.radius);
+		npc.y = std::clamp(ny, def.radius, static_cast<double>(kWorldHeight) - def.radius);
+	};
 
-        const double toPlayer = dist(npc.x, npc.y, player.x, player.y);
-        const double fromHome = dist(npc.x, npc.y, npc.homeX, npc.homeY);
-        const bool provoked = npc.state == NpcState::Chase || npc.state == NpcState::Attack;
-        // Nothing fights a corpse: while you are waiting to wake up, the
-        // island leaves you alone.
-        const bool wantsFight = (def.hostile || provoked) && player.alive;
+	for (Npc& npc : npcs_) {
+		if (npc.hp <= 0) continue;
+		const double dx = npc.x - player.x;
+		const double dy = npc.y - player.y;
+		// Outside the active radius it is left frozen, which is what keeps the
+		// cost of this flat however big the island gets.
+		if (dx * dx + dy * dy > active2) continue;
 
-        // Out in the water you are out of reach, and after a moment an animal
-        // stops pretending otherwise: it drops the chase and goes home.
-        if (swimming && provoked) {
-            npc.shoreWait += dt;
-            if (npc.shoreWait >= kShoreGiveUp) {
-                npc.state = NpcState::Return;
-                npc.shoreWait = 0;
-            }
-        } else if (!swimming) {
-            npc.shoreWait = 0;
-        }
-        const bool givenUp = swimming && npc.state != NpcState::Chase && npc.state != NpcState::Attack;
+		const NpcDef& def = npcDef(npc.kind);
+		npc.stateTime += dt;
+		npc.attackTimer -= dt;
+		npc.gunTimer -= dt;
+		if (npc.flash > 0) npc.flash -= dt;
+		npc.animPhase += dt * (2 + std::hypot(npc.vx, npc.vy) / 40);
 
-        double wantX = 0;
-        double wantY = 0;
-        // Anything with a gun opens up from much further off than a bear does.
-        const double aggroRange = def.gun.damage > 0 ? def.gun.range * 0.85 : 300;
-        if (def.gun.damage > 0 && wantsFight && player.alive && toPlayer < aggroRange &&
-            fromHome < npc.leash * 2.4) {
-            // Shooting: hold a firing distance, and do not shoot through walls.
-            const double a = std::atan2(player.y - npc.y, player.x - npc.x);
-            npc.facing = approachAngle(npc.facing, a, 6 * dt);
-            npc.state = NpcState::Chase;
-            double blocked = 2;
-            const bool clear =
-                const_cast<BuildSystem&>(build).hitSegment(npc.x, npc.y, player.x, player.y,
-                                                           blocked) == nullptr;
-            if (clear && npc.gunTimer <= 0 && toPlayer < def.gun.range) {
-                Rng rng(rolls_ += 0x9e3779b9u);
-                npc.gunTimer = def.gun.cooldown * rng.range(0.85, 1.2);
-                const double spread = rng.range(-def.gun.spread, def.gun.spread);
-                Gun gun{};
-                gun.damage = def.gun.damage;
-                gun.speed = def.gun.speed;
-                gun.range = def.gun.range;
-                projectiles.spawnHostile(npc.x + std::cos(a) * (def.radius + 8),
-                                         npc.y + std::sin(a) * (def.radius + 8), a + spread, gun,
-                                         def.gun.damage);
-            }
-            const double ideal = def.gun.range * 0.55;
-            double speed = 0;
-            if (toPlayer > ideal * 1.15) {
-                speed = def.speed;
-            } else if (toPlayer < ideal * 0.6) {
-                speed = -def.speed * 0.8;
-            }
-            if (!clear) speed = def.speed;
-            wantX = std::cos(a) * speed;
-            wantY = std::sin(a) * speed;
-        } else if (wantsFight && !givenUp && toPlayer < aggroRange &&
-                   fromHome < npc.leash * 2.4) {
-            npc.state = toPlayer <= def.attackRange + def.radius ? NpcState::Attack : NpcState::Chase;
-            npc.facing = approachAngle(npc.facing, std::atan2(player.y - npc.y, player.x - npc.x),
-                                       8 * dt);
-            if (npc.state == NpcState::Attack) {
-                if (npc.attackTimer <= 0) {
-                    npc.attackTimer = def.attackCooldown;
-                    events.playerDamage += def.damage;
-                    events.fromX = npc.x;
-                    events.fromY = npc.y;
-                }
-            } else {
-                wantX = std::cos(npc.facing) * def.speed;
-                wantY = std::sin(npc.facing) * def.speed;
-            }
-        } else if (fromHome > npc.leash) {
-            npc.state = NpcState::Return;
-            npc.facing = approachAngle(npc.facing, std::atan2(npc.homeY - npc.y, npc.homeX - npc.x),
-                                       4 * dt);
-            wantX = std::cos(npc.facing) * def.speed * 0.5;
-            wantY = std::sin(npc.facing) * def.speed * 0.5;
-        } else {
-            npc.state = NpcState::Wander;
-            Rng rng(rolls_ += 0x9e3779b9u);
-            if (npc.stateTime > rng.range(1.5, 4)) {
-                npc.stateTime = 0;
-                npc.facing = rng.unit() * kTau;
-            }
-            const double drift = rng.unit() < 0.6 ? def.speed * 0.3 : 0;
-            wantX = std::cos(npc.facing) * drift;
-            wantY = std::sin(npc.facing) * drift;
-        }
+		const double toPlayer = dist(npc.x, npc.y, player.x, player.y);
+		const double fromHome = dist(npc.x, npc.y, npc.homeX, npc.homeY);
+		const bool provoked = npc.state == NpcState::Chase || npc.state == NpcState::Attack;
+		// Nothing fights a corpse: while you are waiting to wake up, the
+		// island leaves you alone.
+		const bool wantsFight = (def.hostile || provoked) && player.alive;
 
-        npc.vx = wantX + npc.knockX;
-        npc.vy = wantY + npc.knockY;
-        npc.knockX *= 1 - std::clamp(9 * dt, 0.0, 1.0);
-        npc.knockY *= 1 - std::clamp(9 * dt, 0.0, 1.0);
-        double nx = npc.x + npc.vx * dt;
-        double ny = npc.y + npc.vy * dt;
-        build.resolve(nx, ny, def.radius);
-        // Nobody walks into the sea. Stepping one axis at a time lets them run
-        // the shoreline instead, which is what someone who can swim but would
-        // rather not actually does. Anything already in the water is left free
-        // to move, or it would be stuck there for good.
-        const bool wading = world.biomeAt(npc.x, npc.y) == Biome::Water;
-        if (world.biomeAt(nx, ny) == Biome::Water && !wading) {
-            if (world.biomeAt(nx, npc.y) != Biome::Water) {
-                ny = npc.y;
-            } else if (world.biomeAt(npc.x, ny) != Biome::Water) {
-                nx = npc.x;
-            } else {
-                nx = npc.x;
-                ny = npc.y;
-            }
-        }
-        npc.x = nx;
-        npc.y = ny;
-        npc.x = std::clamp(npc.x, def.radius, static_cast<double>(kWorldWidth) - def.radius);
-        npc.y = std::clamp(npc.y, def.radius, static_cast<double>(kWorldHeight) - def.radius);
-    }
-    // Nothing stands inside anything else: a pack of wolves that all want the
-    // same spot used to pile into one wolf.
-    for (std::size_t i = 0; i < npcs_.size(); ++i) {
-        Npc& a = npcs_[i];
-        if (a.hp <= 0) continue;
-        if (std::hypot(a.x - player.x, a.y - player.y) > kNpcActiveRadius) continue;
-        for (std::size_t j = i + 1; j < npcs_.size(); ++j) {
-            Npc& b = npcs_[j];
-            if (b.hp <= 0) continue;
-            const double dx = b.x - a.x;
-            const double dy = b.y - a.y;
-            const double min = npcDef(a.kind).radius + npcDef(b.kind).radius;
-            const double d2 = dx * dx + dy * dy;
-            if (d2 > min * min || d2 < 0.0001) continue;
-            const double d = std::sqrt(d2);
-            const double push = ((min - d) / d) * 0.5 * std::min(1.0, dt * 20);
-            a.x -= dx * push;
-            a.y -= dy * push;
-            b.x += dx * push;
-            b.y += dy * push;
-        }
-    }
+		// Out in the water you are out of reach, and after a moment an animal
+		// stops pretending otherwise: it drops the chase and goes home.
+		if (swimming && provoked) {
+			npc.shoreWait += dt;
+			if (npc.shoreWait >= kShoreGiveUp) {
+				npc.state = NpcState::Return;
+				npc.shoreWait = 0;
+			}
+		} else if (!swimming) {
+			npc.shoreWait = 0;
+		}
+		const bool givenUp = swimming && npc.state != NpcState::Chase && npc.state != NpcState::Attack;
 
-    return events;
+		double wantX = 0;
+		double wantY = 0;
+		// Anything with a gun opens up from much further off than a bear does.
+		const double aggroRange = def.gun.damage > 0 ? def.gun.range * 0.85 : 300;
+
+		// The island's own business, before yours: something running from a
+		// bear is not interested in you, and a wolf on a deer will finish
+		// with the deer first unless you are the nearer thing.
+		if (npc.target != 0 && npc.state != NpcState::Chase && npc.state != NpcState::Attack) {
+			Npc* other = nullptr;
+			const int wanted = npc.target < 0 ? -npc.target : npc.target;
+			for (Npc& candidate : npcs_) {
+				if (candidate.id == wanted && candidate.hp > 0) other = &candidate;
+			}
+			if (!other) {
+				npc.target = 0;
+				npc.mind = 0;
+			} else if (npc.target < 0) {
+				// Away from it, flat out, and never mind the leash.
+				npc.state = NpcState::Flee;
+				npc.facing = std::atan2(npc.y - other->y, npc.x - other->x);
+				npc.vx = std::cos(npc.facing) * def.speed;
+				npc.vy = std::sin(npc.facing) * def.speed;
+				step(npc, def, dt);
+				continue;
+			} else {
+				const double d = dist(npc.x, npc.y, other->x, other->y);
+				npc.facing =
+					approachAngle(npc.facing, std::atan2(other->y - npc.y, other->x - npc.x),
+								  8 * dt);
+				if (d <= def.attackRange + def.radius + npcDef(other->kind).radius) {
+					npc.state = NpcState::Attack;
+					if (npc.attackTimer <= 0) {
+						npc.attackTimer = def.attackCooldown;
+						hurt(world, *other, def.damage, npc.x, npc.y);
+						if (other->hp <= 0) {
+							npc.target = 0;
+							npc.mind = 0;
+						}
+					}
+				} else {
+					npc.state = NpcState::Chase;
+					npc.vx = std::cos(npc.facing) * def.speed;
+					npc.vy = std::sin(npc.facing) * def.speed;
+					step(npc, def, dt);
+				}
+				continue;
+			}
+		}
+
+		// Peaceful things run from you as well, once they have seen what you
+		// are: a deer that has been shot at does not stand and take the second
+		// arrow.
+		if (def.skittish && provoked && player.alive) {
+			npc.state = NpcState::Flee;
+			npc.facing = std::atan2(npc.y - player.y, npc.x - player.x);
+			const double bolt = toPlayer < 420 ? def.speed : def.speed * 0.5;
+			npc.vx = std::cos(npc.facing) * bolt;
+			npc.vy = std::sin(npc.facing) * bolt;
+			step(npc, def, dt);
+			continue;
+		}
+		if (def.gun.damage > 0 && wantsFight && player.alive && toPlayer < aggroRange &&
+			fromHome < npc.leash * 2.4) {
+			// Shooting: hold a firing distance, and do not shoot through walls.
+			const double a = std::atan2(player.y - npc.y, player.x - npc.x);
+			npc.facing = approachAngle(npc.facing, a, 6 * dt);
+			npc.state = NpcState::Chase;
+			double blocked = 2;
+			const bool clear =
+				const_cast<BuildSystem&>(build).hitSegment(npc.x, npc.y, player.x, player.y,
+														   blocked) == nullptr;
+			if (clear && npc.gunTimer <= 0 && toPlayer < def.gun.range) {
+				Rng rng(rolls_ += 0x9e3779b9u);
+				npc.gunTimer = def.gun.cooldown * rng.range(0.85, 1.2);
+				const double spread = rng.range(-def.gun.spread, def.gun.spread);
+				Gun gun{};
+				gun.damage = def.gun.damage;
+				gun.speed = def.gun.speed;
+				gun.range = def.gun.range;
+				projectiles.spawnHostile(npc.x + std::cos(a) * (def.radius + 8),
+										 npc.y + std::sin(a) * (def.radius + 8), a + spread, gun,
+										 def.gun.damage);
+			}
+			const double ideal = def.gun.range * 0.55;
+			double speed = 0;
+			if (toPlayer > ideal * 1.15) {
+				speed = def.speed;
+			} else if (toPlayer < ideal * 0.6) {
+				speed = -def.speed * 0.8;
+			}
+			if (!clear) speed = def.speed;
+			wantX = std::cos(a) * speed;
+			wantY = std::sin(a) * speed;
+		} else if (wantsFight && !givenUp && toPlayer < aggroRange &&
+				   fromHome < npc.leash * 2.4) {
+			npc.state = toPlayer <= def.attackRange + def.radius ? NpcState::Attack : NpcState::Chase;
+			npc.facing = approachAngle(npc.facing, std::atan2(player.y - npc.y, player.x - npc.x),
+									   8 * dt);
+			if (npc.state == NpcState::Attack) {
+				if (npc.attackTimer <= 0) {
+					npc.attackTimer = def.attackCooldown;
+					events.playerDamage += def.damage;
+					events.fromX = npc.x;
+					events.fromY = npc.y;
+				}
+			} else {
+				wantX = std::cos(npc.facing) * def.speed;
+				wantY = std::sin(npc.facing) * def.speed;
+			}
+		} else if (fromHome > npc.leash) {
+			npc.state = NpcState::Return;
+			npc.facing = approachAngle(npc.facing, std::atan2(npc.homeY - npc.y, npc.homeX - npc.x),
+									   4 * dt);
+			wantX = std::cos(npc.facing) * def.speed * 0.5;
+			wantY = std::sin(npc.facing) * def.speed * 0.5;
+		} else {
+			npc.state = NpcState::Wander;
+			Rng rng(rolls_ += 0x9e3779b9u);
+			if (npc.stateTime > rng.range(1.5, 4)) {
+				npc.stateTime = 0;
+				npc.facing = rng.unit() * kTau;
+			}
+			const double drift = rng.unit() < 0.6 ? def.speed * 0.3 : 0;
+			wantX = std::cos(npc.facing) * drift;
+			wantY = std::sin(npc.facing) * drift;
+		}
+
+		npc.vx = wantX;
+		npc.vy = wantY;
+		step(npc, def, dt);
+	}
+	// Nothing stands inside anything else: a pack of wolves that all want the
+	// same spot used to pile into one wolf.
+	for (std::size_t i = 0; i < npcs_.size(); ++i) {
+		Npc& a = npcs_[i];
+		if (a.hp <= 0) continue;
+		if (std::hypot(a.x - player.x, a.y - player.y) > kNpcActiveRadius) continue;
+		for (std::size_t j = i + 1; j < npcs_.size(); ++j) {
+			Npc& b = npcs_[j];
+			if (b.hp <= 0) continue;
+			const double dx = b.x - a.x;
+			const double dy = b.y - a.y;
+			const double min = npcDef(a.kind).radius + npcDef(b.kind).radius;
+			const double d2 = dx * dx + dy * dy;
+			if (d2 > min * min || d2 < 0.0001) continue;
+			const double d = std::sqrt(d2);
+			const double push = ((min - d) / d) * 0.5 * std::min(1.0, dt * 20);
+			a.x -= dx * push;
+			a.y -= dy * push;
+			b.x += dx * push;
+			b.y += dy * push;
+		}
+	}
+
+	return events;
 }
 
 }  // namespace sim

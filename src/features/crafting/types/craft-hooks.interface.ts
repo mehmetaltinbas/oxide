@@ -10,12 +10,12 @@ import { PlayerState } from 'src/features/survival/types/player-state.interface'
  * rather than another few hundred lines of the orchestrator.
  */
 export interface CraftHooks {
-    /** Everything the player can pay a recipe from. */
-    containers(): Container[];
-    /** Creative mode: no cost, no wait, no bench. */
-    sandbox(): boolean;
-    /** Where finished goods go, and who to hand overflow to. */
-    player(): PlayerState;
-    dropStack(stack: ItemStack, x: number, y: number): void;
-    notify(text: string): void;
+	/** Everything the player can pay a recipe from. */
+	containers(): Container[];
+	/** Creative mode: no cost, no wait, no bench. */
+	sandbox(): boolean;
+	/** Where finished goods go, and who to hand overflow to. */
+	player(): PlayerState;
+	dropStack(stack: ItemStack, x: number, y: number): void;
+	notify(text: string): void;
 }

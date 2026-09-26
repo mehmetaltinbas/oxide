@@ -14,12 +14,12 @@ namespace sim {
  * at the moment.
  */
 struct Recipe {
-    ItemId out;
-    int amount;
-    Cost cost[4];
-    int costCount;
-    int bench;
-    double seconds;
+	ItemId out;
+	int amount;
+	Cost cost[4];
+	int costCount;
+	int bench;
+	double seconds;
 };
 
 /** Everything that can be made, in the order it is offered. */
@@ -34,15 +34,15 @@ bool canAfford(const Inventory& inventory, const Recipe& recipe);
  * nothing and needs no bench, the answer is however many the queue will hold.
  */
 int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTier,
-                   bool free = false);
+				   bool free = false);
 
 /** One thing being made: what, and how long is left of it. */
 struct CraftJob {
-    int id;
-    const Recipe* recipe;
-    double left;
-    /** Whether it cost anything, so a cancelled sandbox job refunds nothing. */
-    bool paid = true;
+	int id;
+	const Recipe* recipe;
+	double left;
+	/** Whether it cost anything, so a cancelled sandbox job refunds nothing. */
+	bool paid = true;
 };
 
 /**
@@ -54,32 +54,32 @@ struct CraftJob {
  */
 class Crafting {
 public:
-    /** How many jobs may be waiting at once. */
-    static constexpr int kQueueMax = 8;
+	/** How many jobs may be waiting at once. */
+	static constexpr int kQueueMax = 8;
 
-    /**
-     * Sandbox: any recipe, at any bench, for nothing.
-     *
-     * The one thing it does not do is hand out ammunition, which is still made
-     * a box at a time and still runs out in a fight.
-     */
-    void setFree(bool free) { free_ = free; }
-    bool isFree() const { return free_; }
+	/**
+	 * Sandbox: any recipe, at any bench, for nothing.
+	 *
+	 * The one thing it does not do is hand out ammunition, which is still made
+	 * a box at a time and still runs out in a fight.
+	 */
+	void setFree(bool free) { free_ = free; }
+	bool isFree() const { return free_; }
 
-    /** Queues one, taking its cost. Says whether it went on. */
-    bool queue(Inventory& inventory, const Recipe& recipe, int benchTier);
-    /** Takes one back off and returns what it cost. */
-    void cancel(Inventory& inventory, int jobId);
+	/** Queues one, taking its cost. Says whether it went on. */
+	bool queue(Inventory& inventory, const Recipe& recipe, int benchTier);
+	/** Takes one back off and returns what it cost. */
+	void cancel(Inventory& inventory, int jobId);
 
-    /** Runs the front of the queue, and puts what is finished in the pack. */
-    void update(double dt, Inventory& inventory);
+	/** Runs the front of the queue, and puts what is finished in the pack. */
+	void update(double dt, Inventory& inventory);
 
-    const std::vector<CraftJob>& jobs() const { return jobs_; }
+	const std::vector<CraftJob>& jobs() const { return jobs_; }
 
 private:
-    std::vector<CraftJob> jobs_;
-    int nextId_ = 1;
-    bool free_ = false;
+	std::vector<CraftJob> jobs_;
+	int nextId_ = 1;
+	bool free_ = false;
 };
 
 }  // namespace sim

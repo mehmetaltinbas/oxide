@@ -44,7 +44,7 @@ inline constexpr float kRadiusLarge = 16;
 
 /** Whether a point is inside a rectangle, which is most of what a menu does. */
 inline bool inside(float px, float py, float x, float y, float w, float h) {
-    return px >= x && px <= x + w && py >= y && py <= y + h;
+	return px >= x && px <= x + w && py >= y && py <= y + h;
 }
 
 }  // namespace ui

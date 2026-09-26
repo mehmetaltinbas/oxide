@@ -6,9 +6,9 @@
  * stand.
  */
 export const TREES = {
-    spacing: 58,
-    forestPerTile: 1.09,
-    grassShare: 0.25,
-    /** Chance per sample in the snow, as the snow stand has always been. */
-    snowChance: 0.35,
+	spacing: 58,
+	forestPerTile: 1.09,
+	grassShare: 0.25,
+	/** Chance per sample in the snow, as the snow stand has always been. */
+	snowChance: 0.35,
 } as const;

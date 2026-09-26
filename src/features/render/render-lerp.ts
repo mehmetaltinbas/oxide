@@ -5,12 +5,12 @@
  * interpolation and only ever read by it.
  */
 export interface RenderLerpable {
-    x: number;
-    y: number;
-    facing: number;
-    prevX?: number;
-    prevY?: number;
-    prevFacing?: number;
+	x: number;
+	y: number;
+	facing: number;
+	prevX?: number;
+	prevY?: number;
+	prevFacing?: number;
 }
 
 /**
@@ -30,47 +30,47 @@ export interface RenderLerpable {
  * thing that decides where anything really is.
  */
 export class RenderLerp {
-    private held: { it: RenderLerpable; x: number; y: number; facing: number }[] = [];
+	private held: { it: RenderLerpable; x: number; y: number; facing: number }[] = [];
 
-    /** Where everything is now, which is where the next frame blends from. */
-    capture(items: RenderLerpable[]): void {
-        for (const it of items) {
-            it.prevX = it.x;
-            it.prevY = it.y;
-            it.prevFacing = it.facing;
-        }
-    }
+	/** Where everything is now, which is where the next frame blends from. */
+	capture(items: RenderLerpable[]): void {
+		for (const it of items) {
+			it.prevX = it.x;
+			it.prevY = it.y;
+			it.prevFacing = it.facing;
+		}
+	}
 
-    /** Blend toward the current step by `alpha`, keeping the truth to put back. */
-    apply(items: RenderLerpable[], alpha: number): void {
-        const a = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
-        for (const it of items) {
-            if (it.prevX === undefined || it.prevY === undefined) continue;
-            this.held.push({ it, x: it.x, y: it.y, facing: it.facing });
-            it.x = it.prevX + (it.x - it.prevX) * a;
-            it.y = it.prevY + (it.y - it.prevY) * a;
-            if (it.prevFacing !== undefined) {
-                let d = it.facing - it.prevFacing;
-                while (d > Math.PI) d -= Math.PI * 2;
-                while (d < -Math.PI) d += Math.PI * 2;
-                it.facing = it.prevFacing + d * a;
-            }
-        }
-    }
+	/** Blend toward the current step by `alpha`, keeping the truth to put back. */
+	apply(items: RenderLerpable[], alpha: number): void {
+		const a = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
+		for (const it of items) {
+			if (it.prevX === undefined || it.prevY === undefined) continue;
+			this.held.push({ it, x: it.x, y: it.y, facing: it.facing });
+			it.x = it.prevX + (it.x - it.prevX) * a;
+			it.y = it.prevY + (it.y - it.prevY) * a;
+			if (it.prevFacing !== undefined) {
+				let d = it.facing - it.prevFacing;
+				while (d > Math.PI) d -= Math.PI * 2;
+				while (d < -Math.PI) d += Math.PI * 2;
+				it.facing = it.prevFacing + d * a;
+			}
+		}
+	}
 
-    /**
-     * Put the real positions back.
-     *
-     * Always called straight after drawing, so nothing else in the game ever
-     * sees a blended position: an interpolated body is a picture, not a fact,
-     * and letting one reach the simulation would make it drift.
-     */
-    restore(): void {
-        for (const h of this.held) {
-            h.it.x = h.x;
-            h.it.y = h.y;
-            h.it.facing = h.facing;
-        }
-        this.held.length = 0;
-    }
+	/**
+	 * Put the real positions back.
+	 *
+	 * Always called straight after drawing, so nothing else in the game ever
+	 * sees a blended position: an interpolated body is a picture, not a fact,
+	 * and letting one reach the simulation would make it drift.
+	 */
+	restore(): void {
+		for (const h of this.held) {
+			h.it.x = h.x;
+			h.it.y = h.y;
+			h.it.facing = h.facing;
+		}
+		this.held.length = 0;
+	}
 }

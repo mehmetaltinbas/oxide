@@ -18,14 +18,14 @@ import { DEFAULT_SERVER_PORT } from 'src/features/net/constants/default-server-p
  * anyone who can play the game can read it.
  */
 export function defaultServerUrl(): string {
-    const override = new URLSearchParams(location.search).get('server');
-    if (override) return override;
+	const override = new URLSearchParams(location.search).get('server');
+	if (override) return override;
 
-    const configured = import.meta.env.VITE_SERVER_URL;
-    if (configured) return configured;
+	const configured = import.meta.env.VITE_SERVER_URL;
+	if (configured) return configured;
 
-    const secure = location.protocol === 'https:';
-    const scheme = secure ? 'wss' : 'ws';
-    const host = location.hostname || 'localhost';
-    return `${scheme}://${host}:${DEFAULT_SERVER_PORT}`;
+	const secure = location.protocol === 'https:';
+	const scheme = secure ? 'wss' : 'ws';
+	const host = location.hostname || 'localhost';
+	return `${scheme}://${host}:${DEFAULT_SERVER_PORT}`;
 }

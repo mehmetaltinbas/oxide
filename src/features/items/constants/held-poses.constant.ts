@@ -13,24 +13,24 @@ export const DEFAULT_HELD_POSE: HeldPose = { size: 14, gripX: 0, gripY: 0, angle
  * or barrel points.
  */
 export const HELD_POSES: Partial<Record<ItemId, HeldPose>> = {
-    // A rock is a stone in the fist, gripped from behind so it shows past the
-    // knuckles; held by its middle, the hand covered it completely.
-    rock: { size: 17, gripX: 0, gripY: 0.2, angle: 0, strike: 'smash' },
-    // Tools by the end of the handle, head forward.
-    // The hatchet's icon leans its handle about 16 degrees; turned back upright.
-    hatchet: { size: 28, gripX: 0.11, gripY: 0.28, angle: 0.28, strike: 'chop' },
-    pickaxe: { size: 30, gripX: 0, gripY: 0.28, angle: 0, strike: 'chop' },
-    hammer: { size: 24, gripX: 0, gripY: 0.28, angle: 0, strike: 'chop' },
-    building_plan: { size: 20, gripX: 0, gripY: 0.22, angle: 0 },
-    // The spear's shaft runs corner to corner in its icon; turned to point ahead.
-    spear: { size: 44, gripX: -0.12, gripY: 0.16, angle: -0.69, strike: 'thrust' },
-    // The bow is held across the body, belly forward.
-    bow: { size: 30, gripX: -0.24, gripY: 0, angle: Math.PI / 2 },
-    // Guns point along +x in their icons.
-    revolver: { size: 26, gripX: -0.17, gripY: 0.16, angle: -Math.PI / 2 },
-    rifle: { size: 40, gripX: -0.12, gripY: 0.12, angle: -Math.PI / 2 },
-    rocket_launcher: { size: 46, gripX: -0.05, gripY: 0.1, angle: -Math.PI / 2 },
-    waterpipe: { size: 36, gripX: -0.12, gripY: 0.1, angle: -Math.PI / 2 },
-    pump_shotgun: { size: 38, gripX: -0.12, gripY: 0.1, angle: -Math.PI / 2 },
-    ak47: { size: 42, gripX: -0.1, gripY: 0.08, angle: -Math.PI / 2 },
+	// A rock is a stone in the fist, gripped from behind so it shows past the
+	// knuckles; held by its middle, the hand covered it completely.
+	rock: { size: 17, gripX: 0, gripY: 0.2, angle: 0, strike: 'smash' },
+	// Tools by the end of the handle, head forward.
+	// The hatchet's icon leans its handle about 16 degrees; turned back upright.
+	hatchet: { size: 28, gripX: 0.11, gripY: 0.28, angle: 0.28, strike: 'chop' },
+	pickaxe: { size: 30, gripX: 0, gripY: 0.28, angle: 0, strike: 'chop' },
+	hammer: { size: 24, gripX: 0, gripY: 0.28, angle: 0, strike: 'chop' },
+	building_plan: { size: 20, gripX: 0, gripY: 0.22, angle: 0 },
+	// The spear's shaft runs corner to corner in its icon; turned to point ahead.
+	spear: { size: 44, gripX: -0.12, gripY: 0.16, angle: -0.69, strike: 'thrust' },
+	// The bow is held across the body, belly forward.
+	bow: { size: 30, gripX: -0.24, gripY: 0, angle: Math.PI / 2 },
+	// Guns point along +x in their icons.
+	revolver: { size: 26, gripX: -0.17, gripY: 0.16, angle: -Math.PI / 2 },
+	rifle: { size: 40, gripX: -0.12, gripY: 0.12, angle: -Math.PI / 2 },
+	rocket_launcher: { size: 46, gripX: -0.05, gripY: 0.1, angle: -Math.PI / 2 },
+	waterpipe: { size: 36, gripX: -0.12, gripY: 0.1, angle: -Math.PI / 2 },
+	pump_shotgun: { size: 38, gripX: -0.12, gripY: 0.1, angle: -Math.PI / 2 },
+	ak47: { size: 42, gripX: -0.1, gripY: 0.08, angle: -Math.PI / 2 },
 };

@@ -20,37 +20,37 @@ namespace client {
  */
 class MapScreen {
 public:
-    explicit MapScreen(SDL_Renderer* renderer) : renderer_(renderer) {}
-    ~MapScreen();
+	explicit MapScreen(SDL_Renderer* renderer) : renderer_(renderer) {}
+	~MapScreen();
 
-    MapScreen(const MapScreen&) = delete;
-    MapScreen& operator=(const MapScreen&) = delete;
+	MapScreen(const MapScreen&) = delete;
+	MapScreen& operator=(const MapScreen&) = delete;
 
-    bool open() const { return open_; }
-    void toggle() { open_ = !open_; }
-    void close() { open_ = false; }
+	bool open() const { return open_; }
+	void toggle() { open_ = !open_; }
+	void close() { open_ = false; }
 
-    void draw(Paint& paint, const sim::World& world, const sim::BuildSystem& build,
-              const sim::Player& player, int width, int height, float uiScale);
+	void draw(Paint& paint, const sim::World& world, const sim::BuildSystem& build,
+			  const sim::Player& player, int width, int height, float uiScale);
 
-    /** A mate to mark, called once for each before the map is drawn. */
-    void addMate(double x, double y) { mates_.push_back({x, y}); }
+	/** A mate to mark, called once for each before the map is drawn. */
+	void addMate(double x, double y) { mates_.push_back({x, y}); }
 
-    /** The square a point is in, as "F7". */
-    static void squareOf(double x, double y, char* out, int size);
+	/** The square a point is in, as "F7". */
+	static void squareOf(double x, double y, char* out, int size);
 
 private:
-    SDL_Renderer* renderer_ = nullptr;
-    SDL_Texture* island_ = nullptr;
-    bool open_ = false;
+	SDL_Renderer* renderer_ = nullptr;
+	SDL_Texture* island_ = nullptr;
+	bool open_ = false;
 
-    SDL_Texture* island(const sim::World& world);
+	SDL_Texture* island(const sim::World& world);
 
-    struct Mate {
-        double x;
-        double y;
-    };
-    std::vector<Mate> mates_;
+	struct Mate {
+		double x;
+		double y;
+	};
+	std::vector<Mate> mates_;
 };
 
 }  // namespace client

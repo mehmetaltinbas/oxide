@@ -4,6 +4,6 @@
  * How it fades is SOUND_HEARING's falloff.
  */
 export const GUNFIRE_HEARING = {
-    range: 1400,
-    nearLoudness: 0.75,
+	range: 1400,
+	nearLoudness: 0.75,
 } as const;

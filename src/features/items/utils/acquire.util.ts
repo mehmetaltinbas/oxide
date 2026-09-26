@@ -11,7 +11,7 @@ import { isBeltItem } from 'src/features/items/utils/is-belt-item.util';
  * goes to the main inventory. See docs/systems/inventory.md.
  */
 export function acquire(belt: Container, inventory: Container, id: ItemId, count: number): number {
-    let left = count;
-    if (isBeltItem(id)) left = addItem(belt, id, left);
-    return addItem(inventory, id, left);
+	let left = count;
+	if (isBeltItem(id)) left = addItem(belt, id, left);
+	return addItem(inventory, id, left);
 }

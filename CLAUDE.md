@@ -62,8 +62,11 @@ When something behaves impossibly, check the test harness before blaming the gam
 - **Every interactable shows its prompt in range.** One source for what is in reach:
   `InteractionSystem.target()`, which both E and the HUD prompt read. A new interactable is a new
   case there, never a separate check. See `docs/systems/ui.md`, "Every interactable has a prompt".
-- **Four-space indentation**, enforced by Prettier. `npm run build` fails on a formatting drift, so
-  run `npm run format` before you finish.
+- **Tabs for indentation, four columns wide**, everywhere, C++ included. A block always indents its
+  contents; a body flush against its brace is not acceptable. Alignment under an open bracket is
+  spaces after the tabs. `.editorconfig` sets it for every editor and Prettier enforces it on the
+  TypeScript tree, so `npm run check` fails on drift: run `npm run format` before you finish. See
+  [docs/architecture/indentation.md](docs/architecture/indentation.md).
 
 ## Finish with a smoke-test checklist
 

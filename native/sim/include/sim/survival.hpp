@@ -9,31 +9,31 @@ namespace sim {
 
 /** What a body needs, and what it can take. */
 struct PlayerVitals {
-    static constexpr double kMaxHealth = 100;
-    static constexpr double kMaxCalories = 100;
-    static constexpr double kMaxHydration = 100;
-    static constexpr double kMaxRadiation = 100;
-    /**
-     * Needs drain on Rust's timescale: roughly sixteen minutes of food and
-     * eleven of water from full, and running empty is a slow decline rather
-     * than a countdown.
-     */
-    static constexpr double kCalorieDrain = 0.1;
-    static constexpr double kHydrationDrain = 0.15;
-    static constexpr double kStarveDamage = 0.3;
-    static constexpr double kColdDamage = 0.45;
-    static constexpr double kRadDamage = 3.0;
-    static constexpr double kComfortTemp = 10;
-    /** How close you must be to pick up, harvest, open or use something. */
-    static constexpr double kInteract = 39;
-    /** A box is a big thing to stand at, so it is reached a little further. */
-    static constexpr double kDeployableReachBonus = 20;
-    /** How far from you a box, a fire or a bag can be put down. */
-    static constexpr double kDeployReach = 200;
-    /** How far out you can lay a foundation or a wall. */
-    static constexpr double kBuildReach = 220;
-    /** How far you may wander from an open box before it shuts itself. */
-    static constexpr double kContainerSlack = 40;
+	static constexpr double kMaxHealth = 100;
+	static constexpr double kMaxCalories = 100;
+	static constexpr double kMaxHydration = 100;
+	static constexpr double kMaxRadiation = 100;
+	/**
+	 * Needs drain on Rust's timescale: roughly sixteen minutes of food and
+	 * eleven of water from full, and running empty is a slow decline rather
+	 * than a countdown.
+	 */
+	static constexpr double kCalorieDrain = 0.1;
+	static constexpr double kHydrationDrain = 0.15;
+	static constexpr double kStarveDamage = 0.3;
+	static constexpr double kColdDamage = 0.45;
+	static constexpr double kRadDamage = 3.0;
+	static constexpr double kComfortTemp = 10;
+	/** How close you must be to pick up, harvest, open or use something. */
+	static constexpr double kInteract = 39;
+	/** A box is a big thing to stand at, so it is reached a little further. */
+	static constexpr double kDeployableReachBonus = 20;
+	/** How far from you a box, a fire or a bag can be put down. */
+	static constexpr double kDeployReach = 200;
+	/** How far out you can lay a foundation or a wall. */
+	static constexpr double kBuildReach = 220;
+	/** How far you may wander from an open box before it shuts itself. */
+	static constexpr double kContainerSlack = 40;
 };
 
 /** Water is cold whatever the biome says. */
@@ -54,7 +54,7 @@ double biomeTemp(Biome biome);
  * `darkness` is how far into the night it is, nought to one.
  */
 void updateSurvival(const World& world, Player& player, const Inventory& inventory, double dt,
-                    double darkness, double fireWarmth);
+					double darkness, double fireWarmth);
 
 /** A blow landing on a player, after whatever they are wearing takes its share. */
 void hurtPlayer(Player& player, Inventory& inventory, double amount);

@@ -19,7 +19,7 @@ inline constexpr double kTwilight = 0.13;
 
 /** Where in the day we are, nought to one. */
 inline double dayFraction(double clock) {
-    return std::fmod(clock, kDaySeconds) / kDaySeconds;
+	return std::fmod(clock, kDaySeconds) / kDaySeconds;
 }
 
 /** Nought at noon, one at midnight: the single source for everything hourly. */
@@ -29,9 +29,9 @@ inline bool isNight(double clock) { return nightness(clock) > 1 - kNightFraction
 
 /** Screen darkness: ramps in through twilight and holds through the night. */
 inline double darkness(double clock) {
-    const double threshold = 1 - kNightFraction - kTwilight;
-    return std::clamp((nightness(clock) - threshold) / (kTwilight + 0.1), 0.0, 1.0) *
-           kNightDarkness;
+	const double threshold = 1 - kNightFraction - kTwilight;
+	return std::clamp((nightness(clock) - threshold) / (kTwilight + 0.1), 0.0, 1.0) *
+		   kNightDarkness;
 }
 
 }  // namespace sim

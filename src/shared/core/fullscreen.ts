@@ -7,19 +7,19 @@
  * the browser changes the viewport, and fullscreen is just another such change.
  */
 export function isFullscreen(): boolean {
-    return document.fullscreenElement !== null;
+	return document.fullscreenElement !== null;
 }
 
 /** Returns the state it is heading toward, not the state it is in yet. */
 export function toggleFullscreen(): boolean {
-    if (isFullscreen()) {
-        void document.exitFullscreen?.();
-        return false;
-    }
-    // The whole document rather than the canvas, so the page background fills
-    // the letterboxing instead of the browser's own black.
-    void document.documentElement.requestFullscreen?.();
-    return true;
+	if (isFullscreen()) {
+		void document.exitFullscreen?.();
+		return false;
+	}
+	// The whole document rather than the canvas, so the page background fills
+	// the letterboxing instead of the browser's own black.
+	void document.documentElement.requestFullscreen?.();
+	return true;
 }
 
 /**
@@ -33,7 +33,7 @@ export function toggleFullscreen(): boolean {
 let leftFullscreenAt = -Infinity;
 
 document.addEventListener('fullscreenchange', () => {
-    if (!isFullscreen()) leftFullscreenAt = performance.now();
+	if (!isFullscreen()) leftFullscreenAt = performance.now();
 });
 
 /** How long an [Esc] counts as having been spent on leaving fullscreen. */
@@ -50,7 +50,7 @@ const ESCAPE_GRACE_MS = 350;
  * same keypress.
  */
 export function escapeSpentOnFullscreen(): boolean {
-    if (performance.now() - leftFullscreenAt > ESCAPE_GRACE_MS) return false;
-    leftFullscreenAt = -Infinity;
-    return true;
+	if (performance.now() - leftFullscreenAt > ESCAPE_GRACE_MS) return false;
+	leftFullscreenAt = -Infinity;
+	return true;
 }

@@ -50,6 +50,7 @@ Short single-rule docs may use the four `###` headings directly under the title 
 - [project-structure.md](architecture/project-structure.md): Feature-first source tree: one folder per feature under `src/features/`, `src/shared/` for what belongs to nobody, `src/app/` for the orchestrator.
 - [file-conventions.md](architecture/file-conventions.md): One artifact per file, where each kind lives, and how files are named.
 - [code-conventions.md](architecture/code-conventions.md): Absolute imports rooted at `src/`, no barrels, systems own their state, hooks instead of back-references.
+- [indentation.md](architecture/indentation.md): Tabs, four wide, and why a block always indents its contents.
 - [no-hardcoded-values.md](architecture/no-hardcoded-values.md): Tuning numbers live in `constants/`, never in the code that reads them.
 - [data-driven-definitions.md](architecture/data-driven-definitions.md): A definition table per variant family instead of a `switch` on a kind. This codebase's answer to the strategy pattern.
 
