@@ -73,6 +73,15 @@ public:
 	void setVitals(double calories, double hydration, double temperature, double radiation,
 				   bool bleeding, double applying);
 
+	/**
+	 * A line along the bottom, over the belt: what is stopping you.
+	 *
+	 * An empty gun and an empty quiver say so here rather than floating off
+	 * your head, because it is a fact about what is in your hands and that is
+	 * where your hands are.
+	 */
+	void warn(const std::string& text);
+
 	/** The clock, for anything that beats or blinks. */
 	void setClock(double seconds) { clock_ = seconds; }
 
@@ -91,6 +100,8 @@ private:
 	double radiation_ = 0;
 	bool bleeding_ = false;
 	double applying_ = 0;
+	std::string warning_;
+	double warningLeft_ = 0;
 	double clock_ = 0;
 	Text* lettering_ = nullptr;
 };

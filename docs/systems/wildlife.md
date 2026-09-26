@@ -65,6 +65,9 @@ against: a deer at 172 can be run down on foot and you will arrive with nothing
 left, a wolf at 184 is just slower than a sprint, and a bear at 92 never
 catches anybody who runs.
 
+Anything skittish bolts when you come within 260 units of it, not only once you
+have hit it: you do not walk up to a deer.
+
 ### What each is worth
 
 Per kill, as a range. A kill is worth roughly what the animal was worth alive,
@@ -79,6 +82,7 @@ arrow.
 | Wolf    | 2 to 4   | 6 to 12  | 3 to 6   | 2 to 5     |
 | Bear    | 8 to 16  | 20 to 36 | 10 to 20 | 14 to 30   |
 
-Populations, for a map of the reference size: 120 chickens, 95 deer, 55 wolves,
-45 hyenas, 26 bears. Everything killed comes back where it lived a day later,
+Populations, for a map of the reference size: 120 chickens, 95 deer, 80 wolves,
+26 bears. The wolf covers the desert as well as the grass and the tundra, which
+is what keeps the sand from being a free walk. Everything killed comes back where it lived a day later,
 the same rule every other resource on the island follows.

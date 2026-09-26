@@ -17,7 +17,6 @@ Color coatOf(sim::NpcKind kind) {
 	switch (kind) {
 		case sim::NpcKind::Chicken: return rgb(0xe8e2d4);
 		case sim::NpcKind::Deer: return rgb(0xb07d4a);
-		case sim::NpcKind::Hyena: return rgb(0xbfa574);
 		case sim::NpcKind::Wolf: return rgb(0x8e97a5);
 		case sim::NpcKind::Bear: return rgb(0x88522c);
 		// The people of the monuments: a lab coat and a field green.
@@ -31,7 +30,6 @@ Color darkOf(sim::NpcKind kind) {
 	switch (kind) {
 		case sim::NpcKind::Chicken: return rgb(0xbdb3a0);
 		case sim::NpcKind::Deer: return rgb(0x7d5530);
-		case sim::NpcKind::Hyena: return rgb(0x7f6a44);
 		case sim::NpcKind::Wolf: return rgb(0x505d6d);
 		case sim::NpcKind::Bear: return rgb(0x523119);
 		case sim::NpcKind::Scientist: return rgb(0x758494);
@@ -109,11 +107,6 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 			// Long in the leg, long in the neck, narrow through the body.
 			b = Build{1.25f, 0.62f, 0.1f, 0.62f, 1.7f, 0.42f, 0.3f, 0.78f, 0.95f, 0.3f, 0.3f};
 			break;
-		case sim::NpcKind::Hyena:
-			// High at the shoulder and low at the rump: the sloped back is the
-			// one thing that reads as a hyena from above.
-			b = Build{1.2f, 0.78f, 0.28f, 0.4f, 1.5f, 0.5f, 0.42f, 0.62f, 0.66f, 0.3f, 0.34f};
-			break;
 		case sim::NpcKind::Wolf:
 			b = Build{1.3f, 0.7f, 0.08f, 0.45f, 1.6f, 0.44f, 0.46f, 0.62f, 0.72f, 0.26f, 0.66f};
 			break;
@@ -124,11 +117,26 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 		default: b = Build{1.2f, 0.85f, 0, 0.3f, 1.4f, 0.5f, 0.35f, 0.6f, 0.6f, 0.25f, 0.4f}; break;
 	}
 
-	// Legs, under everything, the diagonal pairs stepping against each other.
-	const float gait = std::sin(static_cast<float>(npc.animPhase)) * 2.6f * scale;
+	// How it is moving, which is the whole of the animation: a walk is a short
+	// even step, a run is a long one with the body stretched into it, and an
+	// animal mid-blow lunges rather than steps.
+	const float pace = static_cast<float>(std::hypot(npc.vx, npc.vy)) / static_cast<float>(def.speed);
+	const bool striking = npc.state == sim::NpcState::Attack && npc.attackTimer > 0;
+	// Nought just after a blow lands and back to one as it recovers: the lunge.
+	const float lunge =
+		striking ? std::max(0.0f, 1 - static_cast<float>(npc.attackTimer / def.attackCooldown) * 2)
+				 : 0.0f;
+	const float stride = 1.6f + std::min(1.4f, pace) * 2.2f;
+	const float gait = std::sin(static_cast<float>(npc.animPhase)) * stride * scale;
+	// Running, the body reaches forward and narrows; striking, it throws itself
+	// at what it is hitting.
+	const float reach = 1 + std::min(1.0f, pace) * 0.16f + (1 - lunge) * 0.22f * (striking ? 1 : 0);
+	const float narrow = 1 - std::min(1.0f, pace) * 0.1f;
+	// And it bobs, which is what stops a run reading as a slide.
+	const float bob = std::sin(static_cast<float>(npc.animPhase) * 2) * std::min(1.0f, pace) * 0.05f;
 	const float hind = -r * b.legReach;
-	const float fore = r * b.legReach;
-	const float spread = r * b.bodyWide * 0.82f;
+	const float fore = r * b.legReach * reach;
+	const float spread = r * b.bodyWide * 0.82f * narrow;
 	for (int side = -1; side <= 1; side += 2) {
 		const float s = static_cast<float>(side);
 		// Each foot reaches out from the hip along the body, so a long-legged
@@ -163,8 +171,8 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 			const float along = std::cos(a);
 			// Wider at the shoulder end than at the rump.
 			const float taper = 1 + b.shoulder * along;
-			hull.push_back(f.at(along * r * b.bodyLong,
-								std::sin(a) * r * b.bodyWide * taper));
+			hull.push_back(f.at(along * r * b.bodyLong * (1 + bob),
+								std::sin(a) * r * b.bodyWide * taper * narrow));
 		}
 		paint.inkedPoly(hull, coat, kInkWidth);
 		// The shadow down its back, which is what stops it reading as a stone.
@@ -172,7 +180,7 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 	}
 
 	// The neck, then the head on the end of it.
-	const float headX = r * b.headAt;
+	const float headX = r * b.headAt * reach;
 	if (b.neck > 0.2f) {
 		const Point from = f.at(r * b.bodyLong * 0.7f, 0);
 		const Point to = f.at(headX, 0);
@@ -227,8 +235,10 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 		}
 	}
 
-	// Eyes: the one thing that says which end is which at a glance.
-	const Color eye = npcDefIsHunter(def) ? rgb(0xff8a4a) : rgb(0x2a2018);
+	// Eyes: the one thing that says which end is which at a glance. Dark in
+	// every animal, because a red eye read as a status light rather than as a
+	// creature, and what a bear is does not need announcing.
+	const Color eye = rgb(0x2a2018);
 	for (int side = -1; side <= 1; side += 2) {
 		const float s = static_cast<float>(side);
 		oval(paint, f, headX + r * b.headSize * 0.35f, s * r * b.headSize * 0.42f, r * 0.09f,

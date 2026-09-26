@@ -18,11 +18,10 @@ struct Population {
 	int count;
 };
 
-constexpr Population kWildlife[5] = {
+constexpr Population kWildlife[4] = {
 	{NpcKind::Chicken, 120},
 	{NpcKind::Deer, 95},
-	{NpcKind::Hyena, 45},
-	{NpcKind::Wolf, 55},
+	{NpcKind::Wolf, 80},
 	{NpcKind::Bear, 26},
 };
 
@@ -30,6 +29,14 @@ constexpr Population kWildlife[5] = {
 constexpr double kSightRange = 420;
 /** How long it holds on to that thought after losing sight of it. */
 constexpr double kMindSeconds = 6.0;
+/**
+ * How close you get to something peaceful before it bolts.
+ *
+ * Far enough that walking up to a deer is not a way to get one, close enough
+ * that a bow shot from cover still has a target. A hit makes it run whatever
+ * the distance.
+ */
+constexpr double kSkittishRange = 260;
 
 /** Everything killed comes back a day later, as every other resource does. */
 constexpr double kRegrowthSeconds = 3600;
@@ -407,10 +414,10 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 			}
 		}
 
-		// Peaceful things run from you as well, once they have seen what you
-		// are: a deer that has been shot at does not stand and take the second
-		// arrow.
-		if (def.skittish && provoked && player.alive) {
+		// Peaceful things run from you on sight, not only once you have hit
+		// them: you do not walk up to a deer, and a deer that has been shot at
+		// does not stand and take the second arrow either.
+		if (def.skittish && player.alive && (provoked || toPlayer < kSkittishRange)) {
 			npc.state = NpcState::Flee;
 			npc.facing = std::atan2(npc.y - player.y, npc.x - player.x);
 			const double bolt = toPlayer < 420 ? def.speed : def.speed * 0.5;

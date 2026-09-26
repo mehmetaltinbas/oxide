@@ -8,9 +8,9 @@
 namespace sim {
 
 /** What lives on the island, and who holds its monuments. */
-enum class NpcKind : std::uint8_t { Chicken, Deer, Hyena, Wolf, Bear, Scientist, Soldier };
+enum class NpcKind : std::uint8_t { Chicken, Deer, Wolf, Bear, Scientist, Soldier };
 
-inline constexpr int kNpcKindCount = 7;
+inline constexpr int kNpcKindCount = 6;
 
 /** What one animal drops when it is killed, as a range. */
 struct NpcLoot {

@@ -42,30 +42,18 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 {},
 	 0,
 	 true},
-	// The desert's own, and the reason the sand is not a free walk. Hunts in
-	// the open and backs off a bear.
-	{NpcKind::Hyena, "Hyena", 95, 176, 12, 18, 26, 0.85, true, false, kNoGun,
-	 {{ItemId::MeatRaw, 2, 4},
-	  {ItemId::Leather, 5, 10},
-	  {ItemId::Bone, 4, 8},
-	  {ItemId::AnimalFat, 2, 4}},
-	 4,
-	 {Biome::Desert, Biome::Grass},
-	 2,
-	 3,
-	 {NpcKind::Chicken, NpcKind::Deer},
-	 2,
-	 true},
-	// Open country and tundra. At 184 it runs down a deer and very nearly runs
-	// down you: a sprint just about holds it off, and nothing else does.
+	// Everywhere that is not trees: grass, tundra and sand alike, which is
+	// what keeps the desert from being a free walk. At 184 it runs down a deer
+	// and very nearly runs down you: a sprint just about holds it off, and
+	// nothing else does.
 	{NpcKind::Wolf, "Wolf", 80, 184, 13, 22, 28, 0.9, true, false, kNoGun,
 	 {{ItemId::MeatRaw, 2, 4},
 	  {ItemId::Leather, 6, 12},
 	  {ItemId::Bone, 3, 6},
 	  {ItemId::AnimalFat, 2, 5}},
 	 4,
-	 {Biome::Grass, Biome::Snow},
-	 2,
+	 {Biome::Grass, Biome::Snow, Biome::Desert},
+	 3,
 	 4,
 	 {NpcKind::Chicken, NpcKind::Deer},
 	 2,
@@ -81,8 +69,8 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	 {Biome::Forest, Biome::Snow},
 	 2,
 	 9,
-	 {NpcKind::Deer, NpcKind::Wolf, NpcKind::Hyena},
-	 3,
+	 {NpcKind::Deer, NpcKind::Wolf},
+	 2,
 	 false},
 	// The monuments' own: sealed in a suit, and armed. Placed by hand rather
 	// than scattered, so they have no country of their own.

@@ -387,7 +387,7 @@ int main() {
 			if (!sim::livesIn(sim::npcDef(npc.kind), island.biomeAt(npc.x, npc.y))) ++wrong;
 		}
 		std::printf("wildlife:");
-		for (int i = 0; i < 5; ++i) {
+		for (int i = 0; i < 4; ++i) {
 			std::printf(" %s %d", sim::npcDef(static_cast<sim::NpcKind>(i)).name, counts[i]);
 		}
 		std::printf(", %d in the wrong country\n", wrong);

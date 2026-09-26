@@ -49,6 +49,17 @@ namespace {
 
 constexpr int kWindowWidth = 1280;
 constexpr int kWindowHeight = 720;
+/**
+ * The shape and the size of what anybody can see.
+ *
+ * Sixteen by nine, and a rectangle of island 1280 by 720 units across. Every
+ * window is fitted to this: a bigger one draws the same ground larger, and a
+ * wider one has the extra covered over. Nobody sees further than anybody else
+ * because their monitor is a different shape. See docs/systems/fair-view.md.
+ */
+constexpr double kViewAspect = 16.0 / 9.0;
+constexpr double kViewArea = 1280.0 * 720.0;
+
 constexpr double kZoomMin = 0.80;
 constexpr double kZoomMax = 1.8;
 
@@ -78,9 +89,19 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
+	// Read before the window is made, because one of them says how big it is.
+	int winW = kWindowWidth;
+	int winH = kWindowHeight;
+	for (int i = 1; i < argc; ++i) {
+		if (SDL_strcmp(argv[i], "--window") == 0 && i + 2 < argc) {
+			winW = SDL_atoi(argv[i + 1]);
+			winH = SDL_atoi(argv[i + 2]);
+		}
+	}
+
 	SDL_Window* window = nullptr;
 	SDL_Renderer* renderer = nullptr;
-	if (!SDL_CreateWindowAndRenderer("Oxide", kWindowWidth, kWindowHeight,
+	if (!SDL_CreateWindowAndRenderer("Oxide", winW, winH,
 									 SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY, &window,
 									 &renderer)) {
 		std::fprintf(stderr, "No window: %s\n", SDL_GetError());
@@ -188,6 +209,9 @@ int main(int argc, char** argv) {
 			showMap = true;
 		} else if (SDL_strcmp(argv[i], "--panel") == 0) {
 			showPanel = true;
+		} else if (SDL_strcmp(argv[i], "--window") == 0 && i + 2 < argc) {
+			// Read already, before the window was made.
+			i += 2;
 		} else if (SDL_strcmp(argv[i], "--zoo") == 0) {
 			zoo = true;
 		} else if (SDL_strcmp(argv[i], "--zoom") == 0 && i + 1 < argc) {
@@ -856,7 +880,27 @@ int main(int argc, char** argv) {
 		// world is drawn in those pixels, so without this everything comes out
 		// half the size it was meant to be.
 		const double density = windowW > 0 ? static_cast<double>(width) / windowW : 1.0;
-		const double scale = zoom * density;
+
+		// The fair view. Everybody sees the same rectangle of island, whatever
+		// window or monitor they are on: the same shape and the same amount of
+		// ground. A wider screen draws it bigger, not wider, and whatever is
+		// left over at the sides is covered rather than given away. See
+		// docs/systems/fair-view.md.
+		const double pointsW = width / density;
+		const double pointsH = height / density;
+		double fairW = pointsW;
+		double fairH = pointsW / kViewAspect;
+		if (fairH > pointsH) {
+			fairH = pointsH;
+			fairW = pointsH * kViewAspect;
+		}
+		// How much bigger this window's fair rectangle is than the reference
+		// one. The world is drawn that much bigger, so the ground inside it
+		// stays the same.
+		const double fit = std::sqrt(fairW * fairH / kViewArea);
+		const double scale = zoom * fit * density;
+		const float barX = static_cast<float>((pointsW - fairW) * 0.5 * density);
+		const float barY = static_cast<float>((pointsH - fairH) * 0.5 * density);
 		lastWidth = width;
 		lastHeight = height;
 		lastDensity = density;
@@ -1106,7 +1150,12 @@ int main(int argc, char** argv) {
 				specks.shake(sim::itemDef(shot.gun).gun.damage > 50 ? 3.5 : 2.0, 0.12);
 			}
 			if (shot.empty && trigger) {
-				hud.say("Reload  (R)", player.x, player.y - 26, client::rgb(0xd8483a));
+				// Along the bottom rather than over your head: it is a fact
+				// about what is in your hands.
+				const sim::Gun& held = sim::itemDef(inventory.held()).gun;
+				hud.warn(held.magazine > 0 ? "Empty. Reload with R."
+										   : std::string("No ") +
+												 sim::itemDef(held.ammo).name + " left.");
 				audio.deny();
 			}
 		}
@@ -1570,15 +1619,25 @@ int main(int argc, char** argv) {
 			// The lighter tree of the open grassland; the pines keep to the
 			// forest and the snow.
 			const bool broadleaf = node->kind == sim::NodeKind::Tree && under == sim::Biome::Grass;
-			// A tree you are standing behind goes see-through, so you are not
-			// lost under one.
+			// A tree with something living behind it goes see-through. It is
+			// not only about not losing yourself under one: a bear stalking you
+			// from behind a trunk was invisible until it was on top of you.
 			float alpha = 1.0f;
 			if (node->kind == sim::NodeKind::Tree) {
-				const double dx = player.x - node->x;
-				const double dy = player.y - node->y;
-				if (std::abs(dx) < node->radius * 1.8 && dy < node->radius * 0.6 &&
-					dy > -node->radius * 3.5) {
+				const auto behind = [&](double ax, double ay) {
+					const double dx = ax - node->x;
+					const double dy = ay - node->y;
+					return std::abs(dx) < node->radius * 1.8 && dy < node->radius * 0.6 &&
+						   dy > -node->radius * 3.5;
+				};
+				if (behind(player.x, player.y)) {
 					alpha = 0.45f;
+				} else {
+					for (const sim::Npc* animal : animalsNear) {
+						if (!behind(animal->x, animal->y)) continue;
+						alpha = 0.55f;
+						break;
+					}
 				}
 			}
 			// Struck, it shudders where it stands.
@@ -1760,8 +1819,27 @@ int main(int argc, char** argv) {
 			const float left = static_cast<float>(
 				std::clamp(bullet.left / (std::max(1.0, speed) * 0.2), 0.0, 1.0));
 			if (bullet.arrow) {
-				paint.line(bx - ux * tail, by - uy * tail, bx, by, 2.2f * static_cast<float>(scale),
+				// Inked like everything else in the world: a bare brown line
+				// vanished against a tree the moment it was over one.
+				const float shaft = 2.2f * static_cast<float>(scale);
+				paint.line(bx - ux * tail, by - uy * tail, bx, by,
+						   shaft + client::kInkFine * static_cast<float>(scale), client::kInk);
+				paint.line(bx - ux * tail, by - uy * tail, bx, by, shaft,
 						   client::rgb(0x8a5a2e));
+				// The head, so it reads as an arrow and not as a twig.
+				const float head = 3.4f * static_cast<float>(scale);
+				paint.fillPoly({{bx + ux * head, by + uy * head},
+								{bx - ux * head + uy * head * 0.8f,
+								 by - uy * head - ux * head * 0.8f},
+								{bx - ux * head - uy * head * 0.8f,
+								 by - uy * head + ux * head * 0.8f}},
+							   client::kInk);
+				paint.fillPoly({{bx + ux * head * 0.7f, by + uy * head * 0.7f},
+								{bx - ux * head * 0.6f + uy * head * 0.5f,
+								 by - uy * head * 0.6f - ux * head * 0.5f},
+								{bx - ux * head * 0.6f - uy * head * 0.5f,
+								 by - uy * head * 0.6f + ux * head * 0.5f}},
+							   client::rgb(0xcfd8e0));
 			} else {
 				const float core = width * static_cast<float>(scale) * (0.4f + 0.6f * left);
 				const std::uint8_t fade = static_cast<std::uint8_t>(255 * left);
@@ -1911,6 +1989,21 @@ int main(int argc, char** argv) {
 		}
 		// The interface is not in the world: its lines keep their own weight.
 		paint.useWorldScale(1);
+
+		// What is outside the fair view is covered. The world under it was
+		// drawn and is thrown away, which costs a few thousand pixels of fill
+		// and buys the guarantee that a wider monitor is not a better one.
+		if (barX > 0.5f || barY > 0.5f) {
+			const client::Color bar = client::kVoid;
+			if (barX > 0.5f) {
+				paint.fillRect(0, 0, barX, static_cast<float>(height), bar);
+				paint.fillRect(width - barX, 0, barX, static_cast<float>(height), bar);
+			}
+			if (barY > 0.5f) {
+				paint.fillRect(0, 0, static_cast<float>(width), barY, bar);
+				paint.fillRect(0, height - barY, static_cast<float>(width), barY, bar);
+			}
+		}
 		map.draw(paint, world, build, player, width, height, static_cast<float>(density));
 		panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
 		panel.setSandbox(sandbox);
@@ -2097,8 +2190,14 @@ int main(int argc, char** argv) {
 
 		// The counter, small and out of the way: it is for me, not for playing.
 		char counter[128];
-		SDL_snprintf(counter, sizeof(counter), "%.0f fps   %zu drawn   %.0f, %.0f   zoom %.2f",
-					 fps, visible.size(), player.x, player.y, zoom);
+		if (map.open()) {
+			// Where you are is map business: on the map screen it is how you
+			// read the map, and in play it is a number nobody needs.
+			SDL_snprintf(counter, sizeof(counter), "%.0f fps   %.0f, %.0f   zoom %.2f", fps,
+						 player.x, player.y, zoom);
+		} else {
+			SDL_snprintf(counter, sizeof(counter), "%.0f fps   zoom %.2f", fps, zoom);
+		}
 		lettering.drawInked(counter, 10 * density, 6 * density, 12 * density,
 							client::Color{255, 255, 255, 190}, client::Face::Body,
 							client::Align::Left, 1);

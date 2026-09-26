@@ -172,6 +172,12 @@ FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, 
 	// The string comes up while the right button is held and goes back down
 	// the moment it is let go: Rust's hunting bow, and why a bow is punishing.
 	if (feedsFromPack(gun)) {
+		// Nothing on the string, nothing to draw: an empty bow does not bend.
+		if (inventory.count(gun.ammo) < 1) {
+			player.bowDraw = 0;
+			out.empty = drawing || trigger;
+			return out;
+		}
 		player.bowDraw = drawing ? std::min(kBowDrawSeconds, player.bowDraw + dt) : 0;
 		if (!trigger) return out;
 		if (player.bowDraw < kBowDrawSeconds) return out;
