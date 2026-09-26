@@ -296,6 +296,150 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
                              {x + s * 0.2f, y + s * 0.6f}},
                             rgb(0xc9a227), kInkFine);
             break;
+        case sim::ItemId::MeatCooked: {
+            paint.inkedPoly({{x - s * 0.55f, y - s * 0.1f}, {x - s * 0.2f, y - s * 0.6f},
+                             {x + s * 0.5f, y - s * 0.3f}, {x + s * 0.4f, y + s * 0.5f},
+                             {x - s * 0.4f, y + s * 0.4f}},
+                            rgb(0xb36425), kInkFine);
+            paint.line(x - s * 0.3f, y, x + s * 0.3f, y - s * 0.1f, kInkFine, kInk);
+            break;
+        }
+        case sim::ItemId::Water: {
+            // A skin of it, which is how you carry water about.
+            paint.inkedPoly({{x - s * 0.35f, y - s * 0.6f}, {x + s * 0.35f, y - s * 0.6f},
+                             {x + s * 0.5f, y + s * 0.5f}, {x - s * 0.5f, y + s * 0.5f}},
+                            rgb(0x66c0f7), kInkFine);
+            break;
+        }
+        case sim::ItemId::Bandage: {
+            paint.inkedPoly({{x - s * 0.6f, y - s * 0.25f}, {x + s * 0.6f, y - s * 0.25f},
+                             {x + s * 0.6f, y + s * 0.25f}, {x - s * 0.6f, y + s * 0.25f}},
+                            rgb(0xebebeb), kInkFine);
+            paint.line(x - s * 0.2f, y - s * 0.45f, x + s * 0.2f, y + s * 0.45f, kInkFine * 1.4f,
+                       rgb(0xd8483a));
+            break;
+        }
+        case sim::ItemId::Medkit: {
+            paint.inkedPoly({{x - s * 0.15f, y - s * 0.6f}, {x + s * 0.15f, y - s * 0.6f},
+                             {x + s * 0.15f, y + s * 0.6f}, {x - s * 0.15f, y + s * 0.6f}},
+                            rgb(0xf95177), kInkFine);
+            paint.line(x - s * 0.4f, y - s * 0.2f, x + s * 0.4f, y - s * 0.2f, kInkFine,
+                       rgb(0xffffff));
+            break;
+        }
+        case sim::ItemId::Clothing:
+        case sim::ItemId::Hazmat: {
+            // A jerkin, seen flat: shoulders, body and two sleeves.
+            const Color cloth = item == sim::ItemId::Hazmat ? rgb(0x64e6b7) : rgb(0xc87f46);
+            paint.inkedPoly({{x - s * 0.35f, y - s * 0.55f}, {x + s * 0.35f, y - s * 0.55f},
+                             {x + s * 0.4f, y + s * 0.6f}, {x - s * 0.4f, y + s * 0.6f}},
+                            cloth, kInkFine);
+            paint.inkedPoly({{x - s * 0.65f, y - s * 0.5f}, {x - s * 0.35f, y - s * 0.55f},
+                             {x - s * 0.35f, y - s * 0.1f}, {x - s * 0.6f, y - s * 0.05f}},
+                            cloth, kInkFine);
+            paint.inkedPoly({{x + s * 0.65f, y - s * 0.5f}, {x + s * 0.35f, y - s * 0.55f},
+                             {x + s * 0.35f, y - s * 0.1f}, {x + s * 0.6f, y - s * 0.05f}},
+                            cloth, kInkFine);
+            break;
+        }
+        case sim::ItemId::BuildingPlan: {
+            // A rolled plan with a line of drawing on it.
+            paint.inkedPoly({{x - s * 0.6f, y - s * 0.45f}, {x + s * 0.6f, y - s * 0.45f},
+                             {x + s * 0.6f, y + s * 0.45f}, {x - s * 0.6f, y + s * 0.45f}},
+                            rgb(0xffe095), kInkFine);
+            paint.line(x - s * 0.35f, y + s * 0.2f, x - s * 0.35f, y - s * 0.2f, kInkFine, kInk);
+            paint.line(x - s * 0.35f, y - s * 0.2f, x + s * 0.35f, y - s * 0.2f, kInkFine, kInk);
+            paint.line(x + s * 0.35f, y - s * 0.2f, x + s * 0.35f, y + s * 0.2f, kInkFine, kInk);
+            break;
+        }
+        case sim::ItemId::Lock: {
+            paint.inkedPoly({{x - s * 0.4f, y - s * 0.1f}, {x + s * 0.4f, y - s * 0.1f},
+                             {x + s * 0.4f, y + s * 0.55f}, {x - s * 0.4f, y + s * 0.55f}},
+                            rgb(0xc9a227), kInkFine);
+            for (int i = 0; i < 8; ++i) {
+                const float a = 3.14159265f + i / 7.0f * 3.14159265f;
+                const float bx = x + std::cos(a) * s * 0.28f;
+                const float by = y - s * 0.1f + std::sin(a) * s * 0.28f;
+                paint.fillCircle(bx, by, kInkFine, kInk);
+            }
+            break;
+        }
+        case sim::ItemId::Campfire: {
+            paint.inkedCircle(x, y, s * 0.6f, rgb(0x6f6a5e), kInkFine);
+            paint.fillPoly({{x - s * 0.25f, y + s * 0.2f}, {x, y - s * 0.45f},
+                            {x + s * 0.25f, y + s * 0.2f}},
+                           rgb(0xff8c2e));
+            break;
+        }
+        case sim::ItemId::Furnace: {
+            paint.inkedCircle(x, y, s * 0.6f, rgb(0x7e858c), kInkFine);
+            paint.fillPoly({{x - s * 0.2f, y + s * 0.15f}, {x + s * 0.2f, y + s * 0.15f},
+                            {x + s * 0.15f, y + s * 0.6f}, {x - s * 0.15f, y + s * 0.6f}},
+                           rgb(0x2e2a22));
+            break;
+        }
+        case sim::ItemId::WoodenBox: {
+            paint.inkedPoly({{x - s * 0.6f, y - s * 0.45f}, {x + s * 0.6f, y - s * 0.45f},
+                             {x + s * 0.6f, y + s * 0.5f}, {x - s * 0.6f, y + s * 0.5f}},
+                            rgb(0x8a6034), kInkFine);
+            paint.line(x - s * 0.6f, y, x + s * 0.6f, y, kInkFine, rgb(0x5d4022));
+            break;
+        }
+        case sim::ItemId::ToolCupboard: {
+            paint.inkedPoly({{x - s * 0.55f, y - s * 0.55f}, {x + s * 0.55f, y - s * 0.55f},
+                             {x + s * 0.55f, y + s * 0.55f}, {x - s * 0.55f, y + s * 0.55f}},
+                            rgb(0x6b5540), kInkFine);
+            paint.inkedPoly({{x - s * 0.3f, y - s * 0.3f}, {x + s * 0.3f, y - s * 0.3f},
+                             {x + s * 0.3f, y + s * 0.1f}, {x - s * 0.3f, y + s * 0.1f}},
+                            rgb(0x8a7a5a), kInkFine);
+            break;
+        }
+        case sim::ItemId::SleepingBag: {
+            paint.inkedPoly({{x - s * 0.4f, y - s * 0.6f}, {x + s * 0.4f, y - s * 0.6f},
+                             {x + s * 0.4f, y + s * 0.6f}, {x - s * 0.4f, y + s * 0.6f}},
+                            rgb(0xa05a5a), kInkFine);
+            paint.fillCircle(x, y - s * 0.3f, s * 0.2f, rgb(0xc98a8a));
+            break;
+        }
+        case sim::ItemId::Workbench1:
+        case sim::ItemId::Workbench2:
+        case sim::ItemId::Workbench3: {
+            paint.inkedPoly({{x - s * 0.65f, y - s * 0.2f}, {x + s * 0.65f, y - s * 0.2f},
+                             {x + s * 0.65f, y + s * 0.25f}, {x - s * 0.65f, y + s * 0.25f}},
+                            rgb(0x8a6034), kInkFine);
+            const int tier = item == sim::ItemId::Workbench3   ? 3
+                             : item == sim::ItemId::Workbench2 ? 2
+                                                               : 1;
+            for (int i = 0; i < tier; ++i) {
+                paint.fillCircle(x - s * 0.3f + i * s * 0.3f, y + s * 0.45f, s * 0.1f,
+                                 rgb(0xc9a227));
+            }
+            break;
+        }
+        case sim::ItemId::Satchel:
+        case sim::ItemId::C4: {
+            // A bundle with a fuse out of the top of it.
+            const Color body = item == sim::ItemId::C4 ? rgb(0xd8d2c0) : rgb(0x8a7a5a);
+            paint.inkedPoly({{x - s * 0.45f, y - s * 0.2f}, {x + s * 0.45f, y - s * 0.2f},
+                             {x + s * 0.45f, y + s * 0.5f}, {x - s * 0.45f, y + s * 0.5f}},
+                            body, kInkFine);
+            paint.line(x, y - s * 0.2f, x + s * 0.2f, y - s * 0.6f, kInkFine, kInk);
+            paint.fillCircle(x + s * 0.2f, y - s * 0.6f, s * 0.1f, rgb(0xff6b4a));
+            break;
+        }
+        case sim::ItemId::Rocket: {
+            paint.inkedPoly({{x - s * 0.15f, y + s * 0.5f}, {x - s * 0.15f, y - s * 0.2f},
+                             {x, y - s * 0.6f}, {x + s * 0.15f, y - s * 0.2f},
+                             {x + s * 0.15f, y + s * 0.5f}},
+                            rgb(0x6b6f76), kInkFine);
+            paint.fillPoly({{x - s * 0.15f, y + s * 0.5f}, {x - s * 0.35f, y + s * 0.6f},
+                            {x - s * 0.15f, y + s * 0.25f}},
+                           rgb(0xc8433a));
+            paint.fillPoly({{x + s * 0.15f, y + s * 0.5f}, {x + s * 0.35f, y + s * 0.6f},
+                            {x + s * 0.15f, y + s * 0.25f}},
+                           rgb(0xc8433a));
+            break;
+        }
         default: {
             // The tools, drawn with the same routine that puts one in a hand,
             // so a hatchet on the belt is the hatchet you swing.

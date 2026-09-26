@@ -333,6 +333,7 @@ int main(int argc, char** argv) {
     client::Panel panel;
     client::MapScreen map(renderer);
     if (loaded) hud.notify("Carried on where you left off.");
+    if (sandbox) hud.notify("Sandbox. Nothing costs anything and nothing can kill you.");
     if (showMap) map.toggle();
     // What the building plan would put down, cycled with B.
     sim::BuildKind buildKind = sim::BuildKind::Foundation;
@@ -450,12 +451,18 @@ int main(int argc, char** argv) {
                 }
                 continue;
             }
-            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_T && online &&
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_RETURN && online &&
                 !event.key.repeat) {
                 typing = true;
                 SDL_StartTextInput(window);
             }
-            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F && online &&
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_N && online &&
+                net.inviteFrom() != 0 && !event.key.repeat) {
+                net.sendInviteReply(net.inviteFrom(), false);
+                net.clearInvite();
+                hud.notify("Turned them down.");
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_T && online &&
                 !event.key.repeat) {
                 // Asked of whoever is in front of you, as an invite should be.
                 std::uint16_t nearest = 0;
@@ -469,15 +476,22 @@ int main(int argc, char** argv) {
                 }
                 if (nearest) {
                     net.sendInvite(nearest);
-                    hud.notify("Asked them to team up");
+                    hud.notify("Asked them to team up.");
                 } else {
-                    hud.notify("Nobody near enough to ask");
+                    hud.notify("Nobody close enough to ask.");
                 }
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_Y && online &&
                 net.inviteFrom() != 0 && !event.key.repeat) {
                 net.sendInviteReply(net.inviteFrom(), true);
                 net.clearInvite();
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && sandbox && !event.key.repeat &&
+                (event.key.key == SDLK_LEFTBRACKET || event.key.key == SDLK_RIGHTBRACKET)) {
+                const double hours = event.key.key == SDLK_RIGHTBRACKET ? 1 : -1;
+                clock += hours * sim::kDaySeconds / 24;
+                if (clock < 0) clock += sim::kDaySeconds;
+                hud.notify(hours > 0 ? "Clock moved forward 1h." : "Clock moved back 1h.");
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H && !event.key.repeat) {
                 showHelp = !showHelp;
@@ -504,7 +518,8 @@ int main(int argc, char** argv) {
                             event.button.button == SDL_BUTTON_RIGHT, lastWidth, lastHeight,
                             static_cast<float>(lastDensity));
             }
-            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B && !event.key.repeat) {
+            if (event.type == SDL_EVENT_KEY_DOWN &&
+                (event.key.key == SDLK_B || event.key.key == SDLK_Q) && !event.key.repeat) {
                 // Foundation, wall, doorway, door, and round again.
                 buildKind = static_cast<sim::BuildKind>(
                     (static_cast<int>(buildKind) + 1) % 4);
@@ -577,6 +592,7 @@ int main(int argc, char** argv) {
         double dt = static_cast<double>(now - last) / static_cast<double>(SDL_GetPerformanceFrequency());
         last = now;
         // Paused, the island holds still; online there is nothing to pause.
+        // Online the island does not stop for you; alone it does.
         if ((paused && !online) || title) dt = 0;
         // A frame that took a second - a dragged window, a sleeping laptop -
         // must not teleport anyone across the island.
@@ -931,21 +947,51 @@ int main(int argc, char** argv) {
 
         if (inHand == sim::ItemId::Hammer && handsFree && (buttons & SDL_BUTTON_LMASK) != 0 &&
             player.attackTimer <= 0) {
-            // The hammer takes a piece up a tier rather than knocking it down.
-            if (sim::Structure* piece = build.nearest(cursorX, cursorY, sim::kBuildCell * 0.6)) {
+            // The hammer mends what is damaged and puts what is whole up a
+            // tier. Only your own, and only within arm's length of you.
+            sim::Structure* piece = build.nearest(cursorX, cursorY, 30);
+            if (piece && piece->owner != 0) piece = nullptr;
+            if (piece &&
+                SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
+                         (cursorY - player.y) * (cursorY - player.y)) > 140) {
+                hud.notify("Too far to work on that.");
+            } else if (piece && piece->hp < piece->maxHp) {
+                // Mending costs wood by how much of it is gone.
+                const int cost = std::max(1, static_cast<int>(
+                                                 SDL_ceil((piece->maxHp - piece->hp) * 0.06)));
+                if (inventory.count(sim::ItemId::Wood) < cost) {
+                    hud.notify("Need " + std::to_string(cost) + " wood to repair.");
+                } else {
+                    inventory.take(sim::ItemId::Wood, cost);
+                    piece->hp = piece->maxHp;
+                    hud.say("repaired", cursorX, cursorY, client::rgb(0xc9e08a));
+                    specks.burst(cursorX, cursorY, 8, client::rgb(0xc9e08a), 90, 0.4, 2.2);
+                }
+            } else if (piece) {
                 sim::BuildTier up = sim::BuildTier::Twig;
                 if (!build.nextTier(*piece, up)) {
-                    hud.say("Already sheet metal", player.x, player.y - 26, client::rgb(0xd8483a));
+                    hud.notify("Already sheet metal.");
                 } else if (build.upgrade(*piece, inventory)) {
-                    hud.say(sim::tierDef(up).name, cursorX, cursorY, client::rgb(0xefeadd));
+                    hud.notify(std::string("Upgraded to ") + sim::tierDef(up).name + ".");
+                    specks.burst(cursorX, cursorY, 12, client::rgb(0x9aa8b4), 110, 0.5, 3);
                 } else {
                     const sim::Cost& cost = sim::tierDef(up).cost;
-                    hud.say(std::string("Needs ") + std::to_string(cost.count) + " " +
-                                sim::itemDef(cost.id).name,
-                            player.x, player.y - 26, client::rgb(0xd8483a));
+                    hud.notify("Need " + std::to_string(cost.count) + " " +
+                               sim::itemDef(cost.id).name + ".");
                 }
-                player.attackTimer = 0.5;
             }
+            player.attackTimer = 0.35;
+        }
+
+        if (inHand == sim::ItemId::None && inventory.worn().id != sim::ItemId::None &&
+            (buttons & SDL_BUTTON_RMASK) != 0 && player.attackTimer <= 0) {
+            // An empty hand and the right button takes off what you are wearing.
+            const sim::ItemStack was = inventory.worn();
+            if (inventory.add(was.id, was.count) == 0) {
+                inventory.worn() = sim::ItemStack{};
+                hud.notify(std::string("Took off the ") + sim::itemDef(was.id).name + ".");
+            }
+            player.attackTimer = 0.4;
         }
 
         if (sim::itemDef(inHand).category == sim::ItemCategory::Clothing &&
@@ -955,8 +1001,7 @@ int main(int argc, char** argv) {
             if (inventory.take(inHand, 1) > 0) {
                 inventory.worn() = sim::ItemStack{inHand, 1};
                 if (was.id != sim::ItemId::None) inventory.add(was.id, was.count);
-                hud.say(std::string("Wearing ") + sim::itemDef(inHand).name, player.x,
-                        player.y - 26, client::rgb(0xefeadd));
+                hud.notify(std::string("Wearing ") + sim::itemDef(inHand).name + ".");
             }
             player.attackTimer = 0.4;
         }
@@ -1443,6 +1488,7 @@ int main(int argc, char** argv) {
         }
         map.draw(paint, world, build, player, width, height, static_cast<float>(density));
         panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
+        panel.setShelf(sandbox);
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
         if (typing) {
             const float size = 1.8f * static_cast<float>(density);
@@ -1490,16 +1536,64 @@ int main(int argc, char** argv) {
             SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
 
-        if (paused && !online) {
+        if (paused) {
+            // Settings, which for now is every binding in one place: it is
+            // where a player looks for the controls.
             paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
-                           client::Color{0, 0, 0, 140});
+                           client::Color{0, 0, 0, 170});
             const float size = 3.0f * static_cast<float>(density);
-            const char* line = "PAUSED    esc to carry on";
-            const float textW = static_cast<float>(SDL_strlen(line)) * 8 * size;
+            const char* headline = online ? "SETTINGS    esc to carry on"
+                                          : "PAUSED    esc to carry on";
+            const float textW = static_cast<float>(SDL_strlen(headline)) * 8 * size;
             SDL_SetRenderScale(renderer, size, size);
             SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
-            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size, height * 0.45f / size,
-                                line);
+            SDL_RenderDebugText(renderer, (width - textW) * 0.5f / size, height * 0.16f / size,
+                                headline);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+
+            struct Binding {
+                const char* group;
+                const char* key;
+                const char* what;
+            };
+            static const Binding kBindings[] = {
+                {"Moving", "WASD", "walk"},
+                {nullptr, "SHIFT", "run"},
+                {nullptr, "MOUSE", "aim"},
+                {nullptr, "E", "use what you face"},
+                {"Your hands", "1-6", "belt slot"},
+                {nullptr, "LEFT CLICK", "swing or fire"},
+                {nullptr, "RIGHT CLICK", "draw a bow, take off a coat"},
+                {nullptr, "R", "reload"},
+                {nullptr, "G", "drop the held stack"},
+                {"Making and building", "TAB", "pack, bench and containers"},
+                {nullptr, "Q", "cycle piece, holding a plan"},
+                {nullptr, "CLICK", "move a stack"},
+                {"The island", "M", "the map"},
+                {nullptr, "T", "ask a nearby player to team up"},
+                {nullptr, "Y / N", "accept or refuse"},
+                {nullptr, "ENTER", "say something, online"},
+                {nullptr, "H", "how the island works"},
+                {nullptr, "ESC", "back out"},
+            };
+            const float small = 1.5f * static_cast<float>(density);
+            SDL_SetRenderScale(renderer, small, small);
+            float row = height * 0.26f;
+            for (const Binding& binding : kBindings) {
+                if (binding.group) {
+                    row += 14 * density;
+                    SDL_SetRenderDrawColor(renderer, 160, 160, 150, 255);
+                    SDL_RenderDebugText(renderer, (width * 0.5f - 300 * density) / small,
+                                        row / small, binding.group);
+                    row += 26 * density;
+                }
+                SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+                SDL_RenderDebugText(renderer, (width * 0.5f - 260 * density) / small, row / small,
+                                    binding.key);
+                SDL_RenderDebugText(renderer, (width * 0.5f - 60 * density) / small, row / small,
+                                    binding.what);
+                row += 24 * density;
+            }
             SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
 

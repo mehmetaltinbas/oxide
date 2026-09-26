@@ -99,6 +99,21 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
         return true;
     }
 
+    // The sandbox shelf: a click takes one of whatever is under it.
+    if (shelf_ && !container_) {
+        const int cols = 6;
+        for (int i = 1; i < sim::kItemCount; ++i) {
+            const int at = i - 1;
+            const float sx = l.listX + (at % cols) * (l.slot + 4 * uiScale);
+            const float sy = l.listY + (at / cols) * (l.slot + 4 * uiScale);
+            if (x < sx || x > sx + l.slot || y < sy || y > sy + l.slot) continue;
+            const auto id = static_cast<sim::ItemId>(i);
+            inventory.add(id, right ? sim::itemDef(id).stack : 1);
+            return true;
+        }
+        return true;
+    }
+
     // A recipe, queued.
     if (!right && x >= l.listX && x <= l.listX + l.rowW) {
         const int row = static_cast<int>((y - l.listY) / l.rowH);
@@ -147,7 +162,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
 
     text(renderer, l.packX, l.y + 24 * uiScale, 2.0f * uiScale, kText, "PACK");
     text(renderer, l.listX, l.y + 24 * uiScale, 2.0f * uiScale, kText,
-         container_ ? title_ : "CRAFT");
+         container_ ? title_ : (shelf_ ? "SHELF" : "CRAFT"));
 
     // The pack, and the belt under it.
     const auto slotAt = [&](float x, float y, const sim::ItemStack& stack) {
@@ -201,6 +216,24 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         }
         text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim,
              "click a slot to move it   TAB to close");
+        return;
+    }
+
+    if (shelf_) {
+        // Every item there is, six across, a click for one and a right click
+        // for a stack.
+        const int cols = 6;
+        for (int i = 1; i < sim::kItemCount; ++i) {
+            const int at = i - 1;
+            const float sx = l.listX + (at % cols) * (l.slot + 4 * uiScale);
+            const float sy = l.listY + (at / cols) * (l.slot + 4 * uiScale);
+            if (sy + l.slot > l.y + l.h - 40 * uiScale) break;
+            paint.fillRect(sx, sy, l.slot, l.slot, kSlot);
+            drawItemIcon(paint, static_cast<sim::ItemId>(i), sx + l.slot * 0.5f,
+                         sy + l.slot * 0.5f, l.slot * 0.7f);
+        }
+        text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim,
+             "click for one, right click for a stack");
         return;
     }
 

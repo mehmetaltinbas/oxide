@@ -59,6 +59,9 @@ public:
     /** A transfer in progress, which finishes on its own. */
     void update(double dt, sim::Inventory& inventory);
 
+    /** Creative mode puts a shelf of every item where the recipes go. */
+    void setShelf(bool on) { shelf_ = on; }
+
     void draw(Paint& paint, const sim::Inventory& inventory, const sim::Crafting& crafting,
               int width, int height, float uiScale) const;
 
@@ -68,6 +71,7 @@ private:
     sim::Container* container_ = nullptr;
     const char* title_ = "";
     int bench_ = 0;
+    bool shelf_ = false;
     /** What is being moved, where to, and how long is left of moving it. */
     struct Move {
         bool intoContainer = false;
