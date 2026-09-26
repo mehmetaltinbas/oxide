@@ -59,15 +59,7 @@ void Hud::setVitals(double calories, double hydration, double temperature, doubl
 	applying_ = applying;
 }
 
-void Hud::warn(const std::string& text) {
-	warning_ = text;
-	// Long enough to read, short enough that it is gone by the time you have
-	// done something about it.
-	warningLeft_ = 1.6;
-}
-
 void Hud::update(double dt) {
-	warningLeft_ = std::max(0.0, warningLeft_ - dt);
 	for (Popup& p : popups_) p.life -= dt;
 	popups_.erase(std::remove_if(popups_.begin(), popups_.end(),
 								 [](const Popup& p) { return p.life <= 0; }),
@@ -227,15 +219,6 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 			lettering_->draw(ammo, ax, ay, 20 * uiScale, rgb(0xffffff), Face::Display);
 		}
 	}
-	if (warningLeft_ > 0 && lettering_) {
-		// Just above the prompt, so the two never sit on top of each other.
-		const float size = 17 * uiScale;
-		const std::uint8_t fade =
-			static_cast<std::uint8_t>(255 * std::min(1.0, warningLeft_ / 0.35));
-		lettering_->drawInked(warning_, width * 0.5f, y0 - 70 * uiScale, size,
-							  Color{255, 122, 98, fade}, Face::BodyBold, Align::Centre, 2);
-	}
-
 	if (prompt && prompt[0]) {
 		// One line, over the belt: what the key under your finger would do.
 		const float size = 16 * uiScale;

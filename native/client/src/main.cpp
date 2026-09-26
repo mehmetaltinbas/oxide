@@ -519,7 +519,6 @@ int main(int argc, char** argv) {
 		};
 		actions.consume = [&](sim::ItemId id) {
 			if (sim::consume(player, inventory, id)) {
-				hud.say(sim::itemDef(id).name, player.x, player.y - 26, client::rgb(0x8cf08c));
 			}
 		};
 		actions.wear = [&](sim::ItemId id) {
@@ -848,24 +847,18 @@ int main(int argc, char** argv) {
 						thing->kind == sim::DeployKind::Furnace) {
 						thing->lit = !thing->lit;
 						audio.build();
-						hud.say(thing->lit ? "Lit" : "Out", thing->x, thing->y - 20,
-								client::rgb(0xffd98a));
 					}
 					if (!thing->container.slots.empty()) {
 						panel.openContainer(&thing->container,
 											sim::itemDef(sim::itemOf(thing->kind)).name, thing);
 					} else if (thing->kind == sim::DeployKind::SleepingBag) {
-						hud.say("Your bag", thing->x, thing->y - 20, client::rgb(0xefeadd));
 					}
 				} else if (sim::drink(world, player)) {
-					hud.say("drank", player.x, player.y - 26, client::rgb(0x5aa8d8));
 					audio.pickup();
 				}
 				if (sim::Structure* door = build.nearest(player.x, player.y, sim::kBuildCell * 0.9)) {
 					if (door->kind == sim::BuildKind::Door) {
 						if (door->locked && door->owner != 0) {
-							hud.say("Locked. You will have to break it.", player.x, player.y - 26,
-									client::rgb(0xd8483a));
 						} else if (online) {
 							net.sendDoor(door->id, !door->open);
 						} else {
@@ -1174,12 +1167,9 @@ int main(int argc, char** argv) {
 				specks.shake(sim::itemDef(shot.gun).gun.damage > 50 ? 3.5 : 2.0, 0.12);
 			}
 			if (shot.empty && trigger) {
-				// Along the bottom rather than over your head: it is a fact
-				// about what is in your hands.
-				const sim::Gun& held = sim::itemDef(inventory.held()).gun;
-				hud.warn(held.magazine > 0 ? "Empty. Reload with R."
-										   : std::string("No ") +
-												 sim::itemDef(held.ammo).name + " left.");
+				// The click of a weapon that will not fire, and nothing else.
+				// The belt already shows nought rounds; a sentence on top of
+				// that is the interface not trusting itself.
 				audio.deny();
 			}
 		}
@@ -1260,7 +1250,6 @@ int main(int argc, char** argv) {
 			}
 			if (handsFree && (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
 				if (deployRefusal) {
-					hud.say(deployRefusal, player.x, player.y - 26, client::rgb(0xd8483a));
 				} else if (inventory.take(inHand, 1) > 0) {
 					build.deploy(deployKind, deployGx, deployGy, 0);
 					audio.build();
@@ -1298,7 +1287,6 @@ int main(int argc, char** argv) {
 			player.attackTimer = 0.25;
 		} else if (planning && refusal && (buttons & SDL_BUTTON_LMASK) != 0 &&
 				   player.attackTimer <= 0) {
-			hud.say(refusal, player.x, player.y - 26, client::rgb(0xd8483a));
 			player.attackTimer = 0.4;
 		}
 
@@ -1309,10 +1297,7 @@ int main(int argc, char** argv) {
 			if (door && door->kind == sim::BuildKind::Door && door->owner == 0 && !door->locked &&
 				inventory.take(sim::ItemId::Lock, 1) > 0) {
 				door->locked = true;
-				hud.say("Locked", cursorX, cursorY, client::rgb(0xefeadd));
 			} else {
-				hud.say("Locks go on your own doors", player.x, player.y - 26,
-						client::rgb(0xd8483a));
 			}
 			player.attackTimer = 0.4;
 		}
@@ -1326,31 +1311,25 @@ int main(int argc, char** argv) {
 			if (piece &&
 				SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
 						 (cursorY - player.y) * (cursorY - player.y)) > 140) {
-				hud.say("Too far to work on that.", player.x, player.y - 30, client::rgb(0xefeadd));
 			} else if (piece && piece->hp < piece->maxHp) {
 				// Mending costs wood by how much of it is gone.
 				const int cost = std::max(1, static_cast<int>(
 												 SDL_ceil((piece->maxHp - piece->hp) * 0.06)));
 				if (inventory.count(sim::ItemId::Wood) < cost) {
-					hud.say("Need " + std::to_string(cost) + " wood to repair.", player.x, player.y - 30, client::rgb(0xefeadd));
 				} else {
 					inventory.take(sim::ItemId::Wood, cost);
 					piece->hp = piece->maxHp;
-					hud.say("repaired", cursorX, cursorY, client::rgb(0xc9e08a));
 					audio.build();
 					specks.burst(cursorX, cursorY, 8, client::rgb(0xc9e08a), 90, 0.4, 2.2);
 				}
 			} else if (piece) {
 				sim::BuildTier up = sim::BuildTier::Twig;
 				if (!build.nextTier(*piece, up)) {
-					hud.say("Already sheet metal.", player.x, player.y - 30, client::rgb(0xefeadd));
 				} else if (build.upgrade(*piece, inventory)) {
-					hud.say(std::string("Upgraded to ") + sim::tierDef(up).name + ".", player.x, player.y - 30, client::rgb(0xefeadd));
 					audio.build();
 					specks.burst(cursorX, cursorY, 12, client::rgb(0x9aa8b4), 110, 0.5, 3);
 				} else {
 					const sim::Cost& cost = sim::tierDef(up).cost;
-					hud.say("Need " + std::to_string(cost.count) + " " + sim::itemDef(cost.id).name + ".", player.x, player.y - 30, client::rgb(0xefeadd));
 				}
 			}
 			player.attackTimer = 0.35;
@@ -1384,7 +1363,6 @@ int main(int argc, char** argv) {
 			const double reach = sim::PlayerVitals::kDeployReach;
 			if (SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
 						 (cursorY - player.y) * (cursorY - player.y)) > reach) {
-				hud.say("Too far away", player.x, player.y - 26, client::rgb(0xd8483a));
 			} else if (inventory.take(inHand, 1) > 0) {
 				explosives.throwAt(inHand, player.x, player.y, cursorX, cursorY);
 				char fuse[64];
@@ -1398,7 +1376,6 @@ int main(int argc, char** argv) {
 		if (eating && (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
 			if (sim::consume(player, inventory, inHand)) {
 				audio.craft();
-				hud.say(sim::itemDef(inHand).name, player.x, player.y - 26, client::rgb(0x8cf08c));
 			}
 		}
 
@@ -1449,7 +1426,6 @@ int main(int argc, char** argv) {
 				hud.say("-" + std::to_string(static_cast<int>(blow.damage)), blow.x, blow.y - 16,
 						client::rgb(0xffd9d9));
 			}
-			if (blow.packFull) hud.say("Pack full", player.x, player.y - 24, client::rgb(0xd8483a));
 		}
 
 		SDL_SetRenderDrawColor(renderer, client::kVoid.r, client::kVoid.g, client::kVoid.b, 255);
@@ -1862,27 +1838,48 @@ int main(int argc, char** argv) {
 			const float left = static_cast<float>(
 				std::clamp(bullet.left / (std::max(1.0, speed) * 0.2), 0.0, 1.0));
 			if (bullet.arrow) {
-				// Inked like everything else in the world: a bare brown line
-				// vanished against a tree the moment it was over one.
-				const float shaft = 2.2f;
-				paint.line(bx - ux * tail, by - uy * tail, bx, by, shaft + client::kInkFine,
+				// A knapped head, a thin shaft and a forked nock: the arrow is
+				// mostly stick, so the stick is thin and the head is what you
+				// see. Laid out along its flight, nock behind and point ahead.
+				const float len = 17.0f;
+				const float px = ux;
+				const float py = uy;
+				// Across the arrow, for the head's barbs and the nock's fork.
+				const float ax = -uy;
+				const float ay = ux;
+				const auto at = [&](float along, float across) {
+					return client::Point{bx + px * along * static_cast<float>(scale) +
+											 ax * across * static_cast<float>(scale),
+										 by + py * along * static_cast<float>(scale) +
+											 ay * across * static_cast<float>(scale)};
+				};
+				// The shaft, from the nock up to the binding.
+				const client::Point tailAt = at(-len, 0);
+				const client::Point neck = at(-len * 0.28f, 0);
+				paint.line(tailAt.x, tailAt.y, neck.x, neck.y, 1.1f + client::kInkFine,
 						   client::kInk);
-				paint.line(bx - ux * tail, by - uy * tail, bx, by, shaft,
-						   client::rgb(0x8a5a2e));
-				// The head, so it reads as an arrow and not as a twig.
-				const float head = 3.4f * static_cast<float>(scale);
-				paint.fillPoly({{bx + ux * head, by + uy * head},
-								{bx - ux * head + uy * head * 0.8f,
-								 by - uy * head - ux * head * 0.8f},
-								{bx - ux * head - uy * head * 0.8f,
-								 by - uy * head + ux * head * 0.8f}},
-							   client::kInk);
-				paint.fillPoly({{bx + ux * head * 0.7f, by + uy * head * 0.7f},
-								{bx - ux * head * 0.6f + uy * head * 0.5f,
-								 by - uy * head * 0.6f - ux * head * 0.5f},
-								{bx - ux * head * 0.6f - uy * head * 0.5f,
-								 by - uy * head * 0.6f + ux * head * 0.5f}},
-							   client::rgb(0xcfd8e0));
+				paint.line(tailAt.x, tailAt.y, neck.x, neck.y, 1.1f, client::rgb(0x9a7346));
+				// The fork at the back, where the string sits.
+				paint.fillPoly({at(-len, -1.6f), at(-len * 0.74f, -0.5f), at(-len * 0.74f, 0.5f),
+								at(-len, 1.6f), at(-len * 0.86f, 0)},
+							   client::rgb(0xb08a55));
+				paint.outlinePoly({at(-len, -1.6f), at(-len * 0.74f, -0.5f),
+								   at(-len * 0.74f, 0.5f), at(-len, 1.6f), at(-len * 0.86f, 0)},
+								  client::kInkFine, client::kInk);
+				// The binding that holds the head on.
+				paint.line(at(-len * 0.34f, -1.1f).x, at(-len * 0.34f, -1.1f).y,
+						   at(-len * 0.34f, 1.1f).x, at(-len * 0.34f, 1.1f).y, 1.4f,
+						   client::rgb(0xc9a06a));
+				// The stone head: barbed at the shoulders, tapering to a point.
+				const std::vector<client::Point> head{
+					at(len * 0.72f, 0),     at(len * 0.2f, -2.1f), at(len * 0.02f, -2.6f),
+					at(-len * 0.2f, -1.5f), at(-len * 0.1f, 0),    at(-len * 0.2f, 1.5f),
+					at(len * 0.02f, 2.6f),  at(len * 0.2f, 2.1f)};
+				paint.inkedPoly(head, client::rgb(0xb8b2a6), client::kInkFine);
+				// One flake off the face of it, which is what says knapped.
+				paint.line(at(len * 0.34f, -0.6f).x, at(len * 0.34f, -0.6f).y,
+						   at(-len * 0.04f, -1.5f).x, at(-len * 0.04f, -1.5f).y,
+						   client::kInkFine * 0.7f, client::rgb(0x7f7a70));
 			} else {
 				const float core = width * (0.4f + 0.6f * left);
 				const std::uint8_t fade = static_cast<std::uint8_t>(255 * left);
@@ -2050,9 +2047,9 @@ int main(int argc, char** argv) {
 		map.draw(paint, world, build, player, width, height, static_cast<float>(density));
 		panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
 		panel.setSandbox(sandbox);
-		// Only when it happens. This lost its guard once and shouted every
-		// frame; takeQueueFull answers true exactly once per refusal.
-		if (panel.takeQueueFull()) hud.warn("Crafting queue is full.");
+		// Asked so the flag does not pile up. Nothing is said about it: a full
+		// queue is already eight chips and a count that reads 8/8.
+		(void)panel.takeQueueFull();
 		panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
 		if (typing) {
 			const std::string line = "say: " + typed + "_";

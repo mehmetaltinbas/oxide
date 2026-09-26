@@ -96,4 +96,5 @@ How particular parts of the game actually work, as opposed to how the code is sh
 - [systems/collision.md](systems/collision.md): One routine decides what is solid, and everything that walks calls it.
 - [systems/ground-items.md](systems/ground-items.md): Everything dropped rots at the same rate, thirty minutes, with no exceptions.
 - [systems/world-scale.md](systems/world-scale.md): World units versus points: ink, bars and name tags scale with the view, the interface does not.
+- [systems/screen-text.md](systems/screen-text.md): No prose during play: say it with the thing itself or with a sound, never with a sentence.
 - [systems/ui.md](systems/ui.md): The two UI contexts, the tabbed menu screen, the channel bar, and the sandbox.

@@ -59,6 +59,10 @@ When something behaves impossibly, check the test harness before blaming the gam
   save/load, and the reasons are in `docs/architecture/code-conventions.md`.
 - **Behaviour lives in feature systems**, not in the orchestrator. `src/app/game.ts` constructs
   systems, owns shared state and phase, and runs them in order. Nothing else.
+- **No prose during play.** No notices, toasts, banners or sentences on the screen for refusals,
+  warnings or confirmations. Say it with the thing itself or with a sound. Numbers floating off what
+  they happened to, name tags and the one action prompt are not prose and stay. See
+  [docs/systems/screen-text.md](docs/systems/screen-text.md).
 - **Every interactable shows its prompt in range.** One source for what is in reach:
   `InteractionSystem.target()`, which both E and the HUD prompt read. A new interactable is a new
   case there, never a separate check. See `docs/systems/ui.md`, "Every interactable has a prompt".
