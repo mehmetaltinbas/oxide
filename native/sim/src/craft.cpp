@@ -121,6 +121,30 @@ void Crafting::cancel(Inventory& inventory, int jobId) {
 	jobs_.erase(it);
 }
 
+void Crafting::reorder(int jobId, int by) {
+	const auto it = std::find_if(jobs_.begin(), jobs_.end(),
+								 [jobId](const CraftJob& job) { return job.id == jobId; });
+	if (it == jobs_.end()) return;
+	const auto at = static_cast<int>(std::distance(jobs_.begin(), it));
+	const int to = at + by;
+	if (to < 0 || to >= static_cast<int>(jobs_.size())) return;
+	// The front job keeps whatever it has done, wherever it ends up: a swap
+	// carries the seconds with the job rather than with the place in the line.
+	std::swap(jobs_[static_cast<std::size_t>(at)], jobs_[static_cast<std::size_t>(to)]);
+}
+
+std::vector<ItemStack> Crafting::abandon() {
+	std::vector<ItemStack> back;
+	for (const CraftJob& job : jobs_) {
+		if (!job.paid) continue;
+		for (int i = 0; i < job.recipe->costCount; ++i) {
+			back.push_back(ItemStack{job.recipe->cost[i].id, job.recipe->cost[i].count});
+		}
+	}
+	jobs_.clear();
+	return back;
+}
+
 void Crafting::update(double dt, Inventory& inventory) {
 	if (jobs_.empty()) return;
 	CraftJob& job = jobs_.front();

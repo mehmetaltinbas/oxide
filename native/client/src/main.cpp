@@ -747,6 +747,12 @@ int main(int argc, char** argv) {
 								static_cast<float>(lastDensity));
 				}
 			}
+			if (event.type == SDL_EVENT_MOUSE_MOTION && panel.open()) {
+				// What turns a press into a drag.
+				panel.motion(inventory, event.motion.x * static_cast<float>(lastDensity),
+							 event.motion.y * static_cast<float>(lastDensity), lastWidth,
+							 lastHeight, static_cast<float>(lastDensity));
+			}
 			if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && panel.open()) {
 				panel.release(inventory, event.button.x * static_cast<float>(lastDensity),
 							  event.button.y * static_cast<float>(lastDensity), lastWidth,
@@ -972,6 +978,12 @@ int main(int argc, char** argv) {
 									player.y + SDL_randf() * 20 - 10);
 					stack = sim::ItemStack{};
 				}
+			}
+			// Whatever was on the bench goes too: a half made hatchet is not
+			// yours any more, and what it was costing falls with the rest.
+			for (const sim::ItemStack& owed : crafting.abandon()) {
+				world.dropStack(owed, player.x + SDL_randf() * 20 - 10,
+								player.y + SDL_randf() * 20 - 10);
 			}
 			// Dead: the screen waits for you rather than snatching you back,
 			// and everything you were carrying stays where it fell.

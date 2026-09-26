@@ -4,6 +4,8 @@
 
 #include "sim/inventory.hpp"
 
+#include <vector>
+
 namespace sim {
 
 /**
@@ -70,6 +72,24 @@ public:
 	bool queue(Inventory& inventory, const Recipe& recipe, int benchTier);
 	/** Takes one back off and returns what it cost. */
 	void cancel(Inventory& inventory, int jobId);
+
+	/**
+	 * Moves a job one place up or down the queue.
+	 *
+	 * The one at the front is the one being made, so moving something to the
+	 * front is how you say "that first". Nothing is refunded and nothing is
+	 * restarted: only the order changes, and the job at the front keeps the
+	 * progress it has.
+	 */
+	void reorder(int jobId, int by);
+
+	/**
+	 * Empties the queue and hands back everything it was holding.
+	 *
+	 * Called when you die: what you had half made is not yours any more, and
+	 * the materials fall where you did along with the rest of your pack.
+	 */
+	std::vector<ItemStack> abandon();
 
 	/** Runs the front of the queue, and puts what is finished in the pack. */
 	void update(double dt, Inventory& inventory);

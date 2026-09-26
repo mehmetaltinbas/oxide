@@ -66,43 +66,98 @@ MeleeStyle meleeStyleOf(sim::ItemId item) {
 	}
 }
 
+/**
+ * How each item sits in a fist.
+ *
+ * One row per item held some particular way, read off its own glyph: where the
+ * handle ends, and which way the blade or the barrel points. Anything without
+ * a row is held in the middle of the fist at a size that reads as a thing in a
+ * hand rather than a thing on the ground. Carried over from the TypeScript
+ * game's table, which is why the numbers match its icons.
+ */
+const HeldPose& heldPoseOf(sim::ItemId item) {
+	static constexpr HeldPose kDefault{14, 0, 0, 0};
+	static constexpr float kHalfPi = 1.57079632679f;
+	switch (item) {
+		// A stone in the fist, gripped from behind so it shows past the
+		// knuckles; held by its middle the hand covered it completely.
+		case sim::ItemId::Rock: {
+			static constexpr HeldPose p{17, 0, 0.2f, 0};
+			return p;
+		}
+		// Tools by the end of the handle, head forward. The hatchet's glyph
+		// leans its handle about sixteen degrees; turned back upright.
+		case sim::ItemId::Hatchet: {
+			static constexpr HeldPose p{28, 0.11f, 0.28f, 0.28f};
+			return p;
+		}
+		case sim::ItemId::Pickaxe: {
+			static constexpr HeldPose p{30, 0, 0.28f, 0};
+			return p;
+		}
+		case sim::ItemId::Hammer: {
+			static constexpr HeldPose p{24, 0, 0.28f, 0};
+			return p;
+		}
+		case sim::ItemId::Torch: {
+			static constexpr HeldPose p{26, 0, 0.3f, 0};
+			return p;
+		}
+		case sim::ItemId::BuildingPlan: {
+			static constexpr HeldPose p{20, 0, 0.22f, 0};
+			return p;
+		}
+		// The spear's shaft runs corner to corner in its glyph; turned to
+		// point ahead.
+		case sim::ItemId::Spear: {
+			static constexpr HeldPose p{44, -0.12f, 0.16f, -0.69f};
+			return p;
+		}
+		// Guns point along +x in their glyphs.
+		case sim::ItemId::Revolver: {
+			static constexpr HeldPose p{26, -0.17f, 0.16f, -kHalfPi};
+			return p;
+		}
+		case sim::ItemId::Rifle: {
+			static constexpr HeldPose p{40, -0.12f, 0.12f, -kHalfPi};
+			return p;
+		}
+		case sim::ItemId::RocketLauncher: {
+			static constexpr HeldPose p{46, -0.05f, 0.1f, -kHalfPi};
+			return p;
+		}
+		case sim::ItemId::Waterpipe: {
+			static constexpr HeldPose p{36, -0.12f, 0.1f, -kHalfPi};
+			return p;
+		}
+		case sim::ItemId::PumpShotgun: {
+			static constexpr HeldPose p{38, -0.12f, 0.1f, -kHalfPi};
+			return p;
+		}
+		case sim::ItemId::Ak47: {
+			static constexpr HeldPose p{42, -0.1f, 0.08f, -kHalfPi};
+			return p;
+		}
+		default: return kDefault;
+	}
+}
+
+/**
+ * What is in someone's hand.
+ *
+ * Drawn from the item's own picture rather than from a second set of handles
+ * and blades kept beside it: there is one hatchet in this game and the one on
+ * your belt is the one you swing. `pose` says where the hand is and how far
+ * through a blow it is; the item's own row says how it is gripped.
+ */
 void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const MeleePose& pose,
 				  float bowDraw) {
 	if (item == sim::ItemId::None) return;
-	// Held upright, what stands over the fist is the head, so the whole tool is
-	// slid down until its head is where the hand is.
-	const float shift = pose.overHand ? 9.0f * pose.stretch : 0.0f;
-	const ToolFrame tool{body, {pose.hand.x, pose.hand.y + shift}, pose.angle, pose.stretch};
-
+	// The bow is the one thing not drawn from its own picture: it is held
+	// across the body with a string that moves, which no flat glyph can say.
+	const float bowShift = pose.overHand ? 9.0f * pose.stretch : 0.0f;
+	const ToolFrame tool{body, {pose.hand.x, pose.hand.y + bowShift}, pose.angle, pose.stretch};
 	switch (item) {
-		case sim::ItemId::Hatchet: {
-			handle(paint, tool, -3, 11, 1.1f);
-			// The bit forward, the poll behind: an axe head seen from above.
-			inked(paint, {tool.at(11, -1), tool.at(15, -5.5f), tool.at(16.5f, 0), tool.at(15, 5.5f)},
-				  kSteel);
-			inked(paint, {tool.at(9, -2), tool.at(11, -1), tool.at(11, 1), tool.at(9, 2)}, kSteelDark);
-			break;
-		}
-		case sim::ItemId::Pickaxe: {
-			handle(paint, tool, -3, 10, 1.1f);
-			// Two points, one each way, the way a pick is shaped.
-			inked(paint, {tool.at(10, -1.4f), tool.at(17, -6), tool.at(17.5f, -4), tool.at(11, 1.4f)},
-				  kSteel);
-			inked(paint, {tool.at(10, 1.4f), tool.at(16, 6), tool.at(16.5f, 4), tool.at(11, -1.4f)},
-				  kSteelDark);
-			break;
-		}
-		case sim::ItemId::Hammer: {
-			handle(paint, tool, -3, 10, 1.1f);
-			inked(paint, {tool.at(10, -4.5f), tool.at(15, -4.5f), tool.at(15, 4.5f), tool.at(10, 4.5f)},
-				  kSteel);
-			break;
-		}
-		case sim::ItemId::Spear: {
-			handle(paint, tool, -8, 22, 1.0f);
-			inked(paint, {tool.at(22, -2), tool.at(30, 0), tool.at(22, 2)}, kSteelDark);
-			break;
-		}
 		case sim::ItemId::Bow: {
 			// Seen from above with the grip in the fist: the limbs sweep back
 			// towards the archer, the string runs between their tips, and
@@ -140,62 +195,32 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
 			paint.outlinePoly(limbs, 2.6f, kWoodHandle, false);
 			break;
 		}
-		case sim::ItemId::Revolver: {
-			inked(paint, {tool.at(0, -2.4f), tool.at(9, -2.4f), tool.at(9, 2.4f), tool.at(0, 2.4f)},
-				  rgb(0x6b6f76));
-			inked(paint, {tool.at(-1, -3.4f), tool.at(2.5f, -3.4f), tool.at(2.5f, 3.4f),
-						  tool.at(-1, 3.4f)},
-				  rgb(0x3f434a));
-			break;
-		}
-		case sim::ItemId::Waterpipe:
-		case sim::ItemId::PumpShotgun:
-		case sim::ItemId::Rifle:
-		case sim::ItemId::Ak47: {
-			// A long gun, seen from above: a stock under the hand, a receiver,
-			// and the barrel running out ahead.
-			const bool wood = item == sim::ItemId::Waterpipe || item == sim::ItemId::PumpShotgun ||
-							  item == sim::ItemId::Ak47;
-			inked(paint, {tool.at(-9, -2.2f), tool.at(2, -2.2f), tool.at(2, 2.2f), tool.at(-9, 2.2f)},
-				  wood ? rgb(0x8a5a2e) : rgb(0x4d5159));
-			inked(paint, {tool.at(2, -2.8f), tool.at(12, -2.8f), tool.at(12, 2.8f), tool.at(2, 2.8f)},
-				  rgb(0x4d5159));
-			inked(paint, {tool.at(12, -1.4f), tool.at(24, -1.4f), tool.at(24, 1.4f), tool.at(12, 1.4f)},
-				  rgb(0x6b6f76));
-			// The magazine, hanging under the receiver.
-			if (item == sim::ItemId::Ak47 || item == sim::ItemId::Rifle) {
-				inked(paint, {tool.at(3, 2.8f), tool.at(8, 2.8f), tool.at(7, 7.5f), tool.at(4, 7.5f)},
-					  rgb(0x3f434a));
-			}
-			break;
-		}
-		case sim::ItemId::Torch: {
-			// Held out in front, burning. The flame flickers off the clock,
-			// which is what stops it reading as an orange leaf.
-			handle(paint, tool, -3, 9, 1.2f);
-			inked(paint, {tool.at(9, -2.4f), tool.at(13, -2.0f), tool.at(13, 2.0f),
-						  tool.at(9, 2.4f)},
-				  rgb(0x6a5236));
-			const float lick = 1.0f + 0.14f * std::sin(static_cast<float>(SDL_GetTicks()) * 0.012f);
-			paint.fillPoly({tool.at(13, -3.4f * lick), tool.at(21 * lick, 0),
-							tool.at(13, 3.4f * lick)},
-						   rgb(0xff8c2e));
-			paint.fillPoly({tool.at(13.5f, -1.8f * lick), tool.at(17.5f * lick, 0),
-							tool.at(13.5f, 1.8f * lick)},
-						   rgb(0xffd98a));
-			break;
-		}
-		case sim::ItemId::Rock: {
-			// A lump, not a tool: no handle, and no two of them alike enough
-			// to matter at this size.
-			inked(paint,
-				  {tool.at(0, -4), tool.at(4, -3), tool.at(5.5f, 1), tool.at(2, 4.5f),
-				   tool.at(-2.5f, 3), tool.at(-3.5f, -1.5f)},
-				  rgb(0x9e9e9e));
-			break;
-		}
+
 		default: break;
 	}
+
+	const HeldPose& grip = heldPoseOf(item);
+	// The picture is foreshortened by the same amount the swing is: a tool
+	// raised over the shoulder points half at the sky and looks shorter.
+	const float size = grip.size * pose.stretch * body.scale;
+	// Held upright, what stands over the fist is the head, so the picture is
+	// slid down until its head is where the hand is. -0.2 is where the
+	// business end of every one of these glyphs sits along its own length.
+	constexpr float kHeadY = -0.2f;
+	const float shift = pose.overHand ? (grip.gripY - kHeadY) * grip.size * pose.stretch : 0.0f;
+	const Point hand = body.at(pose.hand.x, pose.hand.y + shift);
+
+	// The body's own facing, plus the swing, plus how the item is gripped.
+	const float facing = std::atan2(body.sin, body.cos);
+	const float turn = facing + pose.angle;
+	const float angle = turn + grip.angle;
+	// The grip is the point of the picture that lands on the knuckles, so the
+	// picture's middle goes the other way from it.
+	const float offX = -grip.gripX * size;
+	const float offY = -grip.gripY * size;
+	const float cx = hand.x + offX * std::cos(angle) - offY * std::sin(angle);
+	const float cy = hand.y + offX * std::sin(angle) + offY * std::cos(angle);
+	drawItemIcon(paint, item, cx, cy, size, angle);
 }
 
 /**
@@ -210,9 +235,13 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
  * the pen round it, a thin mark is redrawn as a bold black one, and a shape
  * drawn as a line gets ink laid under it and its own colour on top.
  */
-void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) {
+void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, float angle) {
 	const float u = size;
-	const auto P = [&](float ux, float uy) { return Point{x + ux * u, y + uy * u}; };
+	const float ca = std::cos(angle);
+	const float sa = std::sin(angle);
+	const auto P = [&](float ux, float uy) {
+		return Point{x + (ux * ca - uy * sa) * u, y + (ux * sa + uy * ca) * u};
+	};
 	const auto pts = [&](std::initializer_list<std::pair<float, float>> list) {
 		std::vector<Point> out;
 		out.reserve(list.size());
@@ -233,11 +262,14 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
 	const auto box = [&](float ux, float uy, float uw, float uh, Color color) {
 		fill(pts({{ux, uy}, {ux + uw, uy}, {ux + uw, uy + uh}, {ux, uy + uh}}), color);
 	};
+	// A disc is round whatever the picture is turned to, so it needs no frame.
 	const auto disc = [&](float ux, float uy, float ur, Color color) {
-		paint.inkedCircle(x + ux * u, y + uy * u, ur * u, color, kGlyphInk);
+		const Point at = P(ux, uy);
+		paint.inkedCircle(at.x, at.y, ur * u, color, kGlyphInk);
 	};
 	const auto plainDisc = [&](float ux, float uy, float ur, Color color) {
-		paint.fillCircle(x + ux * u, y + uy * u, ur * u, color);
+		const Point at = P(ux, uy);
+		paint.fillCircle(at.x, at.y, ur * u, color);
 	};
 	// A mark too fine to be a shape: black, whatever colour it was asked for.
 	const auto detail = [&](float x0, float y0, float x1, float y1, float w) {
@@ -260,6 +292,7 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size) 
 			const float a = from + (to - from) * (static_cast<float>(i) / 14);
 			along.push_back(P(ux + std::cos(a) * ur, uy + std::sin(a) * ur));
 		}
+		(void)0;
 		const float thick = paint.inWorld(w * u);
 		paint.outlinePoly(along, thick + kGlyphInk * 2, kInk, false);
 		paint.outlinePoly(along, thick, color, false);

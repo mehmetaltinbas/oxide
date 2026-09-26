@@ -60,6 +60,16 @@ int Inventory::add(ItemId id, int count) {
 	return count;
 }
 
+int Inventory::addToPack(ItemId id, int count) {
+	if (id == ItemId::None || count <= 0) return 0;
+	return addInto(pack_.data(), kPackSlots, id, count);
+}
+
+int Inventory::addToBelt(ItemId id, int count) {
+	if (id == ItemId::None || count <= 0) return 0;
+	return addInto(hotbar_.data(), kHotbarSlots, id, count);
+}
+
 int Inventory::count(ItemId id) const {
 	int total = 0;
 	for (const ItemStack& s : hotbar_) {

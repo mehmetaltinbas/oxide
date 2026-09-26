@@ -56,6 +56,13 @@ public:
 
 	/** Takes what it can; returns what would not fit. */
 	int add(ItemId id, int count);
+
+	/**
+	 * Into one run of slots and no other, for the screen's "send it across".
+	 * Each returns what would not fit.
+	 */
+	int addToPack(ItemId id, int count);
+	int addToBelt(ItemId id, int count);
 	/** How many of something is carried, belt and pack together. */
 	int count(ItemId id) const;
 	/** Takes some away, and says how many it actually found. */

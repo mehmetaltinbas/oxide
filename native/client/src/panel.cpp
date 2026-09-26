@@ -207,6 +207,16 @@ int Panel::actionsFor(sim::ItemId id, bool worn, Action out[4]) const {
 	return n;
 }
 
+void Panel::queueButton(const Layout& l, float uiScale, int row, int which, float& bx, float& by,
+						float& bw) const {
+	const float queueW = 218 * uiScale;
+	const float queueX = l.x + l.w - queueW - 20 * uiScale;
+	const float listY = l.y + 88 * uiScale;
+	bw = 16 * uiScale;
+	bx = queueX + queueW - 20 * uiScale - (3 - which) * (bw + 3 * uiScale);
+	by = listY + row * 42 * uiScale + 3 * uiScale;
+}
+
 void Panel::actionBox(const Layout& l, float uiScale, int index, int count, float& bx, float& by,
 					  float& bw, float& bh) const {
 	const float left = l.x + 24 * uiScale;
@@ -446,9 +456,27 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 			paint.fillRect(queueX + 8 * uiScale, jy + 28 * uiScale,
 						   static_cast<float>((queueW - 36 * uiScale) * done), 3 * uiScale,
 						   ui::kAccent);
+			// The three handles on every job: up, down and off. The queue is
+			// something you arrange, not a line you are stuck with.
+			for (int k = 0; k < 3; ++k) {
+				float bx = 0;
+				float by = 0;
+				float bw = 0;
+				const bool last = i + 1 == crafting.jobs().size();
+				if ((k == 0 && i == 0) || (k == 1 && last)) continue;
+				queueButton(l, uiScale, static_cast<int>(i), k, bx, by, bw);
+				const bool hovered = ui::inside(mouseX, mouseY, bx, by, bw, bw);
+				paint.fillRoundRect(bx, by, bw, bw, ui::kRadiusSmall,
+									hovered ? ui::kHover : ui::kSurfaceAlt);
+				say(paint, bx + bw * 0.5f, by + bw * 0.16f, 12 * uiScale,
+					k == 2 ? ui::kWarn : ui::kSubtle, k == 0 ? "\xe2\x96\xb2"
+										: k == 1 ? "\xe2\x96\xbc"
+												 : "\xc3\x97",
+					Face::BodyBold, Align::Centre);
+			}
 		}
 		say(paint, queueX, l.y + l.h - 30 * uiScale, 11 * uiScale, ui::kFaint,
-			"right click to cancel");
+			"arrows reorder \xc2\xb7 \xc3\x97 cancels and refunds");
 	}
 
 	if (selected_ < 0 || selected_ >= static_cast<int>(all.size())) {
@@ -658,6 +686,17 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 		}
 		return true;
 	}
+	// Right click sends a stack to the other side of the screen, wherever it
+	// is: into the box if one is open, and between the pack and the belt if
+	// not. It works on the belt too, which is outside the card.
+	if (right) {
+		From from = From::None;
+		int slot = 0;
+		if (slotAt(x, y, l, width, height, uiScale, from, slot)) {
+			sendAcross(inventory, from, slot);
+			return true;
+		}
+	}
 	if (!ui::inside(x, y, l.x, l.y, l.w, l.h)) return false;
 
 	const float left = l.x + 24 * uiScale;
@@ -782,11 +821,31 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 	const float queueW = 218 * uiScale;
 	const float queueX = l.x + l.w - queueW - 20 * uiScale;
 	for (std::size_t i = 0; i < crafting.jobs().size(); ++i) {
+		const int id = crafting.jobs()[i].id;
+		bool handled = false;
+		for (int k = 0; k < 3; ++k) {
+			float bx = 0;
+			float by = 0;
+			float bw = 0;
+			queueButton(l, uiScale, static_cast<int>(i), k, bx, by, bw);
+			if (!ui::inside(x, y, bx, by, bw, bw)) continue;
+			if (k == 0) {
+				crafting.reorder(id, -1);
+			} else if (k == 1) {
+				crafting.reorder(id, 1);
+			} else {
+				crafting.cancel(inventory, id);
+			}
+			handled = true;
+			break;
+		}
+		if (handled) return true;
 		if (!ui::inside(x, y, queueX, listY + i * 42 * uiScale, queueW - 20 * uiScale,
 						36 * uiScale)) {
 			continue;
 		}
-		if (right) crafting.cancel(inventory, crafting.jobs()[i].id);
+		// Right click still cancels, which is the quick way.
+		if (right) crafting.cancel(inventory, id);
 		return true;
 	}
 
@@ -826,61 +885,153 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 
 // ---- dragging a stack about
 
-void Panel::press(sim::Inventory& inventory, float x, float y, int width, int height,
-				  float uiScale) {
-	if (!open_ || drag_.id != sim::ItemId::None) return;
+bool Panel::slotAt(float x, float y, const Layout& l, int width, int height, float uiScale,
+				   From& from, int& slot) const {
 	// The belt is reachable from every tab: it is on the screen the whole time
 	// the pack is open, so it would be strange for it to stop taking stacks
 	// because you are looking at the bench.
 	const int belt = beltSlotUnder(x, y, width, height, uiScale);
 	if (belt >= 0) {
-		if (inventory.hotbar()[belt].id == sim::ItemId::None) return;
-		drag_ = inventory.hotbar()[belt];
-		inventory.hotbar()[belt] = sim::ItemStack{};
-		dragFrom_ = From::Belt;
-		dragSlot_ = belt;
-		return;
+		from = From::Belt;
+		slot = belt;
+		return true;
 	}
-	if (tab_ != Tab::Inventory && tab_ != Tab::Container) return;
-	const Layout l = layoutOf(width, height, uiScale);
+	if (tab_ != Tab::Inventory && tab_ != Tab::Container) return false;
 	const float left = l.x + 24 * uiScale;
 	const float gridY = l.top + 36 * uiScale;
-
 	const int pack = slotUnder(x, y, left, gridY, l.slot, l.pitch, sim::kPackSlots, kPackCols);
-	if (pack >= 0 && inventory.pack()[pack].id != sim::ItemId::None) {
-		drag_ = inventory.pack()[pack];
-		inventory.pack()[pack] = sim::ItemStack{};
-		dragFrom_ = From::Pack;
-		dragSlot_ = pack;
-		return;
+	if (pack >= 0) {
+		from = From::Pack;
+		slot = pack;
+		return true;
 	}
 	if (tab_ == Tab::Inventory) {
 		const int rows = (sim::kPackSlots + kPackCols - 1) / kPackCols;
 		const float wornY = gridY + rows * l.pitch + 34 * uiScale;
-		if (ui::inside(x, y, left, wornY, l.slot, l.slot) &&
-			inventory.worn().id != sim::ItemId::None) {
-			drag_ = inventory.worn();
-			inventory.worn() = sim::ItemStack{};
-			dragFrom_ = From::Worn;
-			return;
+		if (ui::inside(x, y, left, wornY, l.slot, l.slot)) {
+			from = From::Worn;
+			slot = 0;
+			return true;
 		}
 	}
 	if (tab_ == Tab::Container && container_) {
 		const float inX = left + kPackCols * l.pitch + 24 * uiScale;
 		const int at = slotUnder(x, y, inX, gridY, l.slot, l.pitch,
 								 static_cast<int>(container_->slots.size()), 4);
-		if (at >= 0 && container_->slots[at].id != sim::ItemId::None) {
-			drag_ = container_->slots[at];
-			container_->slots[at] = sim::ItemStack{};
-			dragFrom_ = From::Container;
-			dragSlot_ = at;
+		if (at >= 0) {
+			from = From::Container;
+			slot = at;
+			return true;
 		}
+	}
+	return false;
+}
+
+void Panel::press(sim::Inventory& inventory, float x, float y, int width, int height,
+				  float uiScale) {
+	(void)inventory;
+	if (!open_ || drag_.id != sim::ItemId::None) return;
+	pressFrom_ = From::None;
+	const Layout l = layoutOf(width, height, uiScale);
+	From from = From::None;
+	int slot = 0;
+	if (!slotAt(x, y, l, width, height, uiScale, from, slot)) return;
+	// Only remembered. Nothing leaves its slot until the mouse moves, so a
+	// click on a slot is a click and not the start of a drag you did not want.
+	pressFrom_ = from;
+	pressSlot_ = slot;
+	pressX_ = x;
+	pressY_ = y;
+}
+
+void Panel::motion(sim::Inventory& inventory, float x, float y, int width, int height,
+				   float uiScale) {
+	if (!open_ || pressFrom_ == From::None || drag_.id != sim::ItemId::None) return;
+	// Four points of travel before a press becomes a drag: enough that a click
+	// with a slightly unsteady hand is still a click.
+	if (std::hypot(x - pressX_, y - pressY_) < 4 * uiScale) return;
+	(void)width;
+	(void)height;
+	const auto lift = [&](sim::ItemStack& slot) {
+		if (slot.id == sim::ItemId::None) {
+			pressFrom_ = From::None;
+			return;
+		}
+		drag_ = slot;
+		slot = sim::ItemStack{};
+		dragFrom_ = pressFrom_;
+		dragSlot_ = pressSlot_;
+		pressFrom_ = From::None;
+	};
+	switch (pressFrom_) {
+		case From::Belt: lift(inventory.hotbar()[pressSlot_]); break;
+		case From::Pack: lift(inventory.pack()[pressSlot_]); break;
+		case From::Worn: lift(inventory.worn()); break;
+		case From::Container:
+			if (container_ && pressSlot_ < static_cast<int>(container_->slots.size())) {
+				lift(container_->slots[pressSlot_]);
+			}
+			break;
+		default: break;
+	}
+}
+
+void Panel::sendAcross(sim::Inventory& inventory, From from, int slot) {
+	// The other side of the screen. With a box open that is the box; with
+	// nothing open the belt and the pack are each other's other side, which is
+	// how a stack gets into your hand without being dragged there.
+	const auto move = [&](sim::ItemStack& out, const auto& put) {
+		if (out.id == sim::ItemId::None) return;
+		const int left = put(out);
+		if (left <= 0) {
+			out = sim::ItemStack{};
+		} else {
+			out.count = left;
+		}
+	};
+	if (container_ && from == From::Container) {
+		move(container_->slots[slot],
+			 [&](const sim::ItemStack& s) { return inventory.add(s.id, s.count); });
+		return;
+	}
+	const auto intoContainer = [&](const sim::ItemStack& s) {
+		return container_->add(s.id, s.count);
+	};
+	const std::function<int(const sim::ItemStack&)> fromBelt =
+		container_ ? std::function<int(const sim::ItemStack&)>(intoContainer)
+				   : std::function<int(const sim::ItemStack&)>(
+						 [&](const sim::ItemStack& s) { return inventory.addToPack(s.id, s.count); });
+	const std::function<int(const sim::ItemStack&)> fromPack =
+		container_ ? std::function<int(const sim::ItemStack&)>(intoContainer)
+				   : std::function<int(const sim::ItemStack&)>(
+						 [&](const sim::ItemStack& s) { return inventory.addToBelt(s.id, s.count); });
+	switch (from) {
+		case From::Belt: move(inventory.hotbar()[slot], fromBelt); break;
+		case From::Pack: move(inventory.pack()[slot], fromPack); break;
+		case From::Worn:
+			move(inventory.worn(),
+				 [&](const sim::ItemStack& s) { return inventory.add(s.id, s.count); });
+			break;
+		default: break;
 	}
 }
 
 void Panel::release(sim::Inventory& inventory, float x, float y, int width, int height,
 					float uiScale, const std::function<void(sim::ItemStack)>& dropped) {
-	if (drag_.id == sim::ItemId::None) return;
+	if (drag_.id == sim::ItemId::None) {
+		// Pressed and let go without moving: that is a click, and a click on a
+		// slot is a question about what is in it.
+		if (pressFrom_ == From::Pack) {
+			inspecting_ = pressSlot_;
+			inspectingWorn_ = false;
+		} else if (pressFrom_ == From::Worn) {
+			inspecting_ = 0;
+			inspectingWorn_ = true;
+		}
+		pressFrom_ = From::None;
+		return;
+	}
+	pressFrom_ = From::None;
 	const sim::ItemStack carried = drag_;
 	drag_ = sim::ItemStack{};
 	const Layout l = layoutOf(width, height, uiScale);

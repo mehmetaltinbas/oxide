@@ -75,8 +75,17 @@ public:
 	/** A click. Says whether the screen took it. */
 	bool click(sim::Inventory& inventory, sim::Crafting& crafting, float x, float y, bool right,
 			   int width, int height, float uiScale);
-	/** Picking a stack up to carry it somewhere, and putting it down again. */
+	/**
+	 * Picking a stack up to carry it somewhere, and putting it down again.
+	 *
+	 * A press only marks the slot. The stack does not leave it until the mouse
+	 * has actually moved, so a click and a drag are two different things: click
+	 * a slot and you are reading about what is in it, hold and pull and you are
+	 * carrying it.
+	 */
 	void press(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale);
+	/** The mouse moving, which is what turns a press into a drag. */
+	void motion(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale);
 	void release(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale,
 				 const std::function<void(sim::ItemStack)>& dropped);
 	const sim::ItemStack& dragging() const { return drag_; }
@@ -112,6 +121,15 @@ private:
 					   float uiScale, float mouseX, float mouseY) const;
 	void putBack(sim::Inventory& inventory, const sim::ItemStack& stack);
 
+	/** Which run of slots a stack is in. */
+	enum class From : std::uint8_t { None, Belt, Pack, Container, Worn };
+
+	/** Which slot a point is over, if any, and in which run. */
+	bool slotAt(float x, float y, const Layout& l, int width, int height, float uiScale,
+				From& from, int& slot) const;
+	/** Sends a stack to the other side: a container if one is open, else the belt. */
+	void sendAcross(sim::Inventory& inventory, From from, int slot);
+
 	/** One button under the detail pane. */
 	struct Action {
 		const char* label;
@@ -120,6 +138,9 @@ private:
 	};
 	/** What can be done with a thing, in the order the buttons stack. */
 	int actionsFor(sim::ItemId id, bool worn, Action out[4]) const;
+	/** Where the up, down and cancel handles on a queued job sit. */
+	void queueButton(const Layout& l, float uiScale, int row, int which, float& bx, float& by,
+					 float& bw) const;
 	/** Where the nth of `count` buttons sits. */
 	void actionBox(const Layout& l, float uiScale, int index, int count, float& bx, float& by,
 				   float& bw, float& bh) const;
@@ -153,9 +174,13 @@ private:
 
 	ItemActions actions_;
 	sim::ItemStack drag_{};
-	enum class From : std::uint8_t { None, Belt, Pack, Container, Worn };
 	From dragFrom_ = From::None;
 	int dragSlot_ = 0;
+	/** A press that has not become a drag yet: where it was, and on what. */
+	From pressFrom_ = From::None;
+	int pressSlot_ = 0;
+	float pressX_ = 0;
+	float pressY_ = 0;
 };
 
 }  // namespace client
