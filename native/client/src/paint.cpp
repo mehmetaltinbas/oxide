@@ -32,12 +32,32 @@ std::vector<Point> circlePoints(float cx, float cy, float radius, int segments) 
     return out;
 }
 
+std::vector<Point> ellipsePoints(float cx, float cy, float rx, float ry, float turn,
+                                 int segments) {
+    if (segments <= 0) segments = segmentsFor(std::max(rx, ry));
+    const float ca = std::cos(turn);
+    const float sa = std::sin(turn);
+    std::vector<Point> out;
+    out.reserve(segments);
+    for (int i = 0; i < segments; ++i) {
+        const float a = static_cast<float>(i) / segments * 6.28318530718f;
+        const float x = std::cos(a) * rx;
+        const float y = std::sin(a) * ry;
+        out.push_back({cx + x * ca - y * sa, cy + x * sa + y * ca});
+    }
+    return out;
+}
+
 float Paint::write(const std::string& line, float x, float y, float size, Color color) {
     return text_ ? text_->draw(line, x, y, size, color) : 0;
 }
 
 void Paint::submit() {
     if (!indices_.empty()) {
+        // Alpha is honoured: a translucent panel over the world is most of what
+        // the interface is made of, and the renderer's mode is whatever the
+        // last thing drawn left behind.
+        SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
         SDL_RenderGeometry(renderer_, nullptr, vertices_.data(), static_cast<int>(vertices_.size()),
                            indices_.data(), static_cast<int>(indices_.size()));
     }
@@ -72,6 +92,38 @@ void Paint::fillRect(float x, float y, float w, float h, Color color) {
     SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
     const SDL_FRect rect{x, y, w, h};
     SDL_RenderFillRect(renderer_, &rect);
+}
+
+namespace {
+
+/** The outline of a rounded rectangle, corner by corner. */
+std::vector<Point> roundRectPoints(float x, float y, float w, float h, float radius) {
+    const float r = std::min(radius, std::min(w, h) * 0.5f);
+    std::vector<Point> pts;
+    const float corners[4][3] = {{x + w - r, y + r, -1.5707963f},
+                                 {x + w - r, y + h - r, 0.0f},
+                                 {x + r, y + h - r, 1.5707963f},
+                                 {x + r, y + r, 3.14159265f}};
+    for (const auto& corner : corners) {
+        for (int i = 0; i <= 5; ++i) {
+            const float a = corner[2] + static_cast<float>(i) / 5 * 1.5707963f;
+            pts.push_back({corner[0] + std::cos(a) * r, corner[1] + std::sin(a) * r});
+        }
+    }
+    return pts;
+}
+
+}  // namespace
+
+void Paint::fillRoundRect(float x, float y, float w, float h, float radius, Color color) {
+    if (w <= 0 || h <= 0) return;
+    fillPoly(roundRectPoints(x, y, w, h, radius), color);
+}
+
+void Paint::outlineRoundRect(float x, float y, float w, float h, float radius, float width,
+                             Color color) {
+    if (w <= 0 || h <= 0) return;
+    outlinePoly(roundRectPoints(x, y, w, h, radius), width, color);
 }
 
 void Paint::line(float x0, float y0, float x1, float y1, float width, Color color) {

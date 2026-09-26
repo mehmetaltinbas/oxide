@@ -1,81 +1,46 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <vector>
 
 #include "paint.hpp"
 #include "sim/craft.hpp"
 #include "sim/deployable.hpp"
 #include "sim/inventory.hpp"
+#include "text.hpp"
 
 namespace client {
 
+/** Which face of the one screen is showing. */
+enum class Tab { Inventory, Craft, Sandbox, Container };
+
 /**
- * The pack and the bench: what you are carrying, and what you can make of it.
+ * The one screen: what you carry, what you can make of it, and what is inside
+ * whatever you have opened.
  *
- * One screen rather than two, because at this stage everything you can make is
- * made out of what is in the pack, and having both in front of you is how you
- * decide whether to chop another tree or go home.
+ * Tabs rather than separate screens, because they are three views of the same
+ * question and you switch between them by clicking rather than by closing one
+ * to open the next.
  */
 class Panel {
 public:
     bool open() const { return open_; }
-    void toggle() {
-        open_ = !open_;
-        if (!open_) {
-            container_ = nullptr;
-            fire_ = nullptr;
-        }
-    }
-    void close() {
-        open_ = false;
-        container_ = nullptr;
-        fire_ = nullptr;
-    }
+    /** TAB: the pack, or away again. */
+    void toggleInventory();
+    /** C: the bench, or away again. */
+    void toggleCraft();
+    void close();
 
-    /**
-     * Opens onto something's insides rather than onto the recipes: a box, a
-     * fire, a crate at a monument. `fire` is the thing burning, when the thing
-     * being looked into is one that burns.
-     */
+    /** Opens onto something's insides: a box, a fire, a crate at a monument. */
     void openContainer(sim::Container* container, const char* title,
-                       const sim::Deployable* fire = nullptr) {
-        open_ = true;
-        container_ = container;
-        title_ = title;
-        fire_ = fire;
-    }
+                       const sim::Deployable* fire = nullptr);
     const sim::Container* container() const { return container_; }
-
-    /**
-     * A click at a point on the screen. Left queues what is under it, right
-     * cancels a job in the queue. Says whether the click was the panel's.
-     */
-    bool click(sim::Inventory& inventory, sim::Crafting& crafting, float x, float y, bool right,
-               int width, int height, float uiScale);
-
-    /**
-     * Picking a stack up to carry it somewhere.
-     *
-     * Dragging is how a pack is meant to be sorted: press on a slot, let go on
-     * another, and the two swap or merge. Letting go outside the screen throws
-     * the stack on the floor, which is what `dropped` is called with.
-     */
-    void press(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale);
-    void release(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale,
-                 const std::function<void(sim::ItemStack)>& dropped);
-
-    /** What is being carried on the cursor, if anything. */
-    const sim::ItemStack& dragging() const { return drag_; }
 
     /** The best workbench within reach, which decides what can be made. */
     void setBench(int tier) { bench_ = tier; }
-
-    /** A transfer in progress, which finishes on its own. */
-    void update(double dt, sim::Inventory& inventory);
-
-    /** Creative mode puts a shelf of every item where the recipes go. */
-    void setShelf(bool on) { shelf_ = on; }
+    /** Creative mode adds a shelf of every item there is. */
+    void setSandbox(bool on) { sandbox_ = on; }
 
     /** Whether a queue-is-full refusal happened since this was last asked. */
     bool takeQueueFull() {
@@ -84,18 +49,64 @@ public:
         return was;
     }
 
+    /** A click. Says whether the screen took it. */
+    bool click(sim::Inventory& inventory, sim::Crafting& crafting, float x, float y, bool right,
+               int width, int height, float uiScale);
+    /** Picking a stack up to carry it somewhere, and putting it down again. */
+    void press(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale);
+    void release(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale,
+                 const std::function<void(sim::ItemStack)>& dropped);
+    const sim::ItemStack& dragging() const { return drag_; }
+
+    /** A transfer in progress, which finishes on its own. */
+    void update(double dt, sim::Inventory& inventory);
+
     void draw(Paint& paint, const sim::Inventory& inventory, const sim::Crafting& crafting,
               int width, int height, float uiScale) const;
 
 private:
+    struct Layout {
+        float x;
+        float y;
+        float w;
+        float h;
+        /** Under the header, where the columns start. */
+        float top;
+        float slot;
+        float pitch;
+    };
+
+    Layout layoutOf(int width, int height, float uiScale) const;
+    /** Where the tabs sit, and which one a point is over. */
+    int tabUnder(const Layout& l, float x, float y, float uiScale) const;
+    void drawTabs(Paint& paint, const Layout& l, float uiScale, float mouseX, float mouseY) const;
+    void drawInventory(Paint& paint, const sim::Inventory& inventory, const Layout& l,
+                       float uiScale, float mouseX, float mouseY) const;
+    void drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::Crafting& crafting,
+                   const Layout& l, float uiScale, float mouseX, float mouseY) const;
+    void drawShelf(Paint& paint, const Layout& l, float uiScale, float mouseX, float mouseY) const;
+    void drawContainer(Paint& paint, const sim::Inventory& inventory, const Layout& l,
+                       float uiScale, float mouseX, float mouseY) const;
+    void putBack(sim::Inventory& inventory, const sim::ItemStack& stack);
+
     bool open_ = false;
-    /** What is being looked into, or nothing when it is the bench. */
-    sim::Container* container_ = nullptr;
-    const char* title_ = "";
+    Tab tab_ = Tab::Inventory;
+    bool sandbox_ = false;
     int bench_ = 0;
-    bool shelf_ = false;
     bool queueFull_ = false;
-    /** What is being moved, where to, and how long is left of moving it. */
+
+    sim::Container* container_ = nullptr;
+    std::string title_;
+    const sim::Deployable* fire_ = nullptr;
+
+    /** What is being looked at in the pack, and what is chosen at the bench. */
+    int inspecting_ = -1;
+    /** Which of the pack's runs the inspected slot is in. */
+    bool inspectingWorn_ = false;
+    int category_ = 0;
+    int selected_ = -1;
+    int amount_ = 1;
+
     struct Move {
         bool intoContainer = false;
         bool fromBelt = false;
@@ -104,33 +115,11 @@ private:
         double total = 0;
     };
     Move move_;
-    /** The stack on the cursor, and where it came from if it goes back. */
+
     sim::ItemStack drag_{};
-    enum class From : std::uint8_t { None, Belt, Pack, Container };
+    enum class From : std::uint8_t { None, Belt, Pack, Container, Worn };
     From dragFrom_ = From::None;
     int dragSlot_ = 0;
-
-    /** Puts a carried stack back where it came from, or anywhere it fits. */
-    void putBack(sim::Inventory& inventory, const sim::ItemStack& stack);
-    const sim::Deployable* fire_ = nullptr;
-
-    /** Where everything is, worked out once and used by both drawing and clicks. */
-    struct Layout {
-        float x;
-        float y;
-        float w;
-        float h;
-        float slot;
-        float packX;
-        float packY;
-        float listX;
-        float listY;
-        float rowH;
-        float rowW;
-        float queueY;
-    };
-
-    static Layout layoutOf(int width, int height, float uiScale);
 };
 
 }  // namespace client

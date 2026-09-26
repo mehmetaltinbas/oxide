@@ -249,7 +249,9 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
         const double toPlayer = dist(npc.x, npc.y, player.x, player.y);
         const double fromHome = dist(npc.x, npc.y, npc.homeX, npc.homeY);
         const bool provoked = npc.state == NpcState::Chase || npc.state == NpcState::Attack;
-        const bool wantsFight = def.hostile || provoked;
+        // Nothing fights a corpse: while you are waiting to wake up, the
+        // island leaves you alone.
+        const bool wantsFight = (def.hostile || provoked) && player.alive;
 
         // Out in the water you are out of reach, and after a moment an animal
         // stops pretending otherwise: it drops the chase and goes home.

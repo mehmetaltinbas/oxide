@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "palette.hpp"
+
 namespace client {
 
 namespace {
@@ -44,8 +46,9 @@ bool Text::open(SDL_Renderer* renderer, const std::string& fontDir) {
     return body_ != nullptr;
 }
 
-TTF_Font* Text::fontFor(Face face, int size) {
-    const std::uint64_t key = (static_cast<std::uint64_t>(face) << 32) |
+TTF_Font* Text::fontFor(Face face, int size, int outline) {
+    const std::uint64_t key = (static_cast<std::uint64_t>(face) << 40) |
+                              (static_cast<std::uint64_t>(outline) << 32) |
                               static_cast<std::uint32_t>(size);
     const auto it = sized_.find(key);
     if (it != sized_.end()) return it->second;
@@ -60,24 +63,26 @@ TTF_Font* Text::fontFor(Face face, int size) {
     TTF_Font* copy = TTF_CopyFont(from);
     if (!copy) return nullptr;
     TTF_SetFontSize(copy, static_cast<float>(size));
+    if (outline > 0) TTF_SetFontOutline(copy, outline);
     (void)file;
     sized_[key] = copy;
     return copy;
 }
 
-const Text::Line* Text::lineFor(const std::string& text, Face face, int size, Color color) {
+const Text::Line* Text::lineFor(const std::string& text, Face face, int size, Color color,
+                                int outline) {
     // Keyed by everything that changes how it looks, so two colours of the
     // same word are two textures rather than one that flickers between them.
     char head[64];
-    SDL_snprintf(head, sizeof(head), "%d|%d|%02x%02x%02x|", static_cast<int>(face), size, color.r,
-                 color.g, color.b);
+    SDL_snprintf(head, sizeof(head), "%d|%d|%d|%02x%02x%02x|", static_cast<int>(face), size,
+                 outline, color.r, color.g, color.b);
     const std::string key = std::string(head) + text;
     const auto it = lines_.find(key);
     if (it != lines_.end()) {
         it->second.seen = frame_;
         return &it->second;
     }
-    TTF_Font* font = fontFor(face, size);
+    TTF_Font* font = fontFor(face, size, outline);
     if (!font) return nullptr;
     const SDL_Color sdl{color.r, color.g, color.b, 255};
     SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), text.size(), sdl);
@@ -106,6 +111,27 @@ float Text::draw(const std::string& text, float x, float y, float size, Color co
     const SDL_FRect dst{left, y, line->w, line->h};
     SDL_RenderTexture(renderer_, line->texture, nullptr, &dst);
     return line->w;
+}
+
+float Text::drawInked(const std::string& text, float x, float y, float size, Color color,
+                      Face face, Align align, int outline) {
+    if (text.empty() || !renderer_) return 0;
+    const int at = roundedSize(size);
+    const Line* fill = lineFor(text, face, at, color);
+    if (!fill) return 0;
+    const float left = align == Align::Centre  ? x - fill->w * 0.5f
+                       : align == Align::Right ? x - fill->w
+                                               : x;
+    const Line* edge = lineFor(text, face, at, kInk, outline);
+    if (edge) {
+        SDL_SetTextureAlphaMod(edge->texture, color.a);
+        const SDL_FRect box{left - outline, y - outline, edge->w, edge->h};
+        SDL_RenderTexture(renderer_, edge->texture, nullptr, &box);
+    }
+    SDL_SetTextureAlphaMod(fill->texture, color.a);
+    const SDL_FRect dst{left, y, fill->w, fill->h};
+    SDL_RenderTexture(renderer_, fill->texture, nullptr, &dst);
+    return fill->w;
 }
 
 float Text::widthOf(const std::string& text, float size, Face face) {

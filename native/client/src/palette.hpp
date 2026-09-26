@@ -16,6 +16,12 @@ constexpr Color kInk = rgb(0x14110d);
 constexpr float kInkWidth = 2.6f;
 constexpr float kInkMark = 2.2f;
 constexpr float kInkFine = 1.5f;
+/** Hatching is finer than a mark, and a stipple dot finer still. */
+constexpr float kInkHatch = 1.7f;
+constexpr float kStippleDot = 1.4f;
+/** How far apart hatching and stipple sit, in world units. */
+constexpr float kHatchSpacing = 9.0f;
+constexpr float kHalftoneSpacing = 9.0f;
 /** Trees and ore are inked half again as heavily as everything else. */
 constexpr float kNodeLineScale = 1.5f;
 

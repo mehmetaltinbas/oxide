@@ -117,6 +117,7 @@ SwingResult swing(World& world, NpcSystem& npcs, BuildSystem& build, Player& pla
     out.kind = node->kind;
     out.x = node->x;
     out.y = node->y;
+    out.radius = node->radius;
 
     if (def.loot) {
         // A barrel gives nothing until it goes, and then spills it all at once,
@@ -140,6 +141,7 @@ SwingResult swing(World& world, NpcSystem& npcs, BuildSystem& build, Player& pla
             world.dropStack(ItemStack{def.yields[i].id, left}, player.x, player.y);
         }
         if (i == 0) out.gained = ItemStack{def.yields[i].id, amount};
+        if (i == 1) out.alsoGained = ItemStack{def.yields[i].id, amount};
     }
     return out;
 }

@@ -111,15 +111,16 @@ void drawAnimalTag(Paint& paint, const sim::Npc& npc, float x, float y, float sc
     if (hurt) {
         // White in black, so it reads on snow and on grass alike.
         const float w = r * 2.4f;
-        const float h = 5 * uiScale;
+        // Half what it was: at five points the bar was a plank across the animal.
+        const float h = 2.5f * uiScale;
         const float bx = x - w / 2;
         const float by = y - r - 14 * uiScale;
-        paint.fillRect(bx - 2, by - 2, w + 4, h + 4, kInk);
+        paint.fillRect(bx - 1, by - 1, w + 2, h + 2, kInk);
         paint.fillRect(bx, by, w * npc.hp / def.hp, h, rgb(0xffffff));
     }
     if (Text* lettering = paint.text()) {
-        lettering->draw(def.name, x, y - r - (hurt ? 32 : 22) * uiScale, 13 * uiScale,
-                        rgb(0xe8b0a0), Face::Body, Align::Centre);
+        lettering->drawInked(def.name, x, y - r - (hurt ? 32 : 22) * uiScale, 13 * uiScale,
+                             rgb(0xffffff), Face::Body, Align::Centre, 2);
     }
 }
 

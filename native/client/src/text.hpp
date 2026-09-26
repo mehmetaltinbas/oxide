@@ -56,6 +56,13 @@ public:
     float draw(const std::string& line, float x, float y, float size, Color color,
                Face face = Face::Body, Align align = Align::Left);
 
+    /**
+     * One line with a black line round it, the way a word reads on a printed
+     * page: ink round paper, so it holds against grass, sand or water alike.
+     */
+    float drawInked(const std::string& line, float x, float y, float size, Color color,
+                    Face face = Face::Body, Align align = Align::Left, int outline = 2);
+
     /** How wide a line would be, without drawing it. */
     float widthOf(const std::string& line, float size, Face face = Face::Body);
 
@@ -72,8 +79,9 @@ private:
     };
 
     /** A face at one size: SDL_ttf sizes a font rather than scaling a glyph. */
-    TTF_Font* fontFor(Face face, int size);
-    const Line* lineFor(const std::string& text, Face face, int size, Color color);
+    TTF_Font* fontFor(Face face, int size, int outline = 0);
+    const Line* lineFor(const std::string& text, Face face, int size, Color color,
+                        int outline = 0);
 
     SDL_Renderer* renderer_ = nullptr;
     /** The raw font files, kept open so a new size can be opened from them. */

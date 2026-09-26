@@ -4,6 +4,7 @@
 
 #include "held.hpp"
 #include "palette.hpp"
+#include "ui.hpp"
 #include "text.hpp"
 #include "vital_icon.hpp"
 
@@ -17,7 +18,6 @@ constexpr double kPopupRise = 26;
 
 constexpr Color kPlate{20, 17, 13, 170};
 constexpr Color kSlot{40, 36, 30, 200};
-constexpr Color kSlotActive{232, 226, 212, 235};
 constexpr Color kText = rgb(0xefeadd);
 
 }  // namespace
@@ -68,9 +68,11 @@ void Hud::drawPopups(SDL_Renderer*, double cameraX, double cameraY, double scale
         const float sy = static_cast<float>((p.y - cameraY - t * kPopupRise) * scale) + height * 0.5f;
         const std::uint8_t fade = static_cast<std::uint8_t>(255 * std::min(1.0, p.life / 0.4));
         if (lettering_) {
-            lettering_->draw(p.text, sx, sy, 11 * static_cast<float>(scale),
-                             Color{p.color.r, p.color.g, p.color.b, fade}, Face::BodyBold,
-                             Align::Centre);
+            // White lettering inside a black line, whatever it says: a
+            // coloured word is lost against grass, sand or water in turn.
+            lettering_->drawInked(p.text, sx, sy, 11 * static_cast<float>(scale),
+                                  Color{p.color.r, p.color.g, p.color.b, fade}, Face::BodyBold,
+                                  Align::Centre, 2);
         }
     }
 }
@@ -78,35 +80,59 @@ void Hud::drawPopups(SDL_Renderer*, double cameraX, double cameraY, double scale
 void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int width, int height,
                const char* prompt, float uiScale) const {
     SDL_Renderer* renderer = paint.renderer();
-    const float slot = 64 * uiScale;
-    const float gap = 8 * uiScale;
+    // The belt: the same dark glass as the panels, rounded, with the slot you
+    // are holding lit at its edge.
+    const float slot = 56 * uiScale;
+    const float gap = 6 * uiScale;
     const float total = sim::kHotbarSlots * slot + (sim::kHotbarSlots - 1) * gap;
-    const float x0 = (width - total) * 0.5f;
-    const float y0 = height - slot - 28 * uiScale;
+    const float x0 = std::round((width - total) * 0.5f);
+    const float y0 = height - slot - 34 * uiScale;
+
+    float mouseX = 0;
+    float mouseY = 0;
+    SDL_GetMouseState(&mouseX, &mouseY);
+    mouseX *= uiScale;
+    mouseY *= uiScale;
 
     for (int i = 0; i < sim::kHotbarSlots; ++i) {
         const float x = x0 + i * (slot + gap);
         const bool active = i == inventory.activeSlot();
-        paint.fillRect(x - 3 * uiScale, y0 - 3 * uiScale, slot + 6 * uiScale, slot + 6 * uiScale, kInk);
-        paint.fillRect(x, y0, slot, slot, active ? kSlotActive : kSlot);
-        const sim::ItemStack& stack = inventory.hotbar()[i];
-        if (stack.id != sim::ItemId::None) {
-            drawItemIcon(paint, stack.id, x + slot * 0.5f, y0 + slot * 0.5f, slot * 0.7f);
-        }
-        // The slot's own number, and how many are in it.
+        const bool hovered = ui::inside(mouseX, mouseY, x, y0, slot, slot);
+        paint.fillRoundRect(x, y0, slot, slot, ui::kRadiusSmall,
+                            active ? Color{26, 30, 26, 184} : ui::kGlass);
+        paint.outlineRoundRect(x, y0, slot, slot, ui::kRadiusSmall, 1.5f * uiScale,
+                               active     ? ui::kAccentInk
+                               : hovered  ? Color{120, 180, 255, 178}
+                                          : ui::kGlassEdge);
+
+        char number[4];
+        SDL_snprintf(number, sizeof(number), "%d", i + 1);
         if (lettering_) {
-            char number[4];
-            SDL_snprintf(number, sizeof(number), "%d", i + 1);
-            lettering_->draw(number, x + 6 * uiScale, y0 + 2 * uiScale, 12 * uiScale,
-                             active ? Color{40, 36, 30, 255} : Color{200, 200, 200, 255});
-            if (stack.count > 1) {
-                // Right-aligned inside the slot: a four-figure stack used to
-                // run out over the slot beside it.
-                char count[8];
-                SDL_snprintf(count, sizeof(count), "%d", stack.count);
-                lettering_->draw(count, x + slot - 5 * uiScale, y0 + slot - 22 * uiScale,
-                                 15 * uiScale, rgb(0xffffff), Face::BodyBold, Align::Right);
+            lettering_->draw(number, x + 5 * uiScale, y0 + 2 * uiScale, 11 * uiScale,
+                             active ? ui::kAccentInk : ui::kFaint);
+        }
+
+        const sim::ItemStack& stack = inventory.hotbar()[i];
+        if (stack.id == sim::ItemId::None) continue;
+        drawItemIcon(paint, stack.id, x + slot * 0.5f, y0 + slot * 0.5f, slot - 20 * uiScale);
+        if (stack.count > 1 && lettering_) {
+            char count[8];
+            SDL_snprintf(count, sizeof(count), "%d", stack.count);
+            lettering_->draw(count, x + slot - 5 * uiScale, y0 + slot - 18 * uiScale,
+                             11 * uiScale, ui::kInk, Face::BodyBold, Align::Right);
+        }
+        // A gun reads "in the gun / in the pack"; a bow just has its arrows.
+        const sim::Gun& gun = sim::itemDef(stack.id).gun;
+        if (gun.damage > 0 && lettering_) {
+            char ammo[16];
+            if (gun.magazine > 0) {
+                SDL_snprintf(ammo, sizeof(ammo), "%d/%d", loaded_, std::max(0, carried_ - loaded_));
+            } else {
+                SDL_snprintf(ammo, sizeof(ammo), "%d", std::max(0, carried_));
             }
+            const bool dry = gun.magazine > 0 ? loaded_ == 0 : carried_ <= 0;
+            lettering_->draw(ammo, x + 5 * uiScale, y0 + slot - 18 * uiScale, 11 * uiScale,
+                             dry ? ui::kWarn : ui::kSubtle);
         }
     }
 
@@ -147,7 +173,8 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
                               : health > 35 ? rgb(0xd8483a)
                                             : rgb(0xff6a5a);
     gauge(Vital::Health, health, 100, healthColor, 0);
-    gauge(Vital::Food, calories_, 100, rgb(0xff8a1c), 1);
+    // Dark orange: the lighter one read as a warning rather than a meal.
+    gauge(Vital::Food, calories_, 100, rgb(0xcf6a12), 1);
     gauge(Vital::Water, hydration_, 100, rgb(0x4a9ee8), 2);
 
     if (bleeding_) {

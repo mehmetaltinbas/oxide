@@ -65,7 +65,7 @@ constexpr ItemDef kItems[] = {
     // Places twig foundations, walls and doorways.
     {ItemId::BuildingPlan, "Building Plan", "Places twig foundations, walls and doorways.", ItemCategory::Tool, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
     // Cheap reach, better than fists.
-    {ItemId::Spear, "Wooden Spear", "Cheap reach. Better than fists.", ItemCategory::Weapon, 1, {38, 1, 0.85, 58}, kNoGun, kNoFood, kNoWear, kNoBoom},
+    {ItemId::Spear, "Wooden Spear", "Cheap reach. Better than fists.", ItemCategory::Weapon, 1, {38, 1, 0.85, 78}, kNoGun, kNoFood, kNoWear, kNoBoom},
     // Quiet, cheap to feed, punishing to aim.
     {ItemId::Bow, "Hunting Bow", "Quiet, cheap to feed, punishing to aim.", ItemCategory::Weapon, 1, kNone,
      {48, 0.85, 760, 620, 0.03, ItemId::Arrow, 0, 0, 1}},

@@ -28,6 +28,9 @@ const std::vector<Recipe>& recipes();
 /** Whether the pack holds what a recipe asks for. */
 bool canAfford(const Inventory& inventory, const Recipe& recipe);
 
+/** How many of it the pack could pay for, at the bench you are standing at. */
+int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTier);
+
 /** One thing being made: what, and how long is left of it. */
 struct CraftJob {
     int id;

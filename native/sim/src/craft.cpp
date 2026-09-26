@@ -1,6 +1,7 @@
 #include "sim/craft.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace sim {
 
@@ -71,6 +72,15 @@ bool canAfford(const Inventory& inventory, const Recipe& recipe) {
         if (inventory.count(recipe.cost[i].id) < recipe.cost[i].count) return false;
     }
     return true;
+}
+
+int craftableCount(const Inventory& inventory, const Recipe& recipe, int benchTier) {
+    if (recipe.bench > benchTier) return 0;
+    int most = 9999;
+    for (int i = 0; i < recipe.costCount; ++i) {
+        most = std::min(most, inventory.count(recipe.cost[i].id) / recipe.cost[i].count);
+    }
+    return most;
 }
 
 bool Crafting::queue(Inventory& inventory, const Recipe& recipe, int benchTier) {

@@ -21,6 +21,10 @@ struct SwingResult {
     bool broke = false;
     /** What went into the pack, for the little number that floats up. */
     ItemStack gained{};
+    /** The second thing off it, where there is one: stone out of ore. */
+    ItemStack alsoGained{};
+    /** How big what was struck is, so the number can float off its top. */
+    double radius = 0;
     /** What would not fit, so the player can be told their pack is full. */
     bool packFull = false;
     /** An animal took the blow instead, and how much it felt. */

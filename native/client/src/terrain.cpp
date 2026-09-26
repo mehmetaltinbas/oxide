@@ -27,13 +27,25 @@ void markGround(Paint& paint, sim::Biome biome, int variant, float size) {
         }
         case sim::Biome::Grass:
         case sim::Biome::Forest: {
-            // Tufts, leaning the way the tuft beside them does not.
-            const int count = biome == sim::Biome::Forest ? 9 : 6;
-            for (int i = 0; i < count; ++i) {
-                const float x = roll(i * 2) * size;
-                const float y = roll(i * 2 + 1) * size;
-                const float lean = (roll(i * 2 + 40) - 0.5f) * size * 0.05f;
-                paint.line(x, y, x + lean, y - size * 0.07f, 1.8f, Color{20, 17, 13, 90});
+            // Tufts of three blades, one per forty-six units of ground, each
+            // leaning the way the blade beside it does not: the same tuft the
+            // TypeScript game grows, which is what makes the grass read as
+            // drawn rather than as a flat green square with specks on it.
+            const int across = static_cast<int>(size / 46.0f) + 1;
+            for (int gy = 0; gy < across; ++gy) {
+                for (int gx = 0; gx < across; ++gx) {
+                    const int slot = (gy * across + gx) * 3;
+                    const float r = roll(slot);
+                    const float r2 = roll(slot + 1);
+                    if (r > 0.62f) continue;
+                    const float x = (gx + r) * 46.0f;
+                    const float y = (gy + r2) * 46.0f;
+                    const float h = 11.0f * (0.7f + r2 * 0.6f);
+                    for (int i = 0; i < 3; ++i) {
+                        const float lean = (i - 1) * 3.5f + (r - 0.5f) * 3;
+                        paint.line(x + (i - 1) * 3, y, x + (i - 1) * 3 + lean, y - h, 1.3f, kInk);
+                    }
+                }
             }
             break;
         }

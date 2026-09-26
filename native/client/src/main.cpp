@@ -122,6 +122,7 @@ int main(int argc, char** argv) {
     bool armed = false;
     /** The pack open with something in it, for a look at the screen itself. */
     bool showPanel = false;
+    bool showCraft = false;
     /** The island's own map, opened for a look at it. */
     bool showMap = false;
     bool showTitle = false;
@@ -181,6 +182,9 @@ int main(int argc, char** argv) {
             showMap = true;
         } else if (SDL_strcmp(argv[i], "--panel") == 0) {
             showPanel = true;
+        } else if (SDL_strcmp(argv[i], "--craft") == 0) {
+            showPanel = true;
+            showCraft = true;
         } else if (SDL_strcmp(argv[i], "--armed") == 0) {
             armed = true;
         } else if (SDL_strcmp(argv[i], "--swing") == 0 && i + 1 < argc) {
@@ -476,7 +480,11 @@ int main(int argc, char** argv) {
         inventory.add(sim::ItemId::Cloth, 60);
         inventory.add(sim::ItemId::Leather, 24);
         inventory.add(sim::ItemId::Scrap, 12);
-        panel.toggle();
+        if (showCraft) {
+            panel.toggleCraft();
+        } else {
+            panel.toggleInventory();
+        }
         crafting.queue(inventory, sim::recipes()[0], 0);
     }
 
@@ -486,8 +494,10 @@ int main(int argc, char** argv) {
     paint.useText(&lettering);
     hud.useText(&lettering);
 
-    if (benchFrames > 0 && !SDL_SetRenderVSync(renderer, SDL_RENDERER_VSYNC_DISABLED)) {
-        std::printf("bench: could not turn vsync off: %s\n", SDL_GetError());
+    // Vsync off, always: the counter is there to show what the game costs, and
+    // pinned to the panel's refresh it only ever shows the panel.
+    if (!SDL_SetRenderVSync(renderer, SDL_RENDERER_VSYNC_DISABLED)) {
+        std::printf("could not turn vsync off: %s\n", SDL_GetError());
     }
 
     // The last frame's size and density, so a click knows what it landed on.
@@ -666,9 +676,15 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_M && !event.key.repeat) {
                 map.toggle();
             }
+            // Tab is the pack and C is the bench: two faces of one screen, so
+            // either key takes you straight to its own.
             if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
-                (event.key.key == SDLK_TAB || event.key.key == SDLK_C)) {
-                panel.toggle();
+                event.key.key == SDLK_TAB) {
+                panel.toggleInventory();
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+                event.key.key == SDLK_C) {
+                panel.toggleCraft();
             }
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && panel.open()) {
                 const float px = event.button.x * static_cast<float>(lastDensity);
@@ -960,7 +976,7 @@ int main(int argc, char** argv) {
                 wakeIn = 0;
             }
         }
-        if (animals.playerDamage > 0) {
+        if (animals.playerDamage > 0 && player.alive && !dead) {
             sim::hurtPlayer(player, inventory, animals.playerDamage);
             audio.playerHurt();
             specks.burst(player.x, player.y, 8, client::rgb(0xc22b2b), 160, 0.45, 2.8);
@@ -1075,7 +1091,7 @@ int main(int argc, char** argv) {
                 explosives.detonate(world, build, npcs, player, inventory, hit.x, hit.y,
                                     hit.blastRadius, hit.blastDamage, hit.builtId, true);
             }
-            if (hit.player) {
+            if (hit.player && player.alive && !dead) {
                 sim::hurtPlayer(player, inventory, hit.damage);
                 audio.playerHurt();
                 specks.burst(player.x, player.y, 8, client::rgb(0xc22b2b), 160, 0.45, 2.8);
@@ -1279,9 +1295,18 @@ int main(int argc, char** argv) {
             (buttons & SDL_BUTTON_LMASK) != 0) {
             const sim::SwingResult blow = sim::swing(world, npcs, build, player, inventory);
             if (blow.landed && blow.gained.count > 0) {
+                // Off the top of the thing struck, not out of its middle: a
+                // tree stands four radii above its foot, a rock about one.
+                const double top =
+                    blow.y - blow.radius * (blow.kind == sim::NodeKind::Tree ? 3.4 : 1.4) - 6;
                 hud.say(std::string("+") + std::to_string(blow.gained.count) + " " +
                             sim::itemDef(blow.gained.id).name,
-                        blow.x, blow.y - 10, client::rgb(0xefeadd));
+                        blow.x, top, client::rgb(0xefeadd));
+                if (blow.alsoGained.count > 0) {
+                    hud.say(std::string("+") + std::to_string(blow.alsoGained.count) + " " +
+                                sim::itemDef(blow.alsoGained.id).name,
+                            blow.x, top - 14, client::rgb(0xefeadd));
+                }
             }
             if (blow.landed && !blow.hitNpc && !blow.built) {
                 specks.burst(blow.x, blow.y - 4, 6, client::nodeColor(blow.kind), 130, 0.4, 2.4,
@@ -1380,7 +1405,12 @@ int main(int argc, char** argv) {
             const float sy = static_cast<float>((drop.y - camY) * scale) + height * 0.5f;
             if (sx < -40 || sy < -40 || sx > width + 40 || sy > height + 40) continue;
             if (hidden(drop.x, drop.y)) continue;
-            client::drawItemIcon(paint, drop.stack.id, sx, sy, static_cast<float>(22 * scale));
+            // Riding a little above where it fell, so it reads as lying loose
+            // rather than planted.
+            const float bob = static_cast<float>(SDL_sin(drop.age * 2.4 + drop.id) * 2 * scale);
+            client::drawItemIcon(paint, drop.stack.id, sx,
+                                 sy - 2 * static_cast<float>(scale) + bob,
+                                 static_cast<float>(22 * scale));
         }
         for (const sim::Deployable& thing : build.deployables()) {
             if (thing.kind != sim::DeployKind::SleepingBag) continue;
@@ -1415,6 +1445,22 @@ int main(int argc, char** argv) {
             // Struck, you flash: the one thing that says a blow landed on you
             // rather than near you.
             if (player.hurtFlash > 0) look.hurt = client::rgb(0xff9a9a);
+            // What you are wearing, and nothing if you are wearing nothing: a
+            // survivor with an empty wear slot washes up bare.
+            switch (inventory.worn().id) {
+                case sim::ItemId::Clothing:
+                    look.shirt = client::rgb(0x8a6134);
+                    look.legs = client::rgb(0x6a4a28);
+                    break;
+                case sim::ItemId::Hazmat:
+                    look.shirt = client::rgb(0xd8c24a);
+                    look.legs = client::rgb(0xb59f34);
+                    break;
+                default:
+                    look.shirt = look.skin;
+                    look.legs = look.skin;
+                    break;
+            }
             look.held = inventory.held();
             look.bowDraw = static_cast<float>(player.bowDraw / sim::kBowDrawSeconds);
             // Where the swing has got to, as a fraction of its own length.
@@ -1466,7 +1512,17 @@ int main(int argc, char** argv) {
             drawAnimalsUpTo(node->y);
             // Felled, broken or picked: gone from the island until it grows
             // back, rather than standing there at nought health.
-            if (node->hp <= 0) continue;
+            if (node->hp <= 0) {
+                // What is left where it stood: a hole in the ground the size of
+                // its own foot, which closes over as it grows back.
+                const float hx = static_cast<float>((node->x - camX) * scale) + width * 0.5f;
+                const float hy = static_cast<float>((node->y - camY) * scale) + height * 0.5f;
+                if (hx < -80 || hy < -80 || hx > width + 80 || hy > height + 80) continue;
+                const float rx = static_cast<float>(node->radius * scale) * 0.6f;
+                const float ry = static_cast<float>(node->radius * scale) * 0.35f;
+                paint.fillPoly(client::ellipsePoints(hx, hy, rx, ry), client::Color{30, 34, 28, 140});
+                continue;
+            }
             if (!playerDrawn && node->y > player.y) drawPlayer();
             const float sx = static_cast<float>((node->x - camX) * scale) + width * 0.5f;
             const float sy = static_cast<float>((node->y - camY) * scale) + height * 0.5f;
@@ -1496,10 +1552,11 @@ int main(int argc, char** argv) {
             if (node->hp < node->maxHp && node->hp > 0) {
                 // White in black, which reads on snow and on grass alike.
                 const float w = 32 * static_cast<float>(density);
-                const float h = 5 * static_cast<float>(density);
+                // Half the old height: five points read as a plank, not a gauge.
+                const float h = 2.5f * static_cast<float>(density);
                 const float bx = sx - w / 2;
                 const float by = sy + static_cast<float>(node->radius * scale) * 0.9f;
-                paint.fillRect(bx - 2, by - 2, w + 4, h + 4, client::kInk);
+                paint.fillRect(bx - 1, by - 1, w + 2, h + 2, client::kInk);
                 paint.fillRect(bx, by, w * node->hp / node->maxHp, h, client::rgb(0xffffff));
             }
         }
@@ -1537,9 +1594,9 @@ int main(int argc, char** argv) {
                                    static_cast<float>(clock));
             if (thing.hp < thing.maxHp) {
                 const float w = 36 * static_cast<float>(density);
-                const float h = 5 * static_cast<float>(density);
-                paint.fillRect(sx - w / 2 - 2, sy + 20 * static_cast<float>(scale) - 2, w + 4,
-                               h + 4, client::kInk);
+                const float h = 2.5f * static_cast<float>(density);
+                paint.fillRect(sx - w / 2 - 1, sy + 20 * static_cast<float>(scale) - 1, w + 2,
+                               h + 2, client::kInk);
                 paint.fillRect(sx - w / 2, sy + 20 * static_cast<float>(scale),
                                w * thing.hp / thing.maxHp, h, client::rgb(0xffffff));
             }
@@ -1586,10 +1643,10 @@ int main(int argc, char** argv) {
                     cy = (y0 + y1) * 0.5;
                 }
                 const float w = 40 * static_cast<float>(density);
-                const float h = 5 * static_cast<float>(density);
+                const float h = 2.5f * static_cast<float>(density);
                 const float bx = static_cast<float>((cx - camX) * scale) + width * 0.5f - w / 2;
                 const float by = static_cast<float>((cy - camY) * scale) + height * 0.5f;
-                paint.fillRect(bx - 2, by - 2, w + 4, h + 4, client::kInk);
+                paint.fillRect(bx - 1, by - 1, w + 2, h + 2, client::kInk);
                 paint.fillRect(bx, by, w * piece.hp / piece.maxHp, h, client::rgb(0xffffff));
             }
         }
@@ -1654,9 +1711,10 @@ int main(int argc, char** argv) {
         if (dark > 0.02) {
             // Night is laid over the world, and every fire cuts a hole in it.
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_MUL);
-            SDL_SetRenderDrawColorFloat(renderer, 1.0f - static_cast<float>(dark) * 0.94f,
-                                        1.0f - static_cast<float>(dark) * 0.9f,
-                                        1.0f - static_cast<float>(dark) * 0.78f, 1.0f);
+            // Deeper than it was: at 0.94 the island still read as dusk.
+            SDL_SetRenderDrawColorFloat(renderer, 1.0f - static_cast<float>(dark) * 0.985f,
+                                        1.0f - static_cast<float>(dark) * 0.97f,
+                                        1.0f - static_cast<float>(dark) * 0.9f, 1.0f);
             const SDL_FRect all{0, 0, static_cast<float>(width), static_cast<float>(height)};
             SDL_RenderFillRect(renderer, &all);
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -1675,7 +1733,8 @@ int main(int argc, char** argv) {
                     paint.fillCircle(sx, sy, r * t, client::Color{255, 220, 165, a});
                 }
             };
-            if (player.alive) glow(player.x, player.y, 170);
+            // No light on the player: a torchless survivor casts none, and the
+            // halo round him read as a bug rather than as a lamp.
             for (const sim::Deployable& thing : build.deployables()) {
                 if (thing.lit) glow(thing.x, thing.y, 250);
             }
@@ -1771,7 +1830,7 @@ int main(int argc, char** argv) {
         }
         map.draw(paint, world, build, player, width, height, static_cast<float>(density));
         panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
-        panel.setShelf(sandbox);
+        panel.setSandbox(sandbox);
         if (panel.takeQueueFull()) hud.notify("Crafting queue is full.");
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
         if (typing) {
@@ -1922,19 +1981,19 @@ int main(int argc, char** argv) {
             fpsFrames = 0;
         }
         if (!title) {
-            // The day, the hour and whether it is night: what you plan around.
+            // The day and the hour, top right, in the same quiet hand as the
+            // counter opposite: no plate behind it and no word for night, which
+            // the sky already says.
             const int day = 1 + static_cast<int>(clock / sim::kDaySeconds);
-            const int hour = static_cast<int>(sim::dayFraction(clock) * 24);
+            const int hour24 = static_cast<int>(sim::dayFraction(clock) * 24);
             const int minute = static_cast<int>(SDL_fmod(sim::dayFraction(clock) * 24 * 60, 60));
+            const int hour = hour24 % 12 == 0 ? 12 : hour24 % 12;
             char top[96];
-            SDL_snprintf(top, sizeof(top), "DAY %d    %02d:%02d %s%s", day, hour, minute,
-                         sim::isNight(clock) ? "night" : "day", online ? "    online" : "");
-            const float size = 22 * density;
-            const float textW = lettering.widthOf(top, size, client::Face::Display);
-            paint.fillRect((width - textW) * 0.5f - 16 * density, 0, textW + 32 * density,
-                           32 * density, client::Color{20, 17, 13, 170});
-            lettering.draw(top, width * 0.5f, 2 * density, size, client::rgb(0xefeadd),
-                           client::Face::Display, client::Align::Centre);
+            SDL_snprintf(top, sizeof(top), "Day %d   %d:%02d %s%s", day, hour, minute,
+                         hour24 < 12 ? "am" : "pm", online ? "   online" : "");
+            lettering.draw(top, width - 10 * density, 6 * density, 12 * density,
+                           client::Color{255, 255, 255, 150}, client::Face::Body,
+                           client::Align::Right);
         }
 
         // The counter, small and out of the way: it is for me, not for playing.
