@@ -144,7 +144,7 @@ void MapScreen::draw(Paint& paint, const sim::World& world, const sim::BuildSyst
     char square[8];
     squareOf(player.x, player.y, square, sizeof(square));
     char line[64];
-    SDL_snprintf(line, sizeof(line), "MAP    you are in %s    M to close", square);
+    SDL_snprintf(line, sizeof(line), "Map    you are in %s    M to close", square);
     text(paint, x, y - 30 * uiScale, 18 * uiScale, rgb(0xefeadd), line, Align::Left,
          Face::Display);
 }

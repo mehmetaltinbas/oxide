@@ -68,8 +68,8 @@ void Hud::drawPopups(SDL_Renderer*, double cameraX, double cameraY, double scale
         const float sy = static_cast<float>((p.y - cameraY - t * kPopupRise) * scale) + height * 0.5f;
         const std::uint8_t fade = static_cast<std::uint8_t>(255 * std::min(1.0, p.life / 0.4));
         if (lettering_) {
-            lettering_->draw(p.text, sx, sy, 18 * static_cast<float>(scale),
-                             Color{p.color.r, p.color.g, p.color.b, fade}, Face::Display,
+            lettering_->draw(p.text, sx, sy, 11 * static_cast<float>(scale),
+                             Color{p.color.r, p.color.g, p.color.b, fade}, Face::BodyBold,
                              Align::Centre);
         }
     }

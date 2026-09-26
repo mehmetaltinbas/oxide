@@ -290,9 +290,9 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
     paint.fillRect(l.x - 3 * uiScale, l.y - 3 * uiScale, l.w + 6 * uiScale, l.h + 6 * uiScale, kInk);
     paint.fillRect(l.x, l.y, l.w, l.h, kPlate);
 
-    text(paint, l.packX, l.y + 12 * uiScale, 26 * uiScale, kText, "PACK", Face::Display);
+    text(paint, l.packX, l.y + 12 * uiScale, 26 * uiScale, kText, "Pack", Face::Display);
     text(paint, l.listX, l.y + 12 * uiScale, 26 * uiScale, kText,
-         container_ ? title_ : (shelf_ ? "SHELF" : "CRAFT"), Face::Display);
+         container_ ? title_ : (shelf_ ? "Shelf" : "Craft"), Face::Display);
 
     // The pack, and the belt under it.
     const auto slotAt = [&](float x, float y, const sim::ItemStack& stack) {
@@ -314,7 +314,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         slotAt(sx, sy, inventory.pack()[i]);
     }
     const float beltY = l.packY + 4 * (l.slot + 4 * uiScale) + 22 * uiScale;
-    text(paint, l.packX, beltY - 16 * uiScale, 11.2 * uiScale, kDim, "BELT");
+    text(paint, l.packX, beltY - 16 * uiScale, 11.2 * uiScale, kDim, "Belt");
     for (int i = 0; i < sim::kHotbarSlots; ++i) {
         const float sx = l.packX + i * (l.slot + 4 * uiScale);
         slotAt(sx, beltY, inventory.hotbar()[i]);
@@ -411,7 +411,7 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
                        4 * uiScale, rgb(0xe8c87a));
     }
     text(paint, l.packX, l.queueY - 14 * uiScale, 11.2 * uiScale, kDim,
-         "QUEUE   right click to cancel");
+         "Queue   right click to cancel");
     // What the cursor is over, named along the bottom.
     float mouseX = 0;
     float mouseY = 0;

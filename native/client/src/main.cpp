@@ -131,6 +131,8 @@ int main(int argc, char** argv) {
     bool sandbox = false;
     /** Kills you, waits, presses the key, and says whether you woke up. */
     bool deathTest = false;
+    /** A couple of floating numbers, for a look at how they read. */
+    bool showPopups = false;
     /** Where to play: nowhere is this machine, a host is somebody's island. */
     std::string connectTo;
     std::string playerName = "survivor";
@@ -163,6 +165,8 @@ int main(int argc, char** argv) {
             poseDraw = SDL_atof(argv[++i]);
         } else if (SDL_strcmp(argv[i], "--sandbox") == 0) {
             sandbox = true;
+        } else if (SDL_strcmp(argv[i], "--popups") == 0) {
+            showPopups = true;
         } else if (SDL_strcmp(argv[i], "--death-test") == 0) {
             deathTest = true;
         } else if (SDL_strcmp(argv[i], "--night") == 0) {
@@ -259,7 +263,7 @@ int main(int argc, char** argv) {
                 const float ui = windowW > 0 ? static_cast<float>(lobbyW) / windowW : 1.0f;
                 SDL_SetRenderDrawColor(renderer, 10, 12, 10, 255);
                 SDL_RenderClear(renderer);
-                lettering.draw("ISLANDS", lobbyW * 0.5f, lobbyH * 0.2f, 54 * ui,
+                lettering.draw("Islands", lobbyW * 0.5f, lobbyH * 0.2f, 54 * ui,
                                client::rgb(0xefeadd), client::Face::Display,
                                client::Align::Centre);
                 float row = lobbyH * 0.32f;
@@ -345,7 +349,8 @@ int main(int argc, char** argv) {
     // somebody else is running, or a flag has said where to start, or this run
     // is measuring something and wants the island as generated.
     const bool asGenerated = startX >= 0 || atMonument >= 0 || shotPath != nullptr ||
-                             benchFrames > 0 || showBase || poseDraw >= 0 || poseSwing >= 0;
+                             benchFrames > 0 || showBase || poseDraw >= 0 || poseSwing >= 0 ||
+                             showPopups;
     bool loaded = false;
     if (!online && !sandbox && !asGenerated) {
         sim::Session session;
@@ -448,6 +453,12 @@ int main(int argc, char** argv) {
     client::Panel panel;
     client::MapScreen map(renderer);
     if (loaded) hud.notify("Carried on where you left off.");
+    if (showPopups) {
+        hud.say("+4 Wood", player.x - 40, player.y - 40, client::rgb(0xefeadd));
+        hud.say("+12 Leather", player.x + 50, player.y + 10, client::rgb(0xefeadd));
+        hud.say("-22", player.x, player.y - 70, client::rgb(0xffd9d9));
+        hud.say("Killed a Boar", player.x - 10, player.y + 60, client::rgb(0xefeadd));
+    }
     if (sandbox) hud.notify("Sandbox. Nothing costs anything and nothing can kill you.");
     if (showMap) map.toggle();
     // What the building plan would put down, cycled with B.
@@ -483,7 +494,7 @@ int main(int argc, char** argv) {
     bool paused = false;
     /** The card you land on, until you say how you want to play. */
     bool title = connectTo.empty() && !showPanel && !showMap && poseSwing < 0 &&
-                 benchFrames <= 0 && !deathTest && (!shotPath || showTitle);
+                 benchFrames <= 0 && !deathTest && !showPopups && (!shotPath || showTitle);
     /** Typing a line of chat, and what has been typed so far. */
     bool typing = false;
     std::string typed;
@@ -1767,7 +1778,7 @@ int main(int argc, char** argv) {
             // thing you see should be the place you are about to be dropped on.
             paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
                            client::Color{10, 12, 10, 190});
-            lettering.draw("OXIDE", width * 0.5f, height * 0.26f, 110 * density,
+            lettering.draw("Oxide", width * 0.5f, height * 0.26f, 110 * density,
                            client::rgb(0xefeadd), client::Face::Display, client::Align::Centre);
             lettering.draw("an island, a rock, and whatever you make of them", width * 0.5f,
                            height * 0.45f, 20 * density, client::Color{160, 160, 150, 255},
@@ -1790,7 +1801,7 @@ int main(int argc, char** argv) {
             // where a player looks for the controls.
             paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
                            client::Color{0, 0, 0, 170});
-            lettering.draw(online ? "SETTINGS" : "PAUSED", width * 0.5f, height * 0.13f,
+            lettering.draw(online ? "Settings" : "Paused", width * 0.5f, height * 0.13f,
                            54 * density, client::rgb(0xefeadd), client::Face::Display,
                            client::Align::Centre);
             lettering.draw("esc to carry on", width * 0.5f, height * 0.2f, 18 * density,
@@ -1860,7 +1871,7 @@ int main(int argc, char** argv) {
         if (dead) {
             paint.fillRect(0, 0, static_cast<float>(width), static_cast<float>(height),
                            client::Color{40, 8, 8, 170});
-            lettering.draw("YOU DIED", width * 0.5f, height * 0.36f, 72 * density,
+            lettering.draw("You died", width * 0.5f, height * 0.36f, 72 * density,
                            client::rgb(0xefeadd), client::Face::Display, client::Align::Centre);
             char line[96];
             SDL_snprintf(line, sizeof(line),
