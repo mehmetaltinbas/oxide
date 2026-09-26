@@ -13,6 +13,14 @@
 
 namespace client {
 
+/** One island a server is running, as the lobby lists it. */
+struct RoomEntry {
+    std::uint16_t id = 0;
+    std::string name;
+    int players = 0;
+    int max = 0;
+};
+
 /** Somebody else on the island, as the server last described them. */
 struct Other {
     std::uint16_t id = 0;
@@ -44,9 +52,22 @@ class NetClient {
 public:
     ~NetClient();
 
-    /** Opens the connection and waits for the welcome. Says whether it worked. */
+    /**
+     * Opens the connection and waits for the lobby. Says whether it worked:
+     * from here the island is chosen rather than given.
+     */
     bool connect(const std::string& host, std::uint16_t port, const std::string& name,
                  std::string& problem);
+
+    /** Reads until the lobby has answered or the wait runs out. */
+    bool waitForRooms(double seconds);
+    /** Reads until an island has been joined, which brings the seed with it. */
+    bool waitForWelcome(double seconds);
+
+    const std::vector<RoomEntry>& rooms() const { return rooms_; }
+    void askForRooms();
+    void joinRoom(std::uint16_t id);
+    void createRoom(const std::string& name, std::uint32_t seed);
 
     bool connected() const { return host_ != nullptr && joined_; }
     std::uint32_t seed() const { return seed_; }
@@ -92,6 +113,8 @@ private:
     double serverY_ = 0;
     std::unordered_map<std::uint16_t, Other> others_;
     std::vector<std::string> chat_;
+    std::vector<RoomEntry> rooms_;
+    bool haveRooms_ = false;
     std::string refusal_;
     std::uint16_t inviteFrom_ = 0;
 

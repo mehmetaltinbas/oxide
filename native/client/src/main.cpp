@@ -114,6 +114,9 @@ int main(int argc, char** argv) {
     /** Where to play: nowhere is this machine, a host is somebody's island. */
     std::string connectTo;
     std::string playerName = "survivor";
+    /** Which island to land on: a number, a new one, or whatever is running. */
+    int joinRoom = 0;
+    bool newRoom = false;
     /** A small base put up where you stand, for a look at what one looks like. */
     bool showBase = false;
     /** Dropped in at the nth looting place, for a look at one. */
@@ -130,6 +133,10 @@ int main(int argc, char** argv) {
             showBase = true;
         } else if (SDL_strcmp(argv[i], "--connect") == 0 && i + 1 < argc) {
             connectTo = argv[++i];
+        } else if (SDL_strcmp(argv[i], "--island") == 0 && i + 1 < argc) {
+            joinRoom = SDL_atoi(argv[++i]);
+        } else if (SDL_strcmp(argv[i], "--new-island") == 0) {
+            newRoom = true;
         } else if (SDL_strcmp(argv[i], "--name") == 0 && i + 1 < argc) {
             playerName = argv[++i];
         } else if (SDL_strcmp(argv[i], "--draw") == 0 && i + 1 < argc) {
@@ -156,8 +163,9 @@ int main(int argc, char** argv) {
             seed = static_cast<std::uint32_t>(std::strtoul(argv[i], nullptr, 10));
         }
     }
-    // Online, the island is whichever one the server is running: the seed
-    // comes down the wire and the same generator builds it here.
+    // Online, the island is whichever one you land on: the seed comes down the
+    // wire and the same generator builds it here.
+    sim::BuildSystem build;
     client::NetClient net;
     bool online = false;
     if (!connectTo.empty()) {
@@ -170,7 +178,99 @@ int main(int argc, char** argv) {
         }
         std::string problem;
         if (!net.connect(host, port, playerName, problem)) {
-            std::fprintf(stderr, "Could not join %s: %s\n", connectTo.c_str(), problem.c_str());
+            std::fprintf(stderr, "Could not reach %s: %s\n", connectTo.c_str(), problem.c_str());
+            SDL_DestroyRenderer(renderer);
+            SDL_DestroyWindow(window);
+            SDL_Quit();
+            return 1;
+        }
+        // The lobby: what islands are running, and which one to land on.
+        std::printf("Islands on %s:\n", connectTo.c_str());
+        for (const client::RoomEntry& room : net.rooms()) {
+            std::printf("  %u  %s  (%d of %d)\n", room.id, room.name.c_str(), room.players,
+                        room.max);
+        }
+        if (joinRoom > 0) {
+            net.joinRoom(static_cast<std::uint16_t>(joinRoom));
+        } else if (newRoom) {
+            net.createRoom(playerName + "'s island", 0);
+        } else {
+            // The lobby, on screen: every island the server is running, and
+            // the choice of landing on one or starting another.
+            bool choosing = true;
+            while (choosing) {
+                SDL_Event lobbyEvent;
+                while (SDL_PollEvent(&lobbyEvent)) {
+                    if (lobbyEvent.type == SDL_EVENT_QUIT) {
+                        SDL_DestroyRenderer(renderer);
+                        SDL_DestroyWindow(window);
+                        SDL_Quit();
+                        return 0;
+                    }
+                    if (lobbyEvent.type != SDL_EVENT_KEY_DOWN || lobbyEvent.key.repeat) continue;
+                    if (lobbyEvent.key.key == SDLK_ESCAPE) {
+                        SDL_DestroyRenderer(renderer);
+                        SDL_DestroyWindow(window);
+                        SDL_Quit();
+                        return 0;
+                    }
+                    if (lobbyEvent.key.key == SDLK_N) {
+                        net.createRoom(playerName + "'s island", 0);
+                        choosing = false;
+                    }
+                    if (lobbyEvent.key.key >= SDLK_1 && lobbyEvent.key.key <= SDLK_9) {
+                        const std::size_t at =
+                            static_cast<std::size_t>(lobbyEvent.key.key - SDLK_1);
+                        if (at < net.rooms().size()) {
+                            net.joinRoom(net.rooms()[at].id);
+                            choosing = false;
+                        }
+                    }
+                }
+
+                int lobbyW = 0;
+                int lobbyH = 0;
+                SDL_GetRenderOutputSize(renderer, &lobbyW, &lobbyH);
+                int windowW = 0;
+                int windowH = 0;
+                SDL_GetWindowSize(window, &windowW, &windowH);
+                const float ui = windowW > 0 ? static_cast<float>(lobbyW) / windowW : 1.0f;
+                SDL_SetRenderDrawColor(renderer, 10, 12, 10, 255);
+                SDL_RenderClear(renderer);
+                const float big = 4.0f * ui;
+                SDL_SetRenderScale(renderer, big, big);
+                SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+                SDL_RenderDebugText(renderer, (lobbyW * 0.5f - 120 * ui) / big,
+                                    (lobbyH * 0.2f) / big, "ISLANDS");
+                SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+                const float small = 1.8f * ui;
+                SDL_SetRenderScale(renderer, small, small);
+                float row = lobbyH * 0.32f;
+                for (std::size_t i = 0; i < net.rooms().size() && i < 9; ++i) {
+                    const client::RoomEntry& room = net.rooms()[i];
+                    char line[96];
+                    SDL_snprintf(line, sizeof(line), "%zu   %s   %d of %d", i + 1,
+                                 room.name.c_str(), room.players, room.max);
+                    SDL_SetRenderDrawColor(renderer, 232, 226, 212, 255);
+                    SDL_RenderDebugText(renderer, (lobbyW * 0.5f - 200 * ui) / small, row / small,
+                                        line);
+                    row += 30 * ui;
+                }
+                SDL_SetRenderDrawColor(renderer, 160, 160, 150, 255);
+                SDL_RenderDebugText(renderer, (lobbyW * 0.5f - 200 * ui) / small,
+                                    (row + 20 * ui) / small, "N   start a new island");
+                SDL_RenderDebugText(renderer, (lobbyW * 0.5f - 200 * ui) / small,
+                                    (row + 50 * ui) / small, "ESC   leave");
+                SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+                SDL_RenderPresent(renderer);
+                // The list keeps up with whoever is joining while you decide.
+                net.poll(build, 1.0 / 30);
+            }
+        }
+        if (!net.waitForWelcome(5.0)) {
+            const std::string refused = net.takeRefusal();
+            std::fprintf(stderr, "Could not join: %s\n",
+                         refused.empty() ? "the server never let us on" : refused.c_str());
             SDL_DestroyRenderer(renderer);
             SDL_DestroyWindow(window);
             SDL_Quit();
@@ -178,7 +278,7 @@ int main(int argc, char** argv) {
         }
         online = true;
         seed = net.seed();
-        std::printf("Joined %s as %u on island %u\n", connectTo.c_str(), net.id(), seed);
+        std::printf("Joined as %u on island %u\n", net.id(), seed);
     }
 
     // Where a single-player island is kept between sittings.
@@ -192,7 +292,6 @@ int main(int argc, char** argv) {
     std::printf("Oxide: island %u built in %llu ms, %zu things standing on it\n", seed,
                 static_cast<unsigned long long>(SDL_GetTicks() - built), world.nodes().size());
 
-    sim::BuildSystem build;
     sim::Player player;
     dropIn(world, player, seed);
     if (online) {
@@ -513,10 +612,30 @@ int main(int argc, char** argv) {
                 panel.toggle();
             }
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && panel.open()) {
-                panel.click(inventory, crafting, event.button.x * static_cast<float>(lastDensity),
-                            event.button.y * static_cast<float>(lastDensity),
-                            event.button.button == SDL_BUTTON_RIGHT, lastWidth, lastHeight,
-                            static_cast<float>(lastDensity));
+                const float px = event.button.x * static_cast<float>(lastDensity);
+                const float py = event.button.y * static_cast<float>(lastDensity);
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    // A press on a slot picks the stack up to carry it.
+                    panel.press(inventory, px, py, lastWidth, lastHeight,
+                                static_cast<float>(lastDensity));
+                }
+                if (panel.dragging().id == sim::ItemId::None) {
+                    panel.click(inventory, crafting, px, py,
+                                event.button.button == SDL_BUTTON_RIGHT, lastWidth, lastHeight,
+                                static_cast<float>(lastDensity));
+                }
+            }
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && panel.open()) {
+                panel.release(inventory, event.button.x * static_cast<float>(lastDensity),
+                              event.button.y * static_cast<float>(lastDensity), lastWidth,
+                              lastHeight, static_cast<float>(lastDensity),
+                              [&](sim::ItemStack stack) {
+                                  world.dropStack(stack,
+                                                  player.x + SDL_cos(player.aim) * 34,
+                                                  player.y + SDL_sin(player.aim) * 34);
+                                  hud.notify(std::string("Dropped ") +
+                                             sim::itemDef(stack.id).name + ".");
+                              });
             }
             if (event.type == SDL_EVENT_KEY_DOWN &&
                 (event.key.key == SDLK_B || event.key.key == SDLK_Q) && !event.key.repeat) {

@@ -17,6 +17,7 @@ namespace {
 
 struct Fake {
     ENetHost* host = nullptr;
+    std::uint16_t room = 0;
     ENetPeer* peer = nullptr;
     std::uint16_t id = 0;
     std::uint32_t seed = 0;
@@ -53,6 +54,15 @@ bool open(Fake& fake, std::uint16_t port, const char* name) {
     return true;
 }
 
+/** The lobby's answer, and landing on the first island it lists. */
+void joinFirst(Fake& fake) {
+    Writer join;
+    join.u8(static_cast<std::uint8_t>(ClientMessage::Join));
+    join.u16(fake.room);
+    send(fake, join, true);
+    enet_host_flush(fake.host);
+}
+
 void read(Fake& fake) {
     ENetEvent event;
     while (enet_host_service(fake.host, &event, 1) > 0) {
@@ -74,6 +84,16 @@ void read(Fake& fake) {
                 break;
             }
             case ServerMessage::Piece: ++fake.pieces; break;
+            case ServerMessage::RoomList: {
+                const std::uint8_t count = in.u8();
+                if (count > 0) {
+                    fake.room = in.u16();
+                    in.text();
+                    in.u8();
+                    in.u8();
+                }
+                break;
+            }
             case ServerMessage::Refused: fake.refusal = in.text(); break;
             default: break;
         }
@@ -106,6 +126,15 @@ int main(int argc, char** argv) {
         std::printf("net: no server on %u\n", port);
         return 1;
     }
+
+    // The lobby answers, and both land on the island it lists.
+    for (int frame = 0; frame < 60; ++frame) {
+        read(a);
+        read(b);
+        enet_host_service(a.host, nullptr, 8);
+    }
+    joinFirst(a);
+    joinFirst(b);
 
     // Settle, so both know where they woke up.
     for (int frame = 0; frame < 30; ++frame) {

@@ -51,23 +51,79 @@ bool NetClient::connect(const std::string& host, std::uint16_t port, const std::
     enet_peer_send(peer_, 1, packet);
     enet_host_flush(host_);
 
+    if (!waitForRooms(5.0)) {
+        problem = refusal_.empty() ? "the server never listed its islands" : refusal_;
+        return false;
+    }
+    return true;
+}
+
+bool NetClient::waitForRooms(double seconds) {
     sim::BuildSystem ignored;
-    const std::uint64_t until = enet_time_get() + 5000;
+    ENetEvent event;
+    const std::uint64_t until = enet_time_get() + static_cast<std::uint64_t>(seconds * 1000);
     while (enet_time_get() < until) {
         while (enet_host_service(host_, &event, 50) > 0) {
             if (event.type == ENET_EVENT_TYPE_RECEIVE) {
                 handle(event.packet->data, event.packet->dataLength, ignored);
                 enet_packet_destroy(event.packet);
             }
-            if (event.type == ENET_EVENT_TYPE_DISCONNECT) {
-                problem = refusal_.empty() ? "the server hung up" : refusal_;
-                return false;
+            if (event.type == ENET_EVENT_TYPE_DISCONNECT) return false;
+        }
+        if (haveRooms_) return true;
+    }
+    return false;
+}
+
+bool NetClient::waitForWelcome(double seconds) {
+    sim::BuildSystem ignored;
+    ENetEvent event;
+    const std::uint64_t until = enet_time_get() + static_cast<std::uint64_t>(seconds * 1000);
+    while (enet_time_get() < until) {
+        while (enet_host_service(host_, &event, 50) > 0) {
+            if (event.type == ENET_EVENT_TYPE_RECEIVE) {
+                handle(event.packet->data, event.packet->dataLength, ignored);
+                enet_packet_destroy(event.packet);
             }
+            if (event.type == ENET_EVENT_TYPE_DISCONNECT) return false;
         }
         if (joined_) return true;
+        if (!refusal_.empty()) return false;
     }
-    problem = "the server never said hello back";
     return false;
+}
+
+void NetClient::askForRooms() {
+    if (!peer_) return;
+    Writer out;
+    out.u8(static_cast<std::uint8_t>(ClientMessage::Rooms));
+    ENetPacket* packet =
+        enet_packet_create(out.bytes().data(), out.size(), ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(peer_, 1, packet);
+    enet_host_flush(host_);
+}
+
+void NetClient::joinRoom(std::uint16_t id) {
+    if (!peer_) return;
+    Writer out;
+    out.u8(static_cast<std::uint8_t>(ClientMessage::Join));
+    out.u16(id);
+    ENetPacket* packet =
+        enet_packet_create(out.bytes().data(), out.size(), ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(peer_, 1, packet);
+    enet_host_flush(host_);
+}
+
+void NetClient::createRoom(const std::string& name, std::uint32_t seed) {
+    if (!peer_) return;
+    Writer out;
+    out.u8(static_cast<std::uint8_t>(ClientMessage::Create));
+    out.text(name);
+    out.u32(seed);
+    ENetPacket* packet =
+        enet_packet_create(out.bytes().data(), out.size(), ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(peer_, 1, packet);
+    enet_host_flush(host_);
 }
 
 std::string NetClient::takeRefusal() {
@@ -257,6 +313,25 @@ void NetClient::handle(const std::uint8_t* bytes, std::size_t size, sim::BuildSy
             break;
         }
         case ServerMessage::Refused: refusal_ = in.text(); break;
+        case ServerMessage::RoomList: {
+            rooms_.clear();
+            const std::uint8_t count = in.u8();
+            for (std::uint8_t i = 0; i < count && in.ok(); ++i) {
+                RoomEntry entry;
+                entry.id = in.u16();
+                entry.name = in.text();
+                entry.players = in.u8();
+                entry.max = in.u8();
+                rooms_.push_back(entry);
+            }
+            haveRooms_ = true;
+            break;
+        }
+        case ServerMessage::Left_Room: {
+            joined_ = false;
+            others_.clear();
+            break;
+        }
         case ServerMessage::Team: team_ = in.u8(); break;
         case ServerMessage::Invited: {
             inviteFrom_ = in.u16();

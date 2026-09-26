@@ -19,9 +19,13 @@ cd native && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --
 ```
 
 `--sandbox` for creative, `--armed` for a bag of guns, `--map`, `--night`,
-`--seed`, `--connect host[:port]` to join a server, `--bench N` to time frames
-and `--shot file.bmp` to write one out. The server is
-`./native/build/bin/oxide_server --port 8787 --seed 12345`.
+`--seed`, `--bench N` to time frames and `--shot file.bmp` to write one out.
+
+Online: `--connect host[:port]` opens the lobby of islands that server is
+running, `--island N` lands straight on one and `--new-island` starts another.
+The server is `./native/build/bin/oxide_server --port 8787 --seed 12345`, and
+it runs up to eight islands at once, giving up any that stands empty for five
+minutes.
 
 `native/build/bin/play_check` and `net_check` are the regression checks: one
 plays a stretch of the game with nobody watching, the other runs two players

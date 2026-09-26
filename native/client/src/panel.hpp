@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 
 #include "paint.hpp"
@@ -53,6 +54,20 @@ public:
     bool click(sim::Inventory& inventory, sim::Crafting& crafting, float x, float y, bool right,
                int width, int height, float uiScale);
 
+    /**
+     * Picking a stack up to carry it somewhere.
+     *
+     * Dragging is how a pack is meant to be sorted: press on a slot, let go on
+     * another, and the two swap or merge. Letting go outside the screen throws
+     * the stack on the floor, which is what `dropped` is called with.
+     */
+    void press(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale);
+    void release(sim::Inventory& inventory, float x, float y, int width, int height, float uiScale,
+                 const std::function<void(sim::ItemStack)>& dropped);
+
+    /** What is being carried on the cursor, if anything. */
+    const sim::ItemStack& dragging() const { return drag_; }
+
     /** The best workbench within reach, which decides what can be made. */
     void setBench(int tier) { bench_ = tier; }
 
@@ -81,6 +96,14 @@ private:
         double total = 0;
     };
     Move move_;
+    /** The stack on the cursor, and where it came from if it goes back. */
+    sim::ItemStack drag_{};
+    enum class From : std::uint8_t { None, Belt, Pack, Container };
+    From dragFrom_ = From::None;
+    int dragSlot_ = 0;
+
+    /** Puts a carried stack back where it came from, or anywhere it fits. */
+    void putBack(sim::Inventory& inventory, const sim::ItemStack& stack);
     const sim::Deployable* fire_ = nullptr;
 
     /** Where everything is, worked out once and used by both drawing and clicks. */

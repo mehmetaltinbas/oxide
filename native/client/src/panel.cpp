@@ -30,6 +30,20 @@ void text(SDL_Renderer* renderer, float x, float y, float scale, Color color, co
 
 }  // namespace
 
+namespace {
+
+/** Which slot of a run a point is over, or minus one. */
+int slotUnder(float px, float py, float ox, float oy, float slot, float gap, int count, int cols) {
+    for (int i = 0; i < count; ++i) {
+        const float sx = ox + (i % cols) * (slot + gap);
+        const float sy = oy + (i / cols) * (slot + gap);
+        if (px >= sx && px <= sx + slot && py >= sy && py <= sy + slot) return i;
+    }
+    return -1;
+}
+
+}  // namespace
+
 Panel::Layout Panel::layoutOf(int width, int height, float uiScale) {
     Layout out{};
     out.w = 760 * uiScale;
@@ -124,6 +138,118 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
         }
     }
     return true;
+}
+
+void Panel::press(sim::Inventory& inventory, float x, float y, int width, int height,
+                  float uiScale) {
+    if (!open_ || drag_.id != sim::ItemId::None) return;
+    const Layout l = layoutOf(width, height, uiScale);
+    const float gap = 4 * uiScale;
+    const float beltY = l.packY + 4 * (l.slot + gap) + 22 * uiScale;
+
+    const int pack = slotUnder(x, y, l.packX, l.packY, l.slot, gap, sim::kPackSlots, kPackCols);
+    if (pack >= 0 && inventory.pack()[pack].id != sim::ItemId::None) {
+        drag_ = inventory.pack()[pack];
+        inventory.pack()[pack] = sim::ItemStack{};
+        dragFrom_ = From::Pack;
+        dragSlot_ = pack;
+        return;
+    }
+    const int belt =
+        slotUnder(x, y, l.packX, beltY, l.slot, gap, sim::kHotbarSlots, sim::kHotbarSlots);
+    if (belt >= 0 && inventory.hotbar()[belt].id != sim::ItemId::None) {
+        drag_ = inventory.hotbar()[belt];
+        inventory.hotbar()[belt] = sim::ItemStack{};
+        dragFrom_ = From::Belt;
+        dragSlot_ = belt;
+        return;
+    }
+    if (container_) {
+        const int in = slotUnder(x, y, l.listX, l.listY, l.slot, gap,
+                                 static_cast<int>(container_->slots.size()), 4);
+        if (in >= 0 && container_->slots[in].id != sim::ItemId::None) {
+            drag_ = container_->slots[in];
+            container_->slots[in] = sim::ItemStack{};
+            dragFrom_ = From::Container;
+            dragSlot_ = in;
+        }
+    }
+}
+
+void Panel::release(sim::Inventory& inventory, float x, float y, int width, int height,
+                    float uiScale, const std::function<void(sim::ItemStack)>& dropped) {
+    if (drag_.id == sim::ItemId::None) return;
+    const sim::ItemStack carried = drag_;
+    drag_ = sim::ItemStack{};
+    const Layout l = layoutOf(width, height, uiScale);
+    const float gap = 4 * uiScale;
+    const float beltY = l.packY + 4 * (l.slot + gap) + 22 * uiScale;
+
+    // Into whatever slot it was let go over: merged if it matches, swapped if
+    // it does not.
+    const auto land = [&](sim::ItemStack& slot) {
+        if (slot.id == carried.id) {
+            const int room = sim::itemDef(carried.id).stack - slot.count;
+            const int put = std::min(room, carried.count);
+            slot.count += put;
+            if (put < carried.count) {
+                // What would not fit goes back where it came from.
+                sim::ItemStack rest = carried;
+                rest.count -= put;
+                putBack(inventory, rest);
+            }
+            return;
+        }
+        const sim::ItemStack was = slot;
+        slot = carried;
+        if (was.id != sim::ItemId::None) putBack(inventory, was);
+    };
+
+    const int pack = slotUnder(x, y, l.packX, l.packY, l.slot, gap, sim::kPackSlots, kPackCols);
+    if (pack >= 0) {
+        land(inventory.pack()[pack]);
+        return;
+    }
+    const int belt =
+        slotUnder(x, y, l.packX, beltY, l.slot, gap, sim::kHotbarSlots, sim::kHotbarSlots);
+    if (belt >= 0) {
+        land(inventory.hotbar()[belt]);
+        return;
+    }
+    if (container_) {
+        const int in = slotUnder(x, y, l.listX, l.listY, l.slot, gap,
+                                 static_cast<int>(container_->slots.size()), 4);
+        if (in >= 0) {
+            land(container_->slots[in]);
+            return;
+        }
+    }
+    if (x < l.x || y < l.y || x > l.x + l.w || y > l.y + l.h) {
+        // Let go outside the screen: on the floor it goes.
+        dropped(carried);
+        return;
+    }
+    putBack(inventory, carried);
+}
+
+void Panel::putBack(sim::Inventory& inventory, const sim::ItemStack& stack) {
+    // Back where it came from if that slot is still free, and anywhere it fits
+    // if it is not.
+    if (dragFrom_ == From::Pack && inventory.pack()[dragSlot_].id == sim::ItemId::None) {
+        inventory.pack()[dragSlot_] = stack;
+        return;
+    }
+    if (dragFrom_ == From::Belt && inventory.hotbar()[dragSlot_].id == sim::ItemId::None) {
+        inventory.hotbar()[dragSlot_] = stack;
+        return;
+    }
+    if (dragFrom_ == From::Container && container_ &&
+        dragSlot_ < static_cast<int>(container_->slots.size()) &&
+        container_->slots[dragSlot_].id == sim::ItemId::None) {
+        container_->slots[dragSlot_] = stack;
+        return;
+    }
+    inventory.add(stack.id, stack.count);
 }
 
 void Panel::update(double dt, sim::Inventory& inventory) {
@@ -331,7 +457,18 @@ void Panel::draw(Paint& paint, const sim::Inventory& inventory, const sim::Craft
         text(renderer, l.packX + 34 * uiScale, l.y + l.h - 22 * uiScale, 1.3f * uiScale, kText,
              line);
     }
-    text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim, "TAB to close");
+    text(renderer, l.listX, l.y + l.h - 22 * uiScale, 1.4f * uiScale, kDim,
+         "drag to sort, out to drop   TAB to close");
+
+    if (drag_.id != sim::ItemId::None) {
+        // What is on the cursor, drawn under it.
+        drawItemIcon(paint, drag_.id, px, py, l.slot * 0.7f);
+        if (drag_.count > 1) {
+            char count[8];
+            SDL_snprintf(count, sizeof(count), "%d", drag_.count);
+            text(renderer, px + 8 * uiScale, py + 8 * uiScale, 1.4f * uiScale, kText, count);
+        }
+    }
 }
 
 }  // namespace client

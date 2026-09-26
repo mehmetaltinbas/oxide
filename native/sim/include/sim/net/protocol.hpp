@@ -18,7 +18,7 @@ namespace sim::net {
  * server that disagree about the shape of a message are worse than one that
  * refuses to connect.
  */
-inline constexpr std::uint16_t kProtocolVersion = 1;
+inline constexpr std::uint16_t kProtocolVersion = 2;
 
 /** The port the server listens on unless told otherwise. */
 inline constexpr std::uint16_t kDefaultPort = 8787;
@@ -42,6 +42,11 @@ enum class ClientMessage : std::uint8_t {
     Chat = 6,
     Invite = 7,
     InviteReply = 8,
+    /** The lobby: what islands are running, start one, join one, leave one. */
+    Rooms = 9,
+    Create = 10,
+    Join = 11,
+    Leave = 12,
 };
 
 /** From the server. */
@@ -57,7 +62,17 @@ enum class ServerMessage : std::uint8_t {
     Refused = 9,
     Team = 10,
     Invited = 11,
+    /** The lobby's answer: every island running, and who is on it. */
+    RoomList = 12,
+    Left_Room = 13,
 };
+
+/** How many islands one server will run at once. */
+inline constexpr int kMaxRooms = 8;
+/** How many may share one island. */
+inline constexpr int kMaxPlayersPerRoom = 24;
+/** An island with nobody on it is given up after this long. */
+inline constexpr double kIdleRoomSeconds = 300;
 
 /** What a player is asking to do, as it goes over the wire. */
 struct InputBits {
