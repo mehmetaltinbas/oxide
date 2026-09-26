@@ -77,6 +77,13 @@ public:
     /** Creative mode puts a shelf of every item where the recipes go. */
     void setShelf(bool on) { shelf_ = on; }
 
+    /** Whether a queue-is-full refusal happened since this was last asked. */
+    bool takeQueueFull() {
+        const bool was = queueFull_;
+        queueFull_ = false;
+        return was;
+    }
+
     void draw(Paint& paint, const sim::Inventory& inventory, const sim::Crafting& crafting,
               int width, int height, float uiScale) const;
 
@@ -87,6 +94,7 @@ private:
     const char* title_ = "";
     int bench_ = 0;
     bool shelf_ = false;
+    bool queueFull_ = false;
     /** What is being moved, where to, and how long is left of moving it. */
     struct Move {
         bool intoContainer = false;

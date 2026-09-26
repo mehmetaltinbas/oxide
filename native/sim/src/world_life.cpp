@@ -69,6 +69,7 @@ ResourceNode* World::nodeById(int id) {
 bool World::hurtNode(ResourceNode& node, double damage) {
     if (node.hp <= 0) return false;
     node.hp -= static_cast<int>(damage);
+    node.shake = 0.16;
     if (node.hp > 0) return false;
     node.hp = 0;
     Rng rng(respawnSeed_ += 0x9e3779b9u);
@@ -136,6 +137,7 @@ void World::update(double dt) {
         fillCrate(crate, static_cast<std::uint32_t>(crate.id * 7919 + respawnSeed_++));
     }
     for (ResourceNode& node : nodes_) {
+        if (node.shake > 0) node.shake -= dt;
         if (node.respawn <= 0) continue;
         node.respawn -= dt;
         if (node.respawn > 0) continue;

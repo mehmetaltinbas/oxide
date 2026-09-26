@@ -134,7 +134,11 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
         const auto& all = sim::recipes();
         if (row >= 0 && row < static_cast<int>(all.size())) {
             // Only what can be made by hand, for as long as there is no bench.
-            crafting.queue(inventory, all[row], bench_);
+            if (static_cast<int>(crafting.jobs().size()) >= sim::Crafting::kQueueMax) {
+                queueFull_ = true;
+            } else {
+                crafting.queue(inventory, all[row], bench_);
+            }
         }
     }
     return true;

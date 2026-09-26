@@ -142,6 +142,7 @@ void World::scatterNodes(Rng& rng) {
         node.hp = def.hp;
         node.maxHp = def.hp;
         node.respawn = 0;
+        node.shake = 0;
         node.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
         nodes_.push_back(node);
         const int bx = std::clamp(static_cast<int>(x / kBucket), 0, kBucketCols - 1);

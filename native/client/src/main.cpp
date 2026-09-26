@@ -461,6 +461,7 @@ int main(int argc, char** argv) {
 
     /** Whether the death screen is up, and whether space has been pressed. */
     bool showHelp = false;
+    bool fullscreen = false;
     bool paused = false;
     /** The card you land on, until you say how you want to play. */
     bool title = connectTo.empty() && !showPanel && !showMap && poseSwing < 0 &&
@@ -592,7 +593,13 @@ int main(int argc, char** argv) {
                 if (clock < 0) clock += sim::kDaySeconds;
                 hud.notify(hours > 0 ? "Clock moved forward 1h." : "Clock moved back 1h.");
             }
-            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H && !event.key.repeat) {
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F11 &&
+                !event.key.repeat) {
+                fullscreen = !fullscreen;
+                SDL_SetWindowFullscreen(window, fullscreen);
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+                (event.key.key == SDLK_H || event.key.key == SDLK_F1)) {
                 showHelp = !showHelp;
             }
             if (event.type == SDL_EVENT_KEY_DOWN && dead && !event.key.repeat) {
@@ -607,8 +614,8 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_M && !event.key.repeat) {
                 map.toggle();
             }
-            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_TAB &&
-                !event.key.repeat) {
+            if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+                (event.key.key == SDLK_TAB || event.key.key == SDLK_C)) {
                 panel.toggle();
             }
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && panel.open()) {
@@ -1339,7 +1346,13 @@ int main(int argc, char** argv) {
                     alpha = 0.45f;
                 }
             }
-            sprites.draw(*node, sx, sy, static_cast<float>(scale), snowy, broadleaf, alpha);
+            // Struck, it shudders where it stands.
+            const float shakeAt =
+                node->shake > 0
+                    ? static_cast<float>(SDL_sin(node->shake * 90) * node->shake * 14 * scale)
+                    : 0.0f;
+            sprites.draw(*node, sx + shakeAt, sy, static_cast<float>(scale), snowy, broadleaf,
+                         alpha);
             if (node->hp < node->maxHp && node->hp > 0) {
                 // White in black, which reads on snow and on grass alike.
                 const float w = 32 * static_cast<float>(density);
@@ -1608,6 +1621,7 @@ int main(int argc, char** argv) {
         map.draw(paint, world, build, player, width, height, static_cast<float>(density));
         panel.setBench(sandbox ? 3 : build.benchTierAt(player.x, player.y, 0));
         panel.setShelf(sandbox);
+        if (panel.takeQueueFull()) hud.notify("Crafting queue is full.");
         panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
         if (typing) {
             const float size = 1.8f * static_cast<float>(density);
@@ -1693,6 +1707,7 @@ int main(int argc, char** argv) {
                 {nullptr, "Y / N", "accept or refuse"},
                 {nullptr, "ENTER", "say something, online"},
                 {nullptr, "H", "how the island works"},
+                {nullptr, "F11", "full screen"},
                 {nullptr, "ESC", "back out"},
             };
             const float small = 1.5f * static_cast<float>(density);

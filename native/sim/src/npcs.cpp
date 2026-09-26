@@ -361,6 +361,29 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
         npc.x = std::clamp(npc.x, def.radius, static_cast<double>(kWorldWidth) - def.radius);
         npc.y = std::clamp(npc.y, def.radius, static_cast<double>(kWorldHeight) - def.radius);
     }
+    // Nothing stands inside anything else: a pack of wolves that all want the
+    // same spot used to pile into one wolf.
+    for (std::size_t i = 0; i < npcs_.size(); ++i) {
+        Npc& a = npcs_[i];
+        if (a.hp <= 0) continue;
+        if (std::hypot(a.x - player.x, a.y - player.y) > kNpcActiveRadius) continue;
+        for (std::size_t j = i + 1; j < npcs_.size(); ++j) {
+            Npc& b = npcs_[j];
+            if (b.hp <= 0) continue;
+            const double dx = b.x - a.x;
+            const double dy = b.y - a.y;
+            const double min = npcDef(a.kind).radius + npcDef(b.kind).radius;
+            const double d2 = dx * dx + dy * dy;
+            if (d2 > min * min || d2 < 0.0001) continue;
+            const double d = std::sqrt(d2);
+            const double push = ((min - d) / d) * 0.5 * std::min(1.0, dt * 20);
+            a.x -= dx * push;
+            a.y -= dy * push;
+            b.x += dx * push;
+            b.y += dy * push;
+        }
+    }
+
     return events;
 }
 
