@@ -77,6 +77,10 @@ and there are flags for every state worth looking at: see
   field on a definition, and carries the reason it is that number.
 - **No raw visual values.** Colour, ink weight, spacing and radius come from
   `client/design/tokens/world.tokens.hpp` and `client/design/tokens/interface.tokens.hpp`.
+- **Anything that takes time is bound to the item in your hand.** A reload, a
+  bandage, a syringe: each asks `stillInHand` in its own tick and stops when
+  the item leaves the hand. Never cancel one from wherever the slot changed.
+  See [docs/systems/channelled-actions.md](docs/systems/channelled-actions.md).
 - **A health bar obeys one rule.** Anything that can be hurt carries
   `sinceHurt`, calls `tookDamage` wherever health drops and `ageWound` every
   tick, and the drawing asks `showsHealth`. See

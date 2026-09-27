@@ -488,6 +488,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (poseSwing >= 0) {
+		inventory.hotbar()[0] = sim::ItemStack{sim::ItemId::Spear, 1};
 		inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
 		inventory.selectSlot(1);
 	}
@@ -505,6 +506,7 @@ int main(int argc, char** argv) {
 	};
 	if (sandbox) fillSandbox();
 	if (armed) {
+		inventory.hotbar()[0] = sim::ItemStack{sim::ItemId::Spear, 1};
 		inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::Hatchet, 1};
 		inventory.hotbar()[2] = sim::ItemStack{sim::ItemId::Bow, 1};
 		inventory.hotbar()[3] = sim::ItemStack{sim::ItemId::Ak47, 1};
@@ -513,6 +515,10 @@ int main(int argc, char** argv) {
 		inventory.add(sim::ItemId::RifleAmmo, 120);
 		inventory.add(sim::ItemId::ShotgunShell, 40);
 		inventory.hotbar()[5] = sim::ItemStack{sim::ItemId::RocketLauncher, 1};
+		// The rifle starts with a magazine in it, so the belt has something to
+		// report about a gun that is not in your hand.
+		player.loaded = sim::ItemId::Ak47;
+		player.rounds = 17;
 		inventory.add(sim::ItemId::Rocket, 6);
 		inventory.add(sim::ItemId::C4, 3);
 		inventory.selectSlot(3);
@@ -2224,6 +2230,8 @@ int main(int argc, char** argv) {
 					  player.bleeding,
 					  player.useTotal > 0 && player.useLeft > 0 ? player.useLeft / player.useTotal
 																: 0);
+		// Whichever gun holds rounds says so on its own slot, held or not.
+		hud.setLoadedGun(player.loaded, player.rounds);
 		hud.setClock(clock);
 		hud.setAmmo(sim::isRanged(sim::itemDef(inventory.held()).gun)
 						? sim::roundsCarried(player, inventory)

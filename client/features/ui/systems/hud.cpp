@@ -143,20 +143,23 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 		}
 		// What is in the gun, and nothing else: what is left in the pack is
 		// already on the slot's own count and in the pack screen, and printing
-		// it a third time here said nothing you could act on. Only the gun
-		// actually in your hand: a rifle on the belt used to print the
-		// pistol's rounds.
+		// it a third time here said nothing you could act on.
+		//
+		// On the slot rather than on the hand: a magazine gun keeps its rounds
+		// while it sits on the belt, so the one that is loaded says so wherever
+		// it is and you can see what you are about to switch to. A rifle on the
+		// belt used to print the pistol's rounds, which is the other mistake.
 		const sim::Gun& gun = sim::itemDef(stack.id).gun;
-		if (sim::isRanged(gun) && active && carried_ >= 0 && lettering_) {
+		const bool magazine = gun.magazine > 0;
+		// A bow has no magazine, so what it can shoot is what is in the pack,
+		// and that is only known for the one in your hand.
+		const bool mine = magazine ? stack.id == loadedGun_ : (active && carried_ >= 0);
+		if (sim::isRanged(gun) && mine && lettering_) {
 			char ammo[16];
-			if (gun.magazine > 0) {
-				SDL_snprintf(ammo, sizeof(ammo), "%d", loaded_);
-			} else {
-				SDL_snprintf(ammo, sizeof(ammo), "%d", std::max(0, carried_));
-			}
-			const bool dry = gun.magazine > 0 ? loaded_ == 0 : carried_ <= 0;
+			const int rounds = magazine ? loadedRounds_ : std::max(0, carried_);
+			SDL_snprintf(ammo, sizeof(ammo), "%d", rounds);
 			lettering_->draw(ammo, x + 5 * uiScale, y0 + slot - 18 * uiScale, 11 * uiScale,
-							 dry ? ui::kWarn : ui::kSubtle);
+							 rounds <= 0 ? ui::kWarn : ui::kSubtle);
 		}
 	}
 

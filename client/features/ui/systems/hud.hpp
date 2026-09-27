@@ -45,6 +45,20 @@ public:
 	 */
 	void setAmmo(int carried, int loaded, double reloading, double bowDraw);
 
+	/**
+	 * Which gun is loaded and with how many, whether it is in your hand or
+	 * not.
+	 *
+	 * Only one gun holds rounds at a time, because loading a second one is
+	 * what empties the first. A rifle left on the belt with half a magazine in
+	 * it says so on its own slot, so you can see what you are switching to
+	 * before you switch to it.
+	 */
+	void setLoadedGun(sim::ItemId gun, int rounds) {
+		loadedGun_ = gun;
+		loadedRounds_ = rounds;
+	}
+
 	/** Food, water, warmth, what you have taken in, and what is being applied. */
 	void setVitals(double calories, double hydration, double temperature, double radiation,
 				   double bleeding, double applying);
@@ -57,6 +71,9 @@ public:
 
 private:
 	std::vector<Popup> popups_;
+	/** The one gun that holds rounds, and how many, wherever it is sitting. */
+	sim::ItemId loadedGun_ = sim::ItemId::None;
+	int loadedRounds_ = 0;
 	int carried_ = -1;
 	int loaded_ = 0;
 	double reloading_ = 0;

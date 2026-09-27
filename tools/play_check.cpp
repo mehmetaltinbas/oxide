@@ -539,6 +539,17 @@ int main() {
 		if (bitten.reloadLeft <= 0 || bitten.useLeft <= 0) {
 			std::printf("  A HIT CANCELLED IT\n");
 		}
+
+		// But putting the thing away does stop it, and from inside the action
+		// rather than from whoever changed the slot.
+		kit.selectSlot(0);
+		sim::tickReload(bitten, kit, dt);
+		sim::updateUse(bitten, kit, dt, false);
+		std::printf("channel: after changing slot, reload %.1f, bandage %.1f\n",
+					bitten.reloadLeft, bitten.useLeft);
+		if (bitten.reloadLeft > 0 || bitten.useLeft > 0) {
+			std::printf("  PUTTING IT AWAY DID NOT STOP IT\n");
+		}
 	}
 
 	// A wound stops being advertised after a while, and the animal keeps the
@@ -569,12 +580,15 @@ int main() {
 		const sim::NpcDef& elkDef = sim::npcDef(sim::NpcKind::Elk);
 		const bool shownAtOnce =
 			sim::showsHealth(wild.list()[0].hp, elkDef.hp, wild.list()[0].sinceHurt);
-		for (int i = 0; i < 61 * 60; ++i) wild.update(island, empty, none, dt, away);
+		// Past the rule itself, not past a number copied out of it: the rule
+		// moved from one minute to fifteen and the checks went on waiting one.
+		const int ticks = static_cast<int>((sim::kHealthShownFor + 1) / dt);
+		for (int i = 0; i < ticks; ++i) wild.update(island, empty, none, dt, away);
 		const bool shownLater =
 			sim::showsHealth(wild.list()[0].hp, elkDef.hp, wild.list()[0].sinceHurt);
-		std::printf("wound: elk on %d, bar at once %s, a minute later %s, still on %d\n",
-					after, shownAtOnce ? "yes" : "NO", shownLater ? "STILL" : "gone",
-					wild.list()[0].hp);
+		std::printf("wound: elk on %d, bar at once %s, %.0f minutes later %s, still on %d\n",
+					after, shownAtOnce ? "yes" : "NO", sim::kHealthShownFor / 60,
+					shownLater ? "STILL" : "gone", wild.list()[0].hp);
 		if (!shownAtOnce || shownLater || wild.list()[0].hp != after) {
 			std::printf("  WOUND TIMEOUT IS WRONG\n");
 		}
@@ -613,11 +627,13 @@ int main() {
 		if (sim::ResourceNode* tree = island.nodeById(treeId)) {
 			island.hurtNode(*tree, 20);
 			treeAtOnce = sim::showsHealth(*tree);
-			for (int i = 0; i < 61 * 60; ++i) island.update(dt);
+			const int ticks = static_cast<int>((sim::kHealthShownFor + 1) / dt);
+			for (int i = 0; i < ticks; ++i) island.update(dt);
 			treeLater = sim::showsHealth(*island.nodeById(treeId));
 		}
-		std::printf("wound: tree bar at once %s, a minute later %s\n",
-					treeAtOnce ? "yes" : "NO", treeLater ? "STILL" : "gone");
+		std::printf("wound: tree bar at once %s, %.0f minutes later %s\n",
+					treeAtOnce ? "yes" : "NO", sim::kHealthShownFor / 60,
+					treeLater ? "STILL" : "gone");
 		if (!treeAtOnce || treeLater) std::printf("  NODE TIMEOUT IS WRONG\n");
 	}
 

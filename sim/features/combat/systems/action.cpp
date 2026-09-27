@@ -17,6 +17,7 @@
 #include "sim/features/world/types/node-kind.enum.hpp"
 #include "sim/features/world/types/resource-node.struct.hpp"
 #include "sim/features/world/types/work.enum.hpp"
+#include "sim/features/survival/utils/channelled.util.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -287,6 +288,15 @@ void reload(Player& player, const Inventory& inventory) {
 
 void tickReload(Player& player, Inventory& inventory, double dt) {
 	if (player.reloadLeft <= 0) return;
+	// Put the gun away and the reload goes with it: a magazine change is
+	// something done with the thing in your hand, and asking here rather than
+	// wherever the slot changed means no call site can forget. See
+	// docs/systems/channelled-actions.md.
+	if (!stillInHand(inventory, player.loaded)) {
+		player.reloadLeft = 0;
+		player.reloadTotal = 0;
+		return;
+	}
 	// Breaking into a sprint drops a rocket being loaded, for the same reason
 	// it cannot be started at a run. Every other reload carries on.
 	if (player.sprinting && player.loaded == ItemId::RocketLauncher) {

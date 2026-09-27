@@ -16,9 +16,10 @@ namespace sim {
  * whether you are watching it or not.
  *
  * One number for animals, resource nodes, deployables and building pieces
- * alike, because they are one rule. A minute while this is being looked at.
- * It is meant to sit at fifteen.
+ * alike, because they are one rule. Fifteen minutes: long enough that a bar
+ * is still up when you come back to finish something off, short enough that
+ * an afternoon's work is not still on the screen at dusk.
  */
-inline constexpr double kHealthShownFor = 60.0;
+inline constexpr double kHealthShownFor = 900.0;
 
 }  // namespace sim
