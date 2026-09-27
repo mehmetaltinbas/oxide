@@ -180,6 +180,45 @@ const char* BuildSystem::refuseEdge(const World& world, int gx, int gy, EdgeSide
 	return nullptr;
 }
 
+Structure* BuildSystem::ceilingAt(int gx, int gy) {
+	const auto it = byRoof_.find(cellKey(gx, gy));
+	return it == byRoof_.end() ? nullptr : &pieces_[it->second];
+}
+
+const Structure* BuildSystem::ceilingAt(int gx, int gy) const {
+	const auto it = byRoof_.find(cellKey(gx, gy));
+	return it == byRoof_.end() ? nullptr : &pieces_[it->second];
+}
+
+const char* BuildSystem::refuseCeiling(const World& world, int gx, int gy, int owner) const {
+	if (ceilingAt(gx, gy)) return "Already a ceiling here";
+	if (scorchedAt(gx, gy, EdgeSide::North, true)) return "blown out";
+	const double cx = (gx + 0.5) * kBuildCell;
+	const double cy = (gy + 0.5) * kBuildCell;
+	if (onMonumentGround(world, cx, cy)) return "You cannot build at a monument";
+	// A ceiling needs something holding it up: a wall on one of the cell's own
+	// edges, or a ceiling already beside it to carry on from. Rust's rule, and
+	// the reason a roof cannot be conjured over open ground.
+	const bool walled = edgeAt(gx, gy, EdgeSide::North) || edgeAt(gx, gy, EdgeSide::West) ||
+						edgeAt(gx, gy + 1, EdgeSide::North) || edgeAt(gx + 1, gy, EdgeSide::West);
+	const bool joined = ceilingAt(gx - 1, gy) || ceilingAt(gx + 1, gy) || ceilingAt(gx, gy - 1) ||
+						ceilingAt(gx, gy + 1);
+	if (!walled && !joined) return "Needs a wall under it";
+	const Structure* floor = foundationAt(gx, gy);
+	if (floor && floor->owner != owner) return "Not your building";
+	return nullptr;
+}
+
+Structure& BuildSystem::placeCeiling(int gx, int gy, int owner, BuildTier tier) {
+	// The same weight as a floor: a roof is what a raid comes through when the
+	// walls hold, so it cannot be the cheap way in.
+	const int hp = static_cast<int>(std::lround(tierDef(tier).hp * kFoundationHpMul));
+	pieces_.push_back(Structure{nextId_++, BuildKind::Ceiling, tier, gx, gy, EdgeSide::North, hp,
+								hp, owner, false, false, 0, 0, 0});
+	reindex();
+	return pieces_.back();
+}
+
 Structure& BuildSystem::placeFoundation(int gx, int gy, int owner, BuildTier tier) {
 	const int hp = static_cast<int>(std::lround(tierDef(tier).hp * kFoundationHpMul));
 	pieces_.push_back(Structure{nextId_++, BuildKind::Foundation, tier, gx, gy, EdgeSide::North, hp,
@@ -702,10 +741,13 @@ void BuildSystem::reindex() {
 	enclosureDirty_ = true;
 	byCell_.clear();
 	byEdge_.clear();
+	byRoof_.clear();
 	for (int i = 0; i < static_cast<int>(pieces_.size()); ++i) {
 		const Structure& piece = pieces_[i];
 		if (piece.kind == BuildKind::Foundation) {
 			byCell_[cellKey(piece.gx, piece.gy)] = i;
+		} else if (piece.kind == BuildKind::Ceiling) {
+			byRoof_[cellKey(piece.gx, piece.gy)] = i;
 		} else {
 			byEdge_[edgeKey(piece.gx, piece.gy, piece.side)] = i;
 		}

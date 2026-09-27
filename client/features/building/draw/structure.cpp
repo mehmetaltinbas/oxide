@@ -68,6 +68,30 @@ void wallQuad(const View& view, double x0, double y0, double x1, double y1, doub
 void drawPiece(Paint& paint, const sim::Structure& piece, const View& view, Color fill, Color edge,
 			   bool ghost) {
 	const float ink = ghost ? 0.0f : kInkWidth;
+	if (piece.kind == sim::BuildKind::Ceiling) {
+		// A roof from above, laid the other way from a floor and darker, so a
+		// covered cell is obviously covered and not just a floor you are
+		// standing on. Shingles run across it.
+		const double x = piece.gx * static_cast<double>(sim::kBuildCell);
+		const double y = piece.gy * static_cast<double>(sim::kBuildCell);
+		const double c = sim::kBuildCell;
+		const std::vector<Point> square{view.at(x, y), view.at(x + c, y), view.at(x + c, y + c),
+										view.at(x, y + c)};
+		const Color roof{static_cast<std::uint8_t>(fill.r * 0.72f),
+						 static_cast<std::uint8_t>(fill.g * 0.72f),
+						 static_cast<std::uint8_t>(fill.b * 0.72f), fill.a};
+		paint.fillPoly(square, roof);
+		if (!ghost) {
+			paint.outlinePoly(square, ink, kInk);
+			for (int i = 1; i < 5; ++i) {
+				const double t = i / 5.0;
+				const Point a = view.at(x + c * t, y);
+				const Point b = view.at(x + c * t, y + c);
+				paint.line(a.x, a.y, b.x, b.y, kInkFine, edge);
+			}
+		}
+		return;
+	}
 	if (piece.kind == sim::BuildKind::Foundation) {
 		const double x = piece.gx * static_cast<double>(sim::kBuildCell);
 		const double y = piece.gy * static_cast<double>(sim::kBuildCell);
@@ -140,7 +164,7 @@ BuildTarget targetAt(double worldX, double worldY, sim::BuildKind kind) {
 	const int gy = static_cast<int>(std::floor(worldY / cell));
 	out.gx = gx;
 	out.gy = gy;
-	if (kind == sim::BuildKind::Foundation) return out;
+	if (sim::onCell(kind)) return out;
 
 	// The nearest of the cell's four edges, named as the one cell that owns it.
 	const double fx = worldX / cell - gx;

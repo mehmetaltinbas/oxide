@@ -754,6 +754,44 @@ int main() {
 		}
 	}
 
+	// The power plant cannot be walked into without the suit, and can be with
+	// it. Both halves: a monument nobody can enter is as broken as one anybody
+	// can. Measured by standing in the worst of it until something gives.
+	{
+		const double rads = sim::monumentDef(sim::MonumentKind::PowerPlant).rads;
+		const auto endure = [&](sim::ItemId suit) {
+			sim::World island;
+			island.generate(12345);
+			sim::Player p{};
+			p.alive = true;
+			p.health = 100;
+			p.calories = 100;
+			p.hydration = 100;
+			p.temperature = 20;
+			sim::Inventory kit;
+			if (suit != sim::ItemId::None) kit.worn() = sim::ItemStack{suit, 1};
+			const double keptOut = sim::itemDef(suit).wear.radiation;
+			double lived = 0;
+			for (int i = 0; i < 60 * 300 && p.alive; ++i) {
+				p.radiation = std::min(sim::PlayerVitals::kMaxRadiation,
+									   p.radiation + rads * (1 - keptOut) * dt);
+				double damage = 0;
+				if (p.radiation > 45) {
+					damage = sim::PlayerVitals::kRadDamage * ((p.radiation - 45) / 55);
+				}
+				p.health -= damage * dt;
+				if (p.health <= 0) p.alive = false;
+				lived += dt;
+			}
+			return lived;
+		};
+		const double bare = endure(sim::ItemId::None);
+		const double suited = endure(sim::ItemId::RadSuit);
+		std::printf("plant: %.0f rads a second, bare you last %.0fs, in the suit %.0fs\n", rads,
+					bare, suited);
+		if (bare > 30 || suited < 120) std::printf("  THE PLANT IS NOT A SUIT PROBLEM\n");
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.

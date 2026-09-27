@@ -792,9 +792,9 @@ int main(int argc, char** argv) {
 			}
 			if (event.type == SDL_EVENT_MOUSE_WHEEL) {
 				if (inventory.held() == sim::ItemId::BuildingPlan) {
-					const int step = event.wheel.y > 0 ? 1 : 3;
+					const int step = event.wheel.y > 0 ? 1 : sim::kBuildKindCount - 1;
 					buildKind = static_cast<sim::BuildKind>(
-						(static_cast<int>(buildKind) + step) % 4);
+						(static_cast<int>(buildKind) + step) % sim::kBuildKindCount);
 				} else {
 					zoom = std::clamp(zoom * (1 + event.wheel.y * 0.1), kZoomMin, kZoomMax);
 				}
@@ -965,9 +965,9 @@ int main(int argc, char** argv) {
 			}
 			if (event.type == SDL_EVENT_KEY_DOWN &&
 				(event.key.key == SDLK_B || event.key.key == SDLK_Q) && !event.key.repeat) {
-				// Foundation, wall, doorway, door, and round again.
+				// Foundation, wall, doorway, door, ceiling, and round again.
 				buildKind = static_cast<sim::BuildKind>(
-					(static_cast<int>(buildKind) + 1) % 4);
+					(static_cast<int>(buildKind) + 1) % sim::kBuildKindCount);
 			}
 			if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_G && !event.key.repeat) {
 				sim::ItemStack& held = inventory.hotbar()[inventory.activeSlot()];
@@ -1427,6 +1427,8 @@ int main(int argc, char** argv) {
 		if (planning) {
 			refusal = buildKind == sim::BuildKind::Foundation
 						  ? build.refuseFoundation(world, target.gx, target.gy, 0)
+					  : buildKind == sim::BuildKind::Ceiling
+						  ? build.refuseCeiling(world, target.gx, target.gy, 0)
 						  : build.refuseEdge(world, target.gx, target.gy, target.side, buildKind, 0);
 			// Out of reach is a refusal like any other: you build what you can
 			// put a hand on.
@@ -1477,6 +1479,8 @@ int main(int argc, char** argv) {
 				world.clearNaturalIn(target.gx * sim::kBuildCell, target.gy * sim::kBuildCell,
 									 (target.gx + 1) * sim::kBuildCell,
 									 (target.gy + 1) * sim::kBuildCell);
+			} else if (buildKind == sim::BuildKind::Ceiling) {
+				build.placeCeiling(target.gx, target.gy, 0);
 			} else if (buildKind == sim::BuildKind::Door) {
 				// A door goes into the doorway that is already there.
 				if (sim::Structure* doorway = build.edgeAt(target.gx, target.gy, target.side)) {
@@ -1986,6 +1990,20 @@ int main(int argc, char** argv) {
 			}
 		}
 
+		// The ceilings you have built, over the top of what is under them. Not
+		// the one you are standing under: from above you are looking down
+		// through the cell you occupy, which is how a roofed room is a room
+		// rather than a lid.
+		{
+			const int myGx = static_cast<int>(SDL_floor(player.x / sim::kBuildCell));
+			const int myGy = static_cast<int>(SDL_floor(player.y / sim::kBuildCell));
+			for (const sim::Structure& piece : build.list()) {
+				if (piece.kind != sim::BuildKind::Ceiling) continue;
+				if (piece.gx == myGx && piece.gy == myGy) continue;
+				client::drawBuilt(paint, piece, camX, camY, scale, width, height);
+			}
+		}
+
 		// A roof over every sealed room but the one you are in: a base is a
 		// thing you cannot see into, which is most of what makes one worth
 		// building.
@@ -2010,6 +2028,9 @@ int main(int argc, char** argv) {
 
 		for (const sim::Structure& piece : build.list()) {
 			if (piece.kind == sim::BuildKind::Foundation) continue;
+			// A ceiling is over your head, so it is drawn after everything
+			// that stands under it, and not at all over the cell you are on.
+			if (piece.kind == sim::BuildKind::Ceiling) continue;
 			client::drawBuilt(paint, piece, camX, camY, scale, width, height);
 			if (sim::showsHealth(piece)) {
 				double cx = 0;

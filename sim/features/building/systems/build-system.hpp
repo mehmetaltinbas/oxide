@@ -14,7 +14,21 @@
 namespace sim {
 
 /** Foundations sit on a cell; walls, doorways and doors on the edge between two. */
-enum class BuildKind : std::uint8_t { Foundation, Wall, Doorway, Door };
+/**
+ * Foundation and Ceiling sit on a cell; the rest sit on one of its edges.
+ *
+ * A ceiling is the floor of the storey above and the roof of the one below.
+ * Without one a base is a set of pens: you can wall a room in and still be
+ * looked into, and there is nothing to stand on to build higher.
+ */
+enum class BuildKind : std::uint8_t { Foundation, Wall, Doorway, Door, Ceiling };
+
+inline constexpr int kBuildKindCount = 5;
+
+/** Whether a piece belongs to a whole cell rather than to one of its edges. */
+inline bool onCell(BuildKind kind) {
+	return kind == BuildKind::Foundation || kind == BuildKind::Ceiling;
+}
 
 /** What a piece is made of, and therefore how much it takes to get through. */
 enum class BuildTier : std::uint8_t { Twig, Wood, Stone, Metal };
@@ -83,17 +97,22 @@ public:
 	std::vector<Structure>& list2() { return pieces_; }
 
 	Structure* foundationAt(int gx, int gy);
+	Structure* ceilingAt(int gx, int gy);
+	const Structure* ceilingAt(int gx, int gy) const;
 	Structure* edgeAt(int gx, int gy, EdgeSide side);
 	const Structure* foundationAt(int gx, int gy) const;
 	const Structure* edgeAt(int gx, int gy, EdgeSide side) const;
 
 	/** Why a foundation may not go on this cell, or nothing if it may. */
 	const char* refuseFoundation(const World& world, int gx, int gy, int owner) const;
+	/** Why a ceiling may not go over this cell, or nothing if it may. */
+	const char* refuseCeiling(const World& world, int gx, int gy, int owner) const;
 	/** Why a wall or doorway may not go on this edge, or nothing if it may. */
 	const char* refuseEdge(const World& world, int gx, int gy, EdgeSide side, BuildKind kind,
 						   int owner) const;
 
 	Structure& placeFoundation(int gx, int gy, int owner, BuildTier tier = BuildTier::Twig);
+	Structure& placeCeiling(int gx, int gy, int owner, BuildTier tier = BuildTier::Twig);
 	/**
 	 * `fromX`/`fromY` is where the builder was standing, which becomes the
 	 * piece's soft side, as in Rust: a wall is meant to be broken from outside.
@@ -228,6 +247,7 @@ public:
 
 private:
 	std::vector<Scorch> scorches_;
+	std::unordered_map<std::uint64_t, int> byRoof_;
 	std::vector<Structure> pieces_;
 	std::vector<Deployable> deployables_;
 	int nextId_ = 1;

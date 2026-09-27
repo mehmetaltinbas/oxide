@@ -52,10 +52,16 @@ constexpr ItemDef kItems[] = {
 	 {0, 0, 60, 1.5}, kNoWear},
 	// Keeps the cold off and turns a little damage.
 	{ItemId::Clothing, "Hide Clothing", "Keeps the cold off and turns a little damage.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
-	 {14, 0.12, 0}},
+	// The warmest thing on the island: hide is what you wear because it is
+	// cold, and every suit after it trades that away for something else.
+	 {14, 0.15, 0}},
 	// The only way to loot a hot monument and walk out.
 	{ItemId::RadSuit, "Radiation Suit", "The only way to loot a hot monument and walk out.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
-	 {8, 0.2, 0.9}},
+	// Ninety-five, not ninety. With the plant's dose now lethal in sixteen
+	// seconds bare, ninety left barely a minute of safe time inside it, which
+	// is not a looting run: the suit has to be the answer, not a stay of
+	// execution.
+	 {8, 0.2, 0.95}},
 	{ItemId::Campfire, "Campfire", "Warmth, light, and it cooks meat.", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::Furnace, "Furnace", "Burns wood to smelt ore into fragments and sulfur.", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::ToolCupboard, "Tool Cupboard", "Claims the ground around it. Nobody else builds inside your radius.", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood,
@@ -120,10 +126,12 @@ constexpr ItemDef kItems[] = {
 	{ItemId::HqMetal, "High Quality Metal", "The best armour and the best guns are made of it.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	// What a road sign nailed to a jacket buys you: real protection, no warmth.
 	{ItemId::MetalSuit, "Metal Suit", "Road signs and scrap, strapped on. Turns a third of a blow and keeps none of the cold off.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
-	 {2, 0.34, 0.1}},
+	 {2, 0.35, 0.1}},
 	// The full plate. Nothing short of a rifle gets through it.
 	{ItemId::HeavyMetalSuit, "Heavy Metal Suit", "Plate over everything. Turns half a blow, and you feel every step of it.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
-	 {4, 0.5, 0.25}},
+	// Coldest of the lot: plate over everything holds no heat at all, and you
+	// feel every step of it. Hide, then the suit, then scrap, then plate.
+	 {1, 0.5, 0.25}},
 	// Light you can carry, which is the whole first night sorted.
 	// A light, and only a light: swinging a burning rag at a bear is not a
 	// plan, and letting it work made the torch a free first weapon.

@@ -34,7 +34,17 @@ struct PlayerVitals {
 	static constexpr double kStarveDamage = 0.1;
 	static constexpr double kThirstDamage = 0.2;
 	static constexpr double kColdDamage = 0.45;
-	static constexpr double kRadDamage = 3.0;
+	/**
+	 * What a full dose takes, a second, at the top of the scale.
+	 *
+	 * Twelve, not three. At three you could walk into the power plant with
+	 * nothing on, take the worst the place has, and still have half a minute
+	 * to loot and leave: the suit was a convenience. At twelve, an unprotected
+	 * run into the hottest ground is over in about twenty seconds, start to
+	 * finish, which is not enough to cross it. Suited, the intake is a tenth
+	 * of that and the number never gets near the top of the scale.
+	 */
+	static constexpr double kRadDamage = 12.0;
 	/**
 	 * What a wound takes, a second.
 	 *
