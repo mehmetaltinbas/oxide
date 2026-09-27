@@ -11,6 +11,7 @@
 #include "sim/features/world/types/biome.enum.hpp"
 #include "sim/features/world/types/resource-node.struct.hpp"
 #include "sim/shared/utils/health.util.hpp"
+#include "sim/features/building/constants/deploy-footprint.constant.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -354,8 +355,11 @@ void BuildSystem::resolve(double& x, double& y, double radius) const {
 				if (d.kind == DeployKind::SleepingBag) continue;
 				if (static_cast<int>(d.x / kBuildCell) != gx) continue;
 				if (static_cast<int>(d.y / kBuildCell) != gy) continue;
-				const double nx = std::clamp(x, d.x - kDeployHalf, d.x + kDeployHalf);
-				const double ny = std::clamp(y, d.y - kDeployHalf, d.y + kDeployHalf);
+				double halfWide = 0;
+				double halfDeep = 0;
+				deployBounds(d.kind, d.turned, d.x, d.y, halfWide, halfDeep);
+				const double nx = std::clamp(x, d.x - halfWide, d.x + halfWide);
+				const double ny = std::clamp(y, d.y - halfDeep, d.y + halfDeep);
 				const double dd = std::hypot(x - nx, y - ny);
 				if (dd >= radius || dd <= 0.0001) continue;
 				const double push = (radius - dd) / dd;
@@ -479,12 +483,43 @@ bool BuildSystem::claimed(double x, double y, int owner) const {
 	return best != nullptr && best->owner != owner;
 }
 
-const char* BuildSystem::refuseDeploy(const World& world, int gx, int gy, DeployKind kind,
-									  int owner) const {
-	const double cx = (gx + 0.5) * kBuildCell;
-	const double cy = (gy + 0.5) * kBuildCell;
+void BuildSystem::deployBounds(DeployKind kind, bool turned, double x, double y,
+							   double& halfWide, double& halfDeep) {
+	const DeployFootprint f = deployFootprint(kind, turned);
+	halfWide = f.wide * kDeployCell * 0.5;
+	halfDeep = f.deep * kDeployCell * 0.5;
+	(void)x;
+	(void)y;
+}
+
+void BuildSystem::snapDeploy(DeployKind kind, bool turned, double& x, double& y) {
+	// The middle of a thing sits on a fine-grid line when it is an even number
+	// of squares across, and in the middle of one when it is odd. Snapping
+	// both the same way put odd things half a square off their own floor.
+	const DeployFootprint f = deployFootprint(kind, turned);
+	const auto lay = [](double v, int span) {
+		const double off = (span % 2 == 0) ? 0.0 : kDeployCell * 0.5;
+		return std::floor((v - off) / kDeployCell + 0.5) * kDeployCell + off;
+	};
+	x = lay(x, f.wide);
+	y = lay(y, f.deep);
+}
+
+const char* BuildSystem::refuseDeploy(const World& world, double x, double y, DeployKind kind,
+									  bool turned, int owner) const {
+	const double cx = x;
+	const double cy = y;
+	double halfWide = 0;
+	double halfDeep = 0;
+	deployBounds(kind, turned, cx, cy, halfWide, halfDeep);
+	// Nothing overlaps anything: two boxes may share a cell, and a furnace may
+	// not sit on top of a campfire.
 	for (const Deployable& d : deployables_) {
-		if (static_cast<int>(d.x / kBuildCell) == gx && static_cast<int>(d.y / kBuildCell) == gy) {
+		double otherWide = 0;
+		double otherDeep = 0;
+		deployBounds(d.kind, d.turned, d.x, d.y, otherWide, otherDeep);
+		if (std::abs(d.x - cx) < halfWide + otherWide &&
+			std::abs(d.y - cy) < halfDeep + otherDeep) {
 			return "Something is already here";
 		}
 	}
@@ -500,7 +535,7 @@ const char* BuildSystem::refuseDeploy(const World& world, int gx, int gy, Deploy
 	}
 	if (onMonumentGround(world, cx, cy)) return "You cannot build at a monument";
 	if (claimed(cx, cy, owner)) return "Blocked by a tool cupboard";
-	if (naturalCover(world, cx, cy, kBuildCell * 0.4)) return "Something is in the way";
+	if (naturalCover(world, cx, cy, std::max(halfWide, halfDeep))) return "Something is in the way";
 	return nullptr;
 }
 
@@ -511,12 +546,14 @@ Deployable* BuildSystem::deployableById(int id) {
 	return nullptr;
 }
 
-int BuildSystem::deploy(DeployKind kind, int gx, int gy, int owner) {
+int BuildSystem::deploy(DeployKind kind, double x, double y, bool turned, int owner) {
 	Deployable d{};
 	d.id = nextDeployId_++;
 	d.kind = kind;
-	d.x = (gx + 0.5) * kBuildCell;
-	d.y = (gy + 0.5) * kBuildCell;
+	d.turned = turned;
+	snapDeploy(kind, turned, x, y);
+	d.x = x;
+	d.y = y;
 	d.hp = kDeployableHp;
 	d.maxHp = kDeployableHp;
 	d.owner = owner;

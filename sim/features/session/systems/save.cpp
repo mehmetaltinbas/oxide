@@ -106,6 +106,7 @@ bool saveSession(const std::string& path, const Session& session, const World& w
 		out.u8(static_cast<std::uint8_t>(thing.kind));
 		out.f32(static_cast<float>(thing.x));
 		out.f32(static_cast<float>(thing.y));
+		out.u8(thing.turned ? 1 : 0);
 		out.u16(static_cast<std::uint16_t>(thing.hp));
 		out.u16(static_cast<std::uint16_t>(thing.owner));
 		out.u8(thing.lit ? 1 : 0);
@@ -221,6 +222,7 @@ bool loadSession(const std::string& path, Session& session, World& world, BuildS
 		const auto kind = static_cast<DeployKind>(in.u8());
 		const double x = in.f32();
 		const double y = in.f32();
+		const bool turned = in.u8() != 0;
 		const int hp = in.u16();
 		const int owner = in.u16();
 		const bool lit = in.u8() != 0;
@@ -228,8 +230,7 @@ bool loadSession(const std::string& path, Session& session, World& world, BuildS
 		const double progress = in.f32();
 		const std::uint8_t slots = in.u8();
 		if (!in.ok()) break;
-		const int id = build.deploy(kind, static_cast<int>(x / kBuildCell),
-									static_cast<int>(y / kBuildCell), owner);
+		const int id = build.deploy(kind, x, y, turned, owner);
 		Deployable* thing = build.deployableById(id);
 		if (!thing) break;
 		thing->hp = hp;

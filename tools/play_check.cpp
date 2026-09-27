@@ -34,6 +34,7 @@
 #include "sim/features/world/types/resource-node.struct.hpp"
 #include "sim/shared/utils/health.util.hpp"
 #include "sim/shared/utils/collide.util.hpp"
+#include "sim/features/building/constants/deploy-footprint.constant.hpp"
 
 int main() {
 	sim::World world;
@@ -152,8 +153,10 @@ int main() {
 
 	// A fire with meat on it and a furnace with ore in it: both left to burn.
 	{
-		const int fireId = build.deploy(sim::DeployKind::Campfire, 2, 2, 0);
-		const int furnaceId = build.deploy(sim::DeployKind::Furnace, 4, 2, 0);
+		const int fireId = build.deploy(sim::DeployKind::Campfire, 2.5 * sim::kBuildCell,
+										2.5 * sim::kBuildCell, false, 0);
+		const int furnaceId = build.deploy(sim::DeployKind::Furnace, 4.5 * sim::kBuildCell,
+										   2.5 * sim::kBuildCell, false, 0);
 		{
 			sim::Deployable& fire = *build.deployableById(fireId);
 			fire.lit = true;
@@ -845,6 +848,46 @@ int main() {
 		const double stone = bite(sim::BuildTier::Stone);
 		std::printf("chop: a hatchet takes %.0f%% off twig and %.1f%% off stone\n", twig, stone);
 		if (twig < 90 || stone > 2) std::printf("  THE TIERS DO NOT HOLD\n");
+	}
+
+	// Things take the floor their footprint says, two small ones share a cell,
+	// and turning one swaps which way it is long.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem build;
+		const double base = 120.0 * sim::kBuildCell;
+		island.clearNaturalIn(base - 400, base - 400, base + 400, base + 400);
+
+		double wide = 0;
+		double deep = 0;
+		sim::BuildSystem::deployBounds(sim::DeployKind::LargeBox, false, 0, 0, wide, deep);
+		double turnedWide = 0;
+		double turnedDeep = 0;
+		sim::BuildSystem::deployBounds(sim::DeployKind::LargeBox, true, 0, 0, turnedWide,
+									   turnedDeep);
+
+		// Two small boxes side by side inside one building cell.
+		double ax = base + sim::kDeployCell * 2;
+		double ay = base;
+		sim::BuildSystem::snapDeploy(sim::DeployKind::WoodenBox, false, ax, ay);
+		build.deploy(sim::DeployKind::WoodenBox, ax, ay, false, 0);
+		double bx = base + sim::kDeployCell * 4.2;
+		double by = base;
+		sim::BuildSystem::snapDeploy(sim::DeployKind::WoodenBox, false, bx, by);
+		const bool room =
+			build.refuseDeploy(island, bx, by, sim::DeployKind::WoodenBox, false, 0) == nullptr;
+		// And one on top of the first, which is not allowed.
+		const bool onTop =
+			build.refuseDeploy(island, ax, ay, sim::DeployKind::WoodenBox, false, 0) != nullptr;
+
+		std::printf("footprint: large box %.0f by %.0f, turned %.0f by %.0f; two small in a cell"
+					" %s, stacked %s\n",
+					wide * 2, deep * 2, turnedWide * 2, turnedDeep * 2, room ? "fits" : "NO",
+					onTop ? "refused" : "ALLOWED");
+		if (!room || !onTop || turnedWide != deep || turnedDeep != wide) {
+			std::printf("  FOOTPRINTS ARE WRONG\n");
+		}
 	}
 
 	// A wolf comes at you and an elk runs from you. Both directions, because

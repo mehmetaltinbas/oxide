@@ -165,7 +165,24 @@ public:
 	Deployable* deployableNear(double x, double y, double within);
 
 	/** Why one may not go on this cell, or nothing if it may. */
-	const char* refuseDeploy(const World& world, int gx, int gy, DeployKind kind, int owner) const;
+	/**
+	 * Why a thing may not be put down here, or nothing if it may.
+	 *
+	 * `x`/`y` is the middle of where it would stand, snapped to the fine grid
+	 * by `snapDeploy`. Not a cell: things are different sizes now, and two
+	 * small ones share a cell happily while a furnace spills over one.
+	 */
+	const char* refuseDeploy(const World& world, double x, double y, DeployKind kind, bool turned,
+							 int owner) const;
+
+	/** The middle of the nearest place a thing of that size could sit. */
+	static void snapDeploy(DeployKind kind, bool turned, double& x, double& y);
+
+	/** The box a thing standing there would take up, in world units. */
+	static void deployBounds(DeployKind kind, bool turned, double x, double y, double& halfWide,
+							 double& halfDeep);
+
+	int deploy(DeployKind kind, double x, double y, bool turned, int owner);
 	/**
 	 * Puts one down and gives back its id.
 	 *
@@ -173,7 +190,6 @@ public:
 	 * move the whole list in memory, and a reference held across that is a
 	 * pointer into nothing.
 	 */
-	int deploy(DeployKind kind, int gx, int gy, int owner);
 	Deployable* deployableById(int id);
 	void removeDeployable(int id);
 

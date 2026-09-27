@@ -44,6 +44,7 @@ add_library(oxide_sim STATIC
     # building: walls, doors and the things you put down
     features/building/systems/build-system.cpp
     features/building/constants/deployable-defs.constant.cpp
+    features/building/constants/deploy-footprint.constant.cpp
 
     # session: writing a world to disk and reading it back
     features/session/systems/save.cpp

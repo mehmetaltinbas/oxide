@@ -1,5 +1,6 @@
 #include "client/features/building/draw/deployable.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include "client/design/tokens/world.tokens.hpp"
@@ -8,6 +9,7 @@
 #include "sim/features/building/types/deployable.struct.hpp"
 #include "client/design/types/color.struct.hpp"
 #include "client/features/render/types/point.struct.hpp"
+#include "sim/features/building/systems/build-system.hpp"
 
 namespace client {
 
@@ -38,7 +40,17 @@ void box(Paint& paint, float x, float y, float halfW, float halfH, Color color) 
 
 void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, float y, float scale,
 					float clock) {
-	const float r = static_cast<float>(sim::kDeployHalf) * scale;
+	// Drawn to its own footprint rather than to one size for everything: a
+	// campfire and a furnace are not the same thing on the floor. `r` is the
+	// short half of the box, so nothing ever spills out of the squares it was
+	// put down on, and `along` is the long half for the things that are long.
+	double halfWide = 0;
+	double halfDeep = 0;
+	sim::BuildSystem::deployBounds(deployable.kind, deployable.turned, deployable.x, deployable.y,
+								   halfWide, halfDeep);
+	const float r = static_cast<float>(std::min(halfWide, halfDeep)) * scale;
+	const float along = static_cast<float>(std::max(halfWide, halfDeep)) * scale;
+	(void)along;
 	// A flame is never still: it breathes on its own clock.
 	const float flicker = 0.75f + std::sin(clock * 11.0f) * 0.25f;
 	switch (deployable.kind) {

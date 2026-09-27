@@ -80,6 +80,7 @@
 #include "client/features/building/draw/build-plan-options.util.hpp"
 #include "client/features/building/draw/tier-options.util.hpp"
 #include "client/design/tokens/interface.tokens.hpp"
+#include "sim/features/building/constants/deploy-footprint.constant.hpp"
 
 /**
  * The game as you play it: an island from a seed, someone standing on it, and
@@ -560,8 +561,8 @@ int main(int argc, char** argv) {
 	if (showBase) {
 		// Two by two, walled in, with a doorway at the front and a door in it,
 		// put up a few cells away so you can see it from outside.
-		const int gx = static_cast<int>(player.x / sim::kBuildCell) + 3;
-		const int gy = static_cast<int>(player.y / sim::kBuildCell) + 2;
+		const int gx = static_cast<int>(player.x / sim::kBuildCell) + 1;
+		const int gy = static_cast<int>(player.y / sim::kBuildCell);
 		for (int oy = 0; oy < 2; ++oy) {
 			for (int ox = 0; ox < 2; ++ox) {
 				build.placeFoundation(gx + ox, gy + oy, 0, sim::BuildTier::Wood);
@@ -590,11 +591,15 @@ int main(int argc, char** argv) {
 		}
 		inventory.add(sim::ItemId::BuildingPlan, 1);
 		// Something of everything, to see how it all sits together.
-		const int fireId = build.deploy(sim::DeployKind::Campfire, gx, gy + 1, 0);
-		const int furnaceId = build.deploy(sim::DeployKind::Furnace, gx + 1, gy + 1, 0);
-		build.deploy(sim::DeployKind::WoodenBox, gx, gy, 0);
-		build.deploy(sim::DeployKind::ToolCupboard, gx + 1, gy, 0);
-		build.deploy(sim::DeployKind::SleepingBag, gx + 2, gy, 0);
+		const auto at = [&](int cx, int cy) { return (cx + 0.5) * sim::kBuildCell; };
+		const auto down = [&](int cy) { return (cy + 0.5) * sim::kBuildCell; };
+		const int fireId =
+			build.deploy(sim::DeployKind::Campfire, at(gx, gy + 1), down(gy + 1), false, 0);
+		const int furnaceId =
+			build.deploy(sim::DeployKind::Furnace, at(gx + 1, gy + 1), down(gy + 1), false, 0);
+		build.deploy(sim::DeployKind::WoodenBox, at(gx, gy), down(gy), false, 0);
+		build.deploy(sim::DeployKind::ToolCupboard, at(gx + 1, gy), down(gy), true, 0);
+		build.deploy(sim::DeployKind::SleepingBag, at(gx + 2, gy), down(gy), false, 0);
 		sim::Deployable& fire = *build.deployableById(fireId);
 		fire.lit = true;
 		fire.container.add(sim::ItemId::Wood, 20);
@@ -698,6 +703,8 @@ int main(int argc, char** argv) {
 	if (showMap) map.toggle();
 	// What the building plan would put down, cycled with B.
 	sim::BuildKind buildKind = sim::BuildKind::Foundation;
+	/** Whether the next thing put down goes in turned a quarter. */
+	bool deployTurned = false;
 	// Held open rather than clicked through: B for what to build, right click
 	// on a piece for what to make it of.
 	client::Wheel buildWheel;
@@ -1030,6 +1037,17 @@ int main(int argc, char** argv) {
 				const float d = cursorOnScreen(mx, my);
 				const int picked = buildWheel.release(mx, my, d);
 				if (picked >= 0) buildKind = static_cast<sim::BuildKind>(picked);
+			}
+			if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+				event.button.button == SDL_BUTTON_RIGHT && !panel.open() && !map.open() &&
+				[&] {
+					sim::DeployKind put = sim::DeployKind::Campfire;
+					return sim::deployableOf(inventory.held(), put);
+				}()) {
+				// Turned a quarter, before it goes down. The same button that
+				// draws a bow, because with a thing to place in your hand
+				// there is no bow to draw.
+				deployTurned = !deployTurned;
 			}
 			if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_Q && !event.key.repeat) {
 				// The quick way round, for anyone who would rather not hold a
@@ -1512,11 +1530,16 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		const int deployGx = static_cast<int>(SDL_floor(cursorX / sim::kBuildCell));
-		const int deployGy = static_cast<int>(SDL_floor(cursorY / sim::kBuildCell));
+		// Free on the fine grid rather than one to a cell: the cursor is where
+		// the middle of the thing goes, snapped to whatever squares its own
+		// footprint needs. Right click turns it a quarter before it goes down.
+		double deployX = cursorX;
+		double deployY = cursorY;
+		sim::BuildSystem::snapDeploy(deployKind, deployTurned, deployX, deployY);
 		const char* deployRefusal = nullptr;
 		if (deploying) {
-			deployRefusal = build.refuseDeploy(world, deployGx, deployGy, deployKind, 0);
+			deployRefusal =
+				build.refuseDeploy(world, deployX, deployY, deployKind, deployTurned, 0);
 			if (!deployRefusal &&
 				SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
 						 (cursorY - player.y) * (cursorY - player.y)) >
@@ -1526,7 +1549,7 @@ int main(int argc, char** argv) {
 			if (handsFree && (buttons & SDL_BUTTON_LMASK) != 0 && player.attackTimer <= 0) {
 				if (deployRefusal) {
 				} else if (inventory.take(inHand, 1) > 0) {
-					build.deploy(deployKind, deployGx, deployGy, 0);
+					build.deploy(deployKind, deployX, deployY, deployTurned, 0);
 					audio.build();
 				}
 				player.attackTimer = 0.4;
@@ -2173,16 +2196,33 @@ int main(int argc, char** argv) {
 							  scale, width, height);
 		}
 		if (deploying) {
-			// The cell it would sit on, rather than a ghost of the thing: what
-			// matters is which square it takes.
+			// The floor it would take, at its own size and its own turn, with
+			// the fine grid drawn inside it: what matters is the footprint,
+			// and a whole cell lit up said nothing about a two by one bench.
+			double halfWide = 0;
+			double halfDeep = 0;
+			sim::BuildSystem::deployBounds(deployKind, deployTurned, deployX, deployY, halfWide,
+										   halfDeep);
 			const float gx =
-				static_cast<float>((deployGx * sim::kBuildCell - camX) * scale) + width * 0.5f;
+				static_cast<float>((deployX - halfWide - camX) * scale) + width * 0.5f;
 			const float gy =
-				static_cast<float>((deployGy * sim::kBuildCell - camY) * scale) + height * 0.5f;
-			const float size = static_cast<float>(sim::kBuildCell * scale);
-			paint.fillRect(gx, gy, size, size,
-						   deployRefusal ? client::Color{224, 80, 60, 90}
-										 : client::Color{124, 200, 255, 90});
+				static_cast<float>((deployY - halfDeep - camY) * scale) + height * 0.5f;
+			const float w = static_cast<float>(halfWide * 2 * scale);
+			const float h = static_cast<float>(halfDeep * 2 * scale);
+			const client::Color tint = deployRefusal ? client::Color{224, 80, 60, 90}
+													 : client::Color{124, 200, 255, 90};
+			paint.fillRect(gx, gy, w, h, tint);
+			paint.outlineRoundRect(gx, gy, w, h, 2 * static_cast<float>(scale),
+								   1.5f * static_cast<float>(scale), client::kInk);
+			const float step = static_cast<float>(sim::kDeployCell * scale);
+			for (float lx = gx + step; lx < gx + w - 0.5f; lx += step) {
+				paint.line(lx, gy, lx, gy + h, static_cast<float>(scale),
+						   client::Color{20, 17, 13, 70});
+			}
+			for (float ly = gy + step; ly < gy + h - 0.5f; ly += step) {
+				paint.line(gx, ly, gx + w, ly, static_cast<float>(scale),
+						   client::Color{20, 17, 13, 70});
+			}
 		}
 
 		for (const sim::Bullet& bullet : projectiles.list()) {
