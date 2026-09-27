@@ -55,6 +55,9 @@ const std::vector<Recipe>& table() {
 		{ItemId::Workbench2, 1, {{ItemId::Metal, 500}, {ItemId::Scrap, 250}}, 2, 1, 10},
 		{ItemId::Revolver, 1, {{ItemId::Metal, 150}, {ItemId::Scrap, 75}}, 2, 2, 8},
 		{ItemId::PumpShotgun, 1, {{ItemId::Metal, 200}, {ItemId::Scrap, 120}}, 2, 2, 8},
+		// The first thing worth a bench: fifty cloth and twenty leather for
+		// twelve slots, which is the difference between a run and a trip.
+		{ItemId::Backpack, 1, {{ItemId::Cloth, 50}, {ItemId::Leather, 20}}, 2, 1, 12},
 		{ItemId::RadSuit, 1, {{ItemId::Cloth, 60}, {ItemId::Scrap, 100}, {ItemId::Metal, 40}}, 3, 2, 10},
 		// Road signs strapped over hide: the first real armour, and the last
 		// one you can make without a trip to a monument.

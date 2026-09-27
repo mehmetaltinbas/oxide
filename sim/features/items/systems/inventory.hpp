@@ -27,7 +27,19 @@ struct Transfer {
 
 /** The belt you carry things on, and the pack behind it. */
 inline constexpr int kHotbarSlots = 6;
-inline constexpr int kPackSlots = 24;
+/**
+ * The pack, at its largest.
+ *
+ * Twenty-four of these are yours from the start; the last twelve only open
+ * when a backpack is on your back. The array is always the full size, so
+ * nothing has to move when one goes on or comes off, and `packSlots()` is the
+ * only thing that says how much of it you may actually use.
+ */
+inline constexpr int kPackSlots = 36;
+/** What you carry with nothing on your back. */
+inline constexpr int kBarePackSlots = 24;
+/** What a backpack adds. */
+inline constexpr int kBackpackSlots = 12;
 
 /**
  * What someone is carrying.
@@ -48,6 +60,20 @@ public:
 	/** What is worn, which is one thing at a time. */
 	ItemStack& worn() { return worn_; }
 	const ItemStack& worn() const { return worn_; }
+
+	/** What is on your back, which is a backpack or nothing. */
+	ItemStack& back() { return back_; }
+	const ItemStack& back() const { return back_; }
+
+	/**
+	 * How many pack slots are open to you.
+	 *
+	 * Asked by everything that fills, empties or draws the pack, so a slot
+	 * behind a backpack you are not wearing cannot be reached by any route.
+	 */
+	int packSlots() const {
+		return back_.id == ItemId::None ? kBarePackSlots : kBarePackSlots + kBackpackSlots;
+	}
 
 	int activeSlot() const { return active_; }
 	void selectSlot(int slot);
@@ -73,6 +99,7 @@ private:
 	std::array<ItemStack, kHotbarSlots> hotbar_{};
 	std::array<ItemStack, kPackSlots> pack_{};
 	ItemStack worn_{};
+	ItemStack back_{};
 	int active_ = 0;
 };
 

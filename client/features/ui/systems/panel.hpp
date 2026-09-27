@@ -144,11 +144,11 @@ private:
 	void putBack(sim::Inventory& inventory, const sim::ItemStack& stack);
 
 	/** Which run of slots a stack is in. */
-	enum class From : std::uint8_t { None, Belt, Pack, Container, Worn };
+	enum class From : std::uint8_t { None, Belt, Pack, Container, Worn, Back };
 
 	/** Which slot a point is over, if any, and in which run. */
-	bool slotAt(float x, float y, const Layout& l, int width, int height, float uiScale,
-				From& from, int& slot) const;
+	bool slotAt(const sim::Inventory& inventory, float x, float y, const Layout& l, int width,
+				int height, float uiScale, From& from, int& slot) const;
 	/** Sends a stack to the other side: a container if one is open, else the belt. */
 	void sendAcross(sim::Inventory& inventory, From from, int slot);
 
@@ -192,6 +192,8 @@ private:
 	int inspecting_ = -1;
 	/** Which of the pack's runs the inspected slot is in. */
 	bool inspectingWorn_ = false;
+	/** And whether it is the back slot rather than the worn one. */
+	bool inspectingBack_ = false;
 	int category_ = 0;
 	int selected_ = -1;
 	int amount_ = 1;

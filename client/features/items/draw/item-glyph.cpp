@@ -368,20 +368,35 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 		}
 		case sim::ItemId::Stone: pile(rgb(0x9aa2aa), rgb(0x6f767d)); break;
 		case sim::ItemId::MetalOre:
-			pile(rgb(0x9c8060), rgb(0x6d5840));
-			plainDisc(-0.05f, -0.05f, 0.05f, rgb(0xd8c9a8));
-			plainDisc(0.14f, 0.13f, 0.04f, rgb(0xd8c9a8));
+			// Rust-brown rock with the metal still in it: bright veins running
+			// through broken stone rather than pebbles with spots on.
+			pile(rgb(0x7a5a42), rgb(0x46311f));
+			stroke(-0.24f, 0.08f, -0.02f, -0.1f, 0.035f, rgb(0xc98a4a));
+			stroke(0.04f, -0.14f, 0.2f, 0.0f, 0.03f, rgb(0xc98a4a));
+			stroke(0.02f, 0.06f, 0.2f, 0.16f, 0.025f, rgb(0xa86c34));
+			plainDisc(-0.12f, -0.02f, 0.028f, rgb(0xe4b070));
+			plainDisc(0.16f, 0.1f, 0.024f, rgb(0xe4b070));
 			break;
 		case sim::ItemId::SulfurOre:
-			pile(rgb(0xc9c05a), rgb(0x8a832f));
-			plainDisc(-0.04f, -0.04f, 0.05f, rgb(0xf2ea9a));
+			// Yellow crystal grown in the cracks of the same broken stone.
+			pile(rgb(0x6e6540), rgb(0x3d3821));
+			edged(pts({{-0.18f, 0.04f}, {-0.1f, -0.14f}, {-0.02f, 0.02f}, {-0.1f, 0.14f}}),
+				  rgb(0xe8dc62), rgb(0x8a7f22));
+			edged(pts({{0.06f, -0.06f}, {0.16f, -0.2f}, {0.24f, -0.02f}, {0.13f, 0.08f}}),
+				  rgb(0xf4ea8e), rgb(0x8a7f22));
+			plainDisc(0.0f, 0.16f, 0.03f, rgb(0xd8cc52));
 			break;
 		case sim::ItemId::Metal:
-			// Flat fragments.
-			edged(pts({{-0.3f, 0.05f}, {-0.05f, -0.12f}, {0.12f, 0.02f}, {-0.1f, 0.2f}}), kSteel,
-				  kSteelDark);
-			edged(pts({{0.02f, -0.06f}, {0.28f, -0.18f}, {0.32f, 0.06f}, {0.12f, 0.12f}}),
+			// Cut plate, stacked: smelted metal is sheet and bar, not gravel.
+			edged(pts({{-0.3f, 0.1f}, {0.02f, 0.1f}, {0.14f, 0.22f}, {-0.18f, 0.22f}}),
+				  rgb(0x7f8a95), kSteelDark);
+			edged(pts({{-0.28f, -0.04f}, {0.06f, -0.04f}, {0.18f, 0.08f}, {-0.16f, 0.08f}}),
+				  kSteel, kSteelDark);
+			edged(pts({{-0.24f, -0.18f}, {0.1f, -0.18f}, {0.22f, -0.06f}, {-0.12f, -0.06f}}),
 				  rgb(0xdbe4ec), kSteelDark);
+			// One highlight along the top plate's edge, which is what says
+			// metal rather than grey card.
+			stroke(-0.22f, -0.16f, 0.09f, -0.16f, 0.02f, rgb(0xf2f7fb));
 			break;
 		case sim::ItemId::Sulfur:
 			edged(pts({{-0.26f, 0.1f}, {-0.08f, -0.16f}, {0.1f, 0.04f}, {-0.06f, 0.22f}}),
@@ -707,6 +722,19 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			break;
 
 		// -------------------------------------------------------- clothing
+		case sim::ItemId::Backpack:
+			// A canvas sack with a flap over the top, two straps down the
+			// front and a buckle on each: what it is for is carrying, so what
+			// it shows is the size of it.
+			edged(pts({{-0.26f, -0.2f}, {0.26f, -0.2f}, {0.3f, 0.3f}, {-0.3f, 0.3f}}),
+				  rgb(0x8a7450), rgb(0x54452c));
+			edged(pts({{-0.28f, -0.22f}, {0.28f, -0.22f}, {0.26f, 0.02f}, {-0.26f, 0.02f}}),
+				  rgb(0xa88f60), rgb(0x54452c));
+			box(-0.17f, 0.0f, 0.08f, 0.2f, rgb(0x6b5637));
+			box(0.09f, 0.0f, 0.08f, 0.2f, rgb(0x6b5637));
+			box(-0.18f, 0.06f, 0.1f, 0.05f, rgb(0xc8b070));
+			box(0.08f, 0.06f, 0.1f, 0.05f, rgb(0xc8b070));
+			break;
 		case sim::ItemId::Clothing:
 			edged(pts({{-0.3f, -0.14f}, {-0.12f, -0.26f}, {0.12f, -0.26f}, {0.3f, -0.14f},
 					   {0.2f, -0.02f}, {0.2f, 0.28f}, {-0.2f, 0.28f}, {-0.2f, -0.02f}}),

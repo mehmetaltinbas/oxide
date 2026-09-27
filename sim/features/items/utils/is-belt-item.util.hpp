@@ -33,4 +33,12 @@ inline bool isBeltItem(ItemId id) {
 	}
 }
 
+/**
+ * Whether a thing goes on your back rather than over your body.
+ *
+ * One item, for now, and asked here rather than named at each of the places
+ * that put something on: a second bag is a second row, not a second `==`.
+ */
+inline bool wornOnBack(ItemId id) { return id == ItemId::Backpack; }
+
 }  // namespace sim

@@ -12,7 +12,8 @@ namespace client {
 struct ItemActions {
 	std::function<void(sim::ItemId)> consume;
 	std::function<void(sim::ItemId)> wear;
-	std::function<void()> takeOff;
+	/** Takes off what is worn, or what is on the back when asked for that. */
+	std::function<void(bool onBack)> takeOff;
 	std::function<void(sim::ItemStack)> drop;
 };
 

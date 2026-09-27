@@ -24,8 +24,8 @@ constexpr ItemDef kItems[] = {
 	{ItemId::None, "", "", ItemCategory::Resource, 0, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::Wood, "Wood", "Chopped from trees. The bottom of every recipe.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::Stone, "Stones", "Broken from rock nodes.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
-	{ItemId::MetalOre, "Metal Ore", "Smelt it in a furnace for fragments.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
-	{ItemId::Metal, "Metal Fragments", "Smelted ore. The backbone of good gear.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
+	{ItemId::MetalOre, "Metal Ore", "Smelt it in a furnace for metal.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
+	{ItemId::Metal, "Metal", "Smelted ore. The backbone of good gear.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::SulfurOre, "Sulfur Ore", "Smelt it for sulfur.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::Sulfur, "Sulfur", "Half of gunpowder, and therefore half of every raid.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::Cloth, "Cloth", "Woven from nettle fibre. Bandages, clothing, bags.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
@@ -56,6 +56,10 @@ constexpr ItemDef kItems[] = {
 	// worth using before one.
 	{ItemId::Medkit, "Medical Syringe", "Fifteen health at once and twenty more over the next twenty seconds. Clears a little radiation.", ItemCategory::Consumable, 10, kNone, kNoGun,
 	 {0, 0, 15, 2.5, 20, 0, 10}, kNoWear},
+	// Twelve more slots, and nothing else: no warmth, no armour, no
+	// protection. It goes on your back rather than over your body, so it is
+	// worn alongside a suit rather than instead of one.
+	{ItemId::Backpack, "Backpack", "Twelve more slots. Worn on your back, so it costs you no armour.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	// Keeps the cold off and turns a little damage.
 	{ItemId::Clothing, "Hide Clothing", "Keeps the cold off and turns a little damage.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
 	// The warmest thing on the island: hide is what you wear because it is

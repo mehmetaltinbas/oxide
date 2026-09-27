@@ -81,6 +81,7 @@
 #include "client/features/building/draw/tier-options.util.hpp"
 #include "client/design/tokens/interface.tokens.hpp"
 #include "sim/features/building/constants/deploy-footprint.constant.hpp"
+#include "sim/features/items/utils/is-belt-item.util.hpp"
 
 /**
  * The game as you play it: an island from a seed, someone standing on it, and
@@ -643,17 +644,33 @@ int main(int argc, char** argv) {
 			if (sim::consume(player, inventory, id)) {
 			}
 		};
+		// A pack goes on your back and everything else over your body, so the
+		// two are worn together rather than instead of each other.
 		actions.wear = [&](sim::ItemId id) {
 			if (inventory.take(id, 1) < 1) return;
-			const sim::ItemStack was = inventory.worn();
-			inventory.worn() = sim::ItemStack{id, 1};
+			sim::ItemStack& slot =
+				sim::wornOnBack(id) ? inventory.back() : inventory.worn();
+			const sim::ItemStack was = slot;
+			slot = sim::ItemStack{id, 1};
 			if (was.id != sim::ItemId::None) inventory.add(was.id, was.count);
 		};
-		actions.takeOff = [&] {
-			const sim::ItemStack was = inventory.worn();
+		actions.takeOff = [&](bool back) {
+			sim::ItemStack& slot = back ? inventory.back() : inventory.worn();
+			const sim::ItemStack was = slot;
 			if (was.id == sim::ItemId::None) return;
-			if (inventory.add(was.id, was.count) != 0) return;
-			inventory.worn() = sim::ItemStack{};
+			// Taking a pack off closes twelve slots, so whatever was in them
+			// comes out first and goes on the ground if there is nowhere left.
+			slot = sim::ItemStack{};
+			for (int i = inventory.packSlots(); i < sim::kPackSlots; ++i) {
+				sim::ItemStack& over = inventory.pack()[i];
+				if (over.id == sim::ItemId::None) continue;
+				const int left = inventory.add(over.id, over.count);
+				if (left > 0) world.dropStack(sim::ItemStack{over.id, left}, player.x, player.y);
+				over = sim::ItemStack{};
+			}
+			if (inventory.add(was.id, was.count) != 0) {
+				world.dropStack(was, player.x, player.y);
+			}
 		};
 		panel.useActions(std::move(actions));
 	}

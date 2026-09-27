@@ -27,6 +27,7 @@
 #include "client/features/ui/types/tab.enum.hpp"
 #include "client/features/ui/utils/belt-slot-box.util.hpp"
 #include "sim/features/items/utils/is-ranged.util.hpp"
+#include "sim/features/items/utils/is-belt-item.util.hpp"
 
 namespace client {
 
@@ -320,28 +321,39 @@ void Panel::drawInventory(Paint& paint, const sim::Inventory& inventory, const L
 	const float left = l.x + 24 * uiScale;
 	const float gridY = l.top + 36 * uiScale;
 	say(paint, left, gridY - 20 * uiScale, 11 * uiScale, ui::kSubtle, "MAIN");
-	for (int i = 0; i < sim::kPackSlots; ++i) {
+	// Only the slots that are open to you: the last twelve are behind a
+	// backpack and are not drawn until one is on.
+	const int open = inventory.packSlots();
+	for (int i = 0; i < open; ++i) {
 		const float sx = left + (i % kPackCols) * l.pitch;
 		const float sy = gridY + (i / kPackCols) * l.pitch;
 		filled(paint, inventory.pack()[i], sx, sy, l.slot, uiScale,
 			   ui::inside(mouseX, mouseY, sx, sy, l.slot, l.slot),
-			   inspecting_ == i && !inspectingWorn_);
+			   inspecting_ == i && !inspectingWorn_ && !inspectingBack_);
 	}
 
 	// What you have on, in a card of its own under the pack, so the worn slot
 	// does not read as one more pack slot.
-	const int rows = (sim::kPackSlots + kPackCols - 1) / kPackCols;
+	const int rows = (open + kPackCols - 1) / kPackCols;
 	const float wornY = gridY + rows * l.pitch + 34 * uiScale;
-	paint.fillRoundRect(left - 10 * uiScale, wornY - 28 * uiScale, l.slot + 20 * uiScale,
-						l.slot + 32 * uiScale, ui::kRadiusMedium, ui::kSurfaceAlt);
+	const float backX = left + l.pitch + 14 * uiScale;
+	paint.fillRoundRect(left - 10 * uiScale, wornY - 28 * uiScale,
+						backX - left + l.slot + 20 * uiScale, l.slot + 32 * uiScale,
+						ui::kRadiusMedium, ui::kSurfaceAlt);
 	say(paint, left, wornY - 22 * uiScale, 11 * uiScale, ui::kSubtle, "WORN");
 	filled(paint, inventory.worn(), left, wornY, l.slot, uiScale,
 		   ui::inside(mouseX, mouseY, left, wornY, l.slot, l.slot), inspectingWorn_);
+	// The back, beside it: a pack is worn with a suit rather than instead of
+	// one, so it has a place of its own rather than sharing the one slot.
+	say(paint, backX, wornY - 22 * uiScale, 11 * uiScale, ui::kSubtle, "BACK");
+	filled(paint, inventory.back(), backX, wornY, l.slot, uiScale,
+		   ui::inside(mouseX, mouseY, backX, wornY, l.slot, l.slot), inspectingBack_);
 
 	// The right-hand column: what is selected, and what it is.
 	const float detX = left + kPackCols * l.pitch + 24 * uiScale;
-	const sim::ItemStack chosen = inspecting_ < 0 ? sim::ItemStack{}
+	const sim::ItemStack chosen = inspecting_ < 0  ? sim::ItemStack{}
 								  : inspectingWorn_ ? inventory.worn()
+								  : inspectingBack_ ? inventory.back()
 													: inventory.pack()[inspecting_];
 	if (chosen.id == sim::ItemId::None) {
 		say(paint, detX, l.top + 28 * uiScale, 13 * uiScale, ui::kSubtle, "Select an item");
@@ -426,7 +438,7 @@ void Panel::drawInventory(Paint& paint, const sim::Inventory& inventory, const L
 	// What you can do with it, along the bottom of the pane: the thing you
 	// reached for it to do, one click away instead of a key to remember.
 	Action actions[4];
-	const int count = actionsFor(chosen.id, inspectingWorn_, actions);
+	const int count = actionsFor(chosen.id, inspectingWorn_ || inspectingBack_, actions);
 	for (int i = 0; i < count; ++i) {
 		float bx = 0;
 		float by = 0;
@@ -748,7 +760,7 @@ void Panel::drawContainer(Paint& paint, const sim::Inventory& inventory, const L
 	const float left = l.x + 24 * uiScale;
 	const float gridY = l.top + 36 * uiScale;
 	say(paint, left, gridY - 20 * uiScale, 11 * uiScale, ui::kSubtle, "MAIN");
-	for (int i = 0; i < sim::kPackSlots; ++i) {
+	for (int i = 0; i < inventory.packSlots(); ++i) {
 		const float sx = left + (i % kPackCols) * l.pitch;
 		const float sy = gridY + (i / kPackCols) * l.pitch;
 		filled(paint, inventory.pack()[i], sx, sy, l.slot, uiScale,
@@ -864,7 +876,7 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 	if (right) {
 		From from = From::None;
 		int slot = 0;
-		if (slotAt(x, y, l, width, height, uiScale, from, slot)) {
+		if (slotAt(inventory, x, y, l, width, height, uiScale, from, slot)) {
 			// With no box open, a right click on something wearable puts it
 			// on. That is the only thing you ever want to do with a suit, and
 			// sending it to the belt so you can drag it to the wear slot is
@@ -895,10 +907,12 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 		// The buttons under the detail pane, before the grid: they sit inside
 		// the card too, and a click on one is not a click on a slot.
 		const sim::ItemStack chosen =
-			inspectingWorn_ ? inventory.worn() : inventory.pack()[inspecting_];
+			inspectingWorn_ ? inventory.worn()
+			: inspectingBack_ ? inventory.back()
+							  : inventory.pack()[inspecting_];
 		if (chosen.id != sim::ItemId::None) {
 			Action actions[4];
-			const int count = actionsFor(chosen.id, inspectingWorn_, actions);
+			const int count = actionsFor(chosen.id, inspectingWorn_ || inspectingBack_, actions);
 			for (int i = 0; i < count; ++i) {
 				float bx = 0;
 				float by = 0;
@@ -909,13 +923,15 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 				const std::string label = actions[i].label;
 				if (label == "Drop") {
 					if (actions_.drop) actions_.drop(chosen);
-					(inspectingWorn_ ? inventory.worn() : inventory.pack()[inspecting_]) =
+					(inspectingWorn_   ? inventory.worn()
+					 : inspectingBack_ ? inventory.back()
+									   : inventory.pack()[inspecting_]) =
 						sim::ItemStack{};
 					inspecting_ = -1;
 				} else if (label == "Wear") {
 					if (actions_.wear) actions_.wear(chosen.id);
 				} else if (label == "Take off") {
-					if (actions_.takeOff) actions_.takeOff();
+					if (actions_.takeOff) actions_.takeOff(inspectingBack_);
 					inspecting_ = -1;
 				} else if (actions_.consume) {
 					actions_.consume(chosen.id);
@@ -926,17 +942,27 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 	}
 
 	if (tab_ == Tab::Inventory) {
-		const int at = slotUnder(x, y, left, gridY, l.slot, l.pitch, sim::kPackSlots, kPackCols);
+		const int at = slotUnder(x, y, left, gridY, l.slot, l.pitch, inventory.packSlots(),
+								 kPackCols);
 		if (at >= 0) {
 			inspecting_ = at;
 			inspectingWorn_ = false;
+			inspectingBack_ = false;
 			return true;
 		}
-		const int rows = (sim::kPackSlots + kPackCols - 1) / kPackCols;
+		const int rows = (inventory.packSlots() + kPackCols - 1) / kPackCols;
 		const float wornY = gridY + rows * l.pitch + 34 * uiScale;
 		if (ui::inside(x, y, left, wornY, l.slot, l.slot)) {
 			inspecting_ = 0;
 			inspectingWorn_ = true;
+			inspectingBack_ = false;
+			return true;
+		}
+		const float backX = left + l.pitch + 14 * uiScale;
+		if (ui::inside(x, y, backX, wornY, l.slot, l.slot)) {
+			inspecting_ = 0;
+			inspectingWorn_ = false;
+			inspectingBack_ = true;
 			return true;
 		}
 		return true;
@@ -963,7 +989,7 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 						 sim::Transfer::seconds(count)};
 		};
 		const int packAt =
-			slotUnder(x, y, left, gridY, l.slot, l.pitch, sim::kPackSlots, kPackCols);
+			slotUnder(x, y, left, gridY, l.slot, l.pitch, inventory.packSlots(), kPackCols);
 		if (packAt >= 0 && move_.left <= 0) {
 			const sim::ItemStack& stack = inventory.pack()[packAt];
 			if (stack.id != sim::ItemId::None) start(true, false, packAt, stack.count);
@@ -1094,8 +1120,8 @@ bool Panel::typeAmount(SDL_Keycode key) {
 
 // ---- dragging a stack about
 
-bool Panel::slotAt(float x, float y, const Layout& l, int width, int height, float uiScale,
-				   From& from, int& slot) const {
+bool Panel::slotAt(const sim::Inventory& inventory, float x, float y, const Layout& l, int width,
+				   int height, float uiScale, From& from, int& slot) const {
 	// The belt is reachable from every tab: it is on the screen the whole time
 	// the pack is open, so it would be strange for it to stop taking stacks
 	// because you are looking at the bench.
@@ -1108,17 +1134,24 @@ bool Panel::slotAt(float x, float y, const Layout& l, int width, int height, flo
 	if (tab_ != Tab::Inventory && tab_ != Tab::Container) return false;
 	const float left = l.x + 24 * uiScale;
 	const float gridY = l.top + 36 * uiScale;
-	const int pack = slotUnder(x, y, left, gridY, l.slot, l.pitch, sim::kPackSlots, kPackCols);
+	const int pack = slotUnder(x, y, left, gridY, l.slot, l.pitch, inventory.packSlots(),
+							   kPackCols);
 	if (pack >= 0) {
 		from = From::Pack;
 		slot = pack;
 		return true;
 	}
 	if (tab_ == Tab::Inventory) {
-		const int rows = (sim::kPackSlots + kPackCols - 1) / kPackCols;
+		const int rows = (inventory.packSlots() + kPackCols - 1) / kPackCols;
 		const float wornY = gridY + rows * l.pitch + 34 * uiScale;
 		if (ui::inside(x, y, left, wornY, l.slot, l.slot)) {
 			from = From::Worn;
+			slot = 0;
+			return true;
+		}
+		const float backX = left + l.pitch + 14 * uiScale;
+		if (ui::inside(x, y, backX, wornY, l.slot, l.slot)) {
+			from = From::Back;
 			slot = 0;
 			return true;
 		}
@@ -1168,7 +1201,7 @@ void Panel::press(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 	}
 	From from = From::None;
 	int slot = 0;
-	if (!slotAt(x, y, l, width, height, uiScale, from, slot)) return;
+	if (!slotAt(inventory, x, y, l, width, height, uiScale, from, slot)) return;
 	// Only remembered. Nothing leaves its slot until the mouse moves, so a
 	// click on a slot is a click and not the start of a drag you did not want.
 	pressFrom_ = from;
@@ -1200,6 +1233,7 @@ void Panel::motion(sim::Inventory& inventory, float x, float y, int width, int h
 		case From::Belt: lift(inventory.hotbar()[pressSlot_]); break;
 		case From::Pack: lift(inventory.pack()[pressSlot_]); break;
 		case From::Worn: lift(inventory.worn()); break;
+		case From::Back: lift(inventory.back()); break;
 		case From::Container:
 			if (container_ && pressSlot_ < static_cast<int>(container_->slots.size())) {
 				lift(container_->slots[pressSlot_]);
@@ -1277,9 +1311,15 @@ void Panel::release(sim::Inventory& inventory, sim::Crafting& crafting, float x,
 		if (pressFrom_ == From::Pack) {
 			inspecting_ = pressSlot_;
 			inspectingWorn_ = false;
+			inspectingBack_ = false;
 		} else if (pressFrom_ == From::Worn) {
 			inspecting_ = 0;
 			inspectingWorn_ = true;
+			inspectingBack_ = false;
+		} else if (pressFrom_ == From::Back) {
+			inspecting_ = 0;
+			inspectingWorn_ = false;
+			inspectingBack_ = true;
 		}
 		pressFrom_ = From::None;
 		return;
@@ -1315,17 +1355,29 @@ void Panel::release(sim::Inventory& inventory, sim::Crafting& crafting, float x,
 		land(inventory.hotbar()[belt]);
 		return;
 	}
-	const int pack = slotUnder(x, y, left, gridY, l.slot, l.pitch, sim::kPackSlots, kPackCols);
+	const int pack = slotUnder(x, y, left, gridY, l.slot, l.pitch, inventory.packSlots(),
+							   kPackCols);
 	if (pack >= 0) {
 		land(inventory.pack()[pack]);
 		return;
 	}
-	const int rows = (sim::kPackSlots + kPackCols - 1) / kPackCols;
+	const int rows = (inventory.packSlots() + kPackCols - 1) / kPackCols;
 	const float wornY = gridY + rows * l.pitch + 34 * uiScale;
+	const float backX = left + l.pitch + 14 * uiScale;
 	if (tab_ == Tab::Inventory && ui::inside(x, y, left, wornY, l.slot, l.slot)) {
-		// Only what can actually be worn goes on.
-		if (sim::itemDef(carried.id).category == sim::ItemCategory::Clothing) {
+		// Only what can actually be worn goes on, and only what is worn over
+		// your body: a pack has its own place beside it.
+		if (sim::itemDef(carried.id).category == sim::ItemCategory::Clothing &&
+			!sim::wornOnBack(carried.id)) {
 			land(inventory.worn());
+		} else {
+			putBack(inventory, carried);
+		}
+		return;
+	}
+	if (tab_ == Tab::Inventory && ui::inside(x, y, backX, wornY, l.slot, l.slot)) {
+		if (sim::wornOnBack(carried.id)) {
+			land(inventory.back());
 		} else {
 			putBack(inventory, carried);
 		}
@@ -1358,6 +1410,10 @@ void Panel::putBack(sim::Inventory& inventory, const sim::ItemStack& stack) {
 	if (dragFrom_ == From::Belt && inventory.hotbar()[dragSlot_].id == sim::ItemId::None) {
 		inventory.hotbar()[dragSlot_] = stack;
 		return;
+	}
+	if (dragFrom_ == From::Back && inventory.back().id == sim::ItemId::None) {
+		drag_ = sim::ItemStack{};
+		dragFrom_ = From::None;
 	}
 	if (dragFrom_ == From::Worn && inventory.worn().id == sim::ItemId::None) {
 		inventory.worn() = stack;

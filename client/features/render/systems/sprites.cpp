@@ -488,22 +488,44 @@ void paintStone(Paint& paint, float ox, float oy, float r, sim::NodeKind kind, i
 	// The pen round the whole thing, heavier than the lines between planes.
 	paint.outlinePoly(hull, pen(), kInk);
 
-	// Ore shows in the cracks: a fleck at the foot of every other facet, in
-	// the line where two planes meet, which is where a vein would break out.
+	// Ore breaks out along the cracks, as a seam rather than as spots: a band
+	// running down the line where two planes meet, thick at the crest and
+	// tapering as it goes, with a bright crystal or two sitting in it. Flecks
+	// alone read as dirt on the rock, and told you nothing about which ore it
+	// was until you were on top of it.
 	if (kind == sim::NodeKind::Metal || kind == sim::NodeKind::Sulfur) {
-		const Color fleck = kind == sim::NodeKind::Metal ? rgb(0xd9c7a4) : rgb(0xfaf07e);
+		const bool metal = kind == sim::NodeKind::Metal;
+		const Color seam = metal ? rgb(0xb07a3c) : rgb(0xd8cc46);
+		const Color bright = metal ? rgb(0xe8b96e) : rgb(0xf6ef9c);
 		for (int i = static_cast<int>(variant) % 2; i < points; i += 2) {
 			const Point& a = hull[i];
-			// Part way down the crack from the crest to the corner.
-			const float t = 0.45f + v(variant, 30 + i) * 0.3f;
-			const float fx = crestA.x + (a.x - crestA.x) * t;
-			const float fy = crestA.y + (a.y - crestA.y) * t;
-			const float fr = r * (0.09f + v(variant, 50 + i) * 0.06f);
-			paint.inkedPoly({{fx - fr, fy - fr * 0.25f},
-							 {fx - fr * 0.15f, fy - fr},
-							 {fx + fr, fy - fr * 0.1f},
-							 {fx + fr * 0.25f, fy + fr}},
-							fleck, fine());
+			const float from = 0.2f + v(variant, 30 + i) * 0.15f;
+			const float to = 0.78f + v(variant, 40 + i) * 0.18f;
+			const auto along = [&](float t) {
+				return Point{crestA.x + (a.x - crestA.x) * t, crestA.y + (a.y - crestA.y) * t};
+			};
+			const Point head = along(from);
+			const Point tail = along(to);
+			// Across the seam, so it has width as well as length.
+			const float dx = tail.x - head.x;
+			const float dy = tail.y - head.y;
+			const float len = std::max(0.001f, std::sqrt(dx * dx + dy * dy));
+			const float nx = -dy / len;
+			const float ny = dx / len;
+			const float wide = r * (0.13f + v(variant, 60 + i) * 0.05f);
+			paint.inkedPoly({{head.x + nx * wide, head.y + ny * wide},
+							 {tail.x + nx * wide * 0.3f, tail.y + ny * wide * 0.3f},
+							 {tail.x - nx * wide * 0.3f, tail.y - ny * wide * 0.3f},
+							 {head.x - nx * wide, head.y - ny * wide}},
+							seam, fine());
+			// The crystal in it, a third of the way along.
+			const Point at = along(from + (to - from) * 0.35f);
+			const float cr = wide * 0.7f;
+			paint.inkedPoly({{at.x, at.y - cr},
+							 {at.x + cr * 0.8f, at.y},
+							 {at.x, at.y + cr},
+							 {at.x - cr * 0.8f, at.y}},
+							bright, fine());
 		}
 	}
 

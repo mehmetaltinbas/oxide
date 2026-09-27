@@ -31,6 +31,7 @@ enum class ItemId : std::uint8_t {
 	Medkit,
 	Clothing,
 	RadSuit,
+	Backpack,
 	// What you put down rather than carry.
 	Campfire,
 	Furnace,
@@ -74,6 +75,6 @@ enum class ItemId : std::uint8_t {
 	Torch,
 };
 
-inline constexpr int kItemCount = 57;
+inline constexpr int kItemCount = 58;
 
 }  // namespace sim
