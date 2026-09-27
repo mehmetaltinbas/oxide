@@ -167,8 +167,10 @@ void updateUse(Player& player, Inventory& inventory, double dt, bool sprinting) 
 		stopChannelling(player);
 		return;
 	}
-	if (sprinting) {
-		// You can walk through a bandage. You cannot run through one.
+	if (sprinting || player.swimming) {
+		// You can walk through a bandage. You cannot run through one, and you
+		// certainly cannot wind one while treading water: both hands are busy
+		// keeping you up.
 		stopChannelling(player);
 		return;
 	}

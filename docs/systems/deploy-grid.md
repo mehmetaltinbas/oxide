@@ -7,12 +7,14 @@ says.
 
 ## The grid
 
-A building cell is `kBuildCell` across. It is divided into **twelve by twelve**
+A building cell is `kBuildCell` across. It is divided into **eight by eight**
 fine squares for placing things: `kDeployGrid`, and `kDeployCell` for one of
 them in world units.
 
-Twelve, because it divides by two, three, four and six, which is every
-footprint on the island. Nothing ever lands on half a square.
+Eight, because one fine square is then exactly the gap between two of the dots
+printed on the ground. That is **the unit**: you can count a campfire's two
+squares off the floor without opening anything, and a thing that says it is
+three across is three dots across.
 
 ## Footprints
 

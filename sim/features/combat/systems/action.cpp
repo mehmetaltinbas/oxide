@@ -278,6 +278,7 @@ void reload(Player& player, const Inventory& inventory) {
 	// A rocket launcher is the one thing you cannot load at a run: it is a
 	// rocket held in both arms and shoved down a tube over your shoulder, not
 	// a magazine pushed into a well. Everything else loads on the move.
+	if (player.swimming) return;
 	if (player.sprinting && held == ItemId::RocketLauncher) return;
 	if (player.reloadLeft > 0) return;
 	if (player.loaded == held && player.rounds >= gun.magazine) return;
@@ -294,6 +295,11 @@ void tickReload(Player& player, Inventory& inventory, double dt) {
 	// wherever the slot changed means no call site can forget. See
 	// docs/systems/channelled-actions.md.
 	if (!stillInHand(inventory, player.loaded)) {
+		stopChannelling(player);
+		return;
+	}
+	// In the water nothing gets loaded at all: both hands are keeping you up.
+	if (player.swimming) {
 		stopChannelling(player);
 		return;
 	}

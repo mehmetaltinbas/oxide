@@ -8,12 +8,15 @@ namespace sim {
 /**
  * How finely a building cell is divided for putting things down.
  *
- * Twelve by twelve. A deployable used to take a whole cell, so a campfire and
- * a furnace were the same size and two of anything could not share a room's
- * corner. Twelve divides by two, three, four and six, which is every
- * footprint on the island, so nothing ever lands on half a square.
+ * Eight by eight, so one fine square is exactly the gap between two of the
+ * dots printed on the ground. That is the unit everything is measured in: you
+ * can count a campfire's two squares off the floor without opening anything,
+ * and a thing that says it is three across is three dots across.
+ *
+ * A deployable used to take a whole cell, so a campfire and a furnace were
+ * the same size and two of anything could not share a room's corner.
  */
-inline constexpr int kDeployGrid = 12;
+inline constexpr int kDeployGrid = 8;
 
 /** One of those fine squares, in world units. */
 inline constexpr double kDeployCell = static_cast<double>(kBuildCell) / kDeployGrid;

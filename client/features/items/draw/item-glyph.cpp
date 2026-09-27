@@ -367,59 +367,120 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			break;
 		}
 		case sim::ItemId::Stone: pile(rgb(0x9aa2aa), rgb(0x6f767d)); break;
-		case sim::ItemId::MetalOre:
-			// Rust-brown rock with the metal still in it: bright veins running
-			// through broken stone rather than pebbles with spots on.
-			pile(rgb(0x7a5a42), rgb(0x46311f));
-			stroke(-0.24f, 0.08f, -0.02f, -0.1f, 0.035f, rgb(0xc98a4a));
-			stroke(0.04f, -0.14f, 0.2f, 0.0f, 0.03f, rgb(0xc98a4a));
-			stroke(0.02f, 0.06f, 0.2f, 0.16f, 0.025f, rgb(0xa86c34));
-			plainDisc(-0.12f, -0.02f, 0.028f, rgb(0xe4b070));
-			plainDisc(0.16f, 0.1f, 0.024f, rgb(0xe4b070));
+		case sim::ItemId::MetalOre: {
+			// A block of stone split into slabs, the way a seam weathers out:
+			// a tall face on the left with the layers stacked across it, and a
+			// rounded mass leaning on it. Tan and grey, and the layers are
+			// what say ore rather than boulder.
+			const Color rock = rgb(0x9a8f74);
+			const Color dark = rgb(0x5e5642);
+			const Color pale = rgb(0xc2b795);
+			edged(pts({{-0.3f, -0.1f}, {-0.16f, -0.3f}, {0.02f, -0.24f}, {0.06f, 0.06f},
+					   {-0.12f, 0.3f}, {-0.32f, 0.22f}}),
+				  rock, dark);
+			edged(pts({{0.0f, -0.16f}, {0.22f, -0.24f}, {0.34f, 0.0f}, {0.24f, 0.26f},
+					   {-0.02f, 0.28f}}),
+				  pale, dark);
+			// The bedding planes: four across the left face, tapering.
+			for (int i = 0; i < 4; ++i) {
+				const float y = -0.2f + i * 0.13f;
+				stroke(-0.29f, y, 0.02f, y + 0.03f, 0.022f, dark);
+			}
+			// And two down the rounded mass, following its turn.
+			stroke(0.04f, -0.06f, 0.3f, -0.02f, 0.02f, dark);
+			stroke(0.02f, 0.12f, 0.27f, 0.14f, 0.02f, dark);
+			stroke(-0.26f, -0.24f, -0.06f, -0.2f, 0.018f, pale);
 			break;
+		}
 		case sim::ItemId::SulfurOre:
-			// Yellow crystal grown in the cracks of the same broken stone.
-			pile(rgb(0x6e6540), rgb(0x3d3821));
-			edged(pts({{-0.18f, 0.04f}, {-0.1f, -0.14f}, {-0.02f, 0.02f}, {-0.1f, 0.14f}}),
-				  rgb(0xe8dc62), rgb(0x8a7f22));
-			edged(pts({{0.06f, -0.06f}, {0.16f, -0.2f}, {0.24f, -0.02f}, {0.13f, 0.08f}}),
-				  rgb(0xf4ea8e), rgb(0x8a7f22));
-			plainDisc(0.0f, 0.16f, 0.03f, rgb(0xd8cc52));
+			// Dark rock with yellow crystal grown all over the top of it: the
+			// crystal is the thing you are looking at, and the rock is what it
+			// is stuck to.
+			pile(rgb(0x4a3a28), rgb(0x261c12));
+			for (int i = 0; i < 6; ++i) {
+				const float cx = -0.22f + (i % 3) * 0.19f + (i / 3) * 0.08f;
+				const float cy = -0.2f + (i / 3) * 0.2f;
+				const float r = 0.055f + (i % 2) * 0.02f;
+				edged(pts({{cx, cy - r * 1.4f},
+						   {cx + r, cy - r * 0.2f},
+						   {cx + r * 0.5f, cy + r},
+						   {cx - r * 0.6f, cy + r * 0.8f},
+						   {cx - r, cy - r * 0.3f}}),
+					  (i % 2) ? rgb(0xf0e35e) : rgb(0xd4c63c), rgb(0x6f6414));
+			}
 			break;
-		case sim::ItemId::Metal:
-			// Cut plate, stacked: smelted metal is sheet and bar, not gravel.
-			edged(pts({{-0.3f, 0.1f}, {0.02f, 0.1f}, {0.14f, 0.22f}, {-0.18f, 0.22f}}),
-				  rgb(0x7f8a95), kSteelDark);
-			edged(pts({{-0.28f, -0.04f}, {0.06f, -0.04f}, {0.18f, 0.08f}, {-0.16f, 0.08f}}),
-				  kSteel, kSteelDark);
-			edged(pts({{-0.24f, -0.18f}, {0.1f, -0.18f}, {0.22f, -0.06f}, {-0.12f, -0.06f}}),
-				  rgb(0xdbe4ec), kSteelDark);
-			// One highlight along the top plate's edge, which is what says
-			// metal rather than grey card.
-			stroke(-0.22f, -0.16f, 0.09f, -0.16f, 0.02f, rgb(0xf2f7fb));
+		case sim::ItemId::Metal: {
+			// Splinters of dark metal, thrown together: smelted scrap comes
+			// out as shards, not as bar stock, and near-black with a hard
+			// highlight is what tells it from stone.
+			const Color body = rgb(0x2e3238);
+			const Color lip = rgb(0x6b7480);
+			const float shard[5][4] = {{-0.3f, 0.14f, 0.16f, -0.2f},
+									   {-0.18f, 0.22f, 0.3f, -0.06f},
+									   {-0.26f, 0.02f, 0.28f, 0.1f},
+									   {-0.06f, 0.26f, 0.22f, -0.24f},
+									   {-0.32f, -0.06f, 0.06f, -0.26f}};
+			for (const auto& t : shard) {
+				const float ax = t[0];
+				const float ay = t[1];
+				const float bx = t[2];
+				const float by = t[3];
+				const float dx = bx - ax;
+				const float dy = by - ay;
+				const float len = std::sqrt(dx * dx + dy * dy);
+				const float nx = -dy / len * 0.05f;
+				const float ny = dx / len * 0.05f;
+				edged(pts({{ax, ay}, {ax + nx, ay + ny}, {bx, by}, {ax - nx, ay - ny}}), body,
+					  rgb(0x14161a));
+				stroke(ax + nx * 0.4f, ay + ny * 0.4f, bx, by, 0.016f, lip);
+			}
 			break;
-		case sim::ItemId::Sulfur:
-			edged(pts({{-0.26f, 0.1f}, {-0.08f, -0.16f}, {0.1f, 0.04f}, {-0.06f, 0.22f}}),
-				  rgb(0xe8dc6a), rgb(0xa89a2f));
-			edged(pts({{0.04f, -0.02f}, {0.28f, -0.14f}, {0.3f, 0.1f}, {0.1f, 0.16f}}),
-				  rgb(0xf2ea9a), rgb(0xa89a2f));
+		}
+		case sim::ItemId::Sulfur: {
+			// A cluster of crystal, faceted and all one yellow: no rock left
+			// on it, because this is what comes out of the furnace.
+			const Color edge = rgb(0x6f6414);
+			edged(pts({{-0.32f, 0.02f}, {-0.18f, -0.24f}, {0.1f, -0.28f}, {0.32f, -0.06f},
+					   {0.28f, 0.2f}, {0.02f, 0.3f}, {-0.26f, 0.24f}}),
+				  rgb(0xd6c73a), edge);
+			// The facets over it, each a flat plane catching the light.
+			edged(pts({{-0.2f, -0.12f}, {-0.04f, -0.22f}, {0.02f, -0.04f}, {-0.14f, 0.06f}}),
+				  rgb(0xf4ec7e), edge);
+			edged(pts({{0.04f, -0.2f}, {0.24f, -0.1f}, {0.2f, 0.08f}, {0.02f, 0.0f}}),
+				  rgb(0xe8da54), edge);
+			edged(pts({{-0.22f, 0.08f}, {-0.06f, 0.04f}, {0.0f, 0.22f}, {-0.16f, 0.24f}}),
+				  rgb(0xeee063), edge);
+			edged(pts({{0.04f, 0.06f}, {0.2f, 0.12f}, {0.14f, 0.26f}, {0.02f, 0.22f}}),
+				  rgb(0xf8f2a2), edge);
 			break;
+		}
 		case sim::ItemId::Charcoal: pile(rgb(0x4a4a4a), rgb(0x2a2a2a)); break;
 		case sim::ItemId::HqMetalOre:
-			// The same rock as metal ore, shot through with something brighter.
-			pile(rgb(0x6f7c86), rgb(0x3f484f));
-			plainDisc(-0.05f, -0.05f, 0.055f, rgb(0x9fe4ff));
-			plainDisc(0.14f, 0.12f, 0.045f, rgb(0x9fe4ff));
-			plainDisc(-0.17f, 0.14f, 0.035f, rgb(0x7ec8e8));
+			// Glassy blue-black rock, one lump of it, with the light running
+			// in bands across the fracture. Nothing yellow, nothing warm: it
+			// has to read as the rare one from across the belt.
+			edged(pts({{-0.3f, 0.0f}, {-0.16f, -0.26f}, {0.1f, -0.3f}, {0.3f, -0.08f},
+					   {0.26f, 0.18f}, {0.0f, 0.3f}, {-0.24f, 0.22f}}),
+				  rgb(0x232a38), rgb(0x0e1118));
+			edged(pts({{-0.18f, -0.14f}, {0.04f, -0.24f}, {0.12f, -0.06f}, {-0.1f, 0.04f}}),
+				  rgb(0x3d4860), rgb(0x0e1118));
+			stroke(-0.2f, 0.06f, 0.08f, -0.02f, 0.028f, rgb(0x8fa0bc));
+			stroke(-0.12f, 0.16f, 0.16f, 0.08f, 0.022f, rgb(0x6b7b96));
+			stroke(0.0f, -0.22f, 0.18f, -0.14f, 0.018f, rgb(0xc3d2e8));
 			break;
 		case sim::ItemId::HqMetal:
-			// Milled bar stock, stacked: flat, bright and squared off, which is
-			// what says refined next to a pile of chunks.
-			edged(pts({{-0.3f, 0.02f}, {0.18f, -0.14f}, {0.3f, 0.02f}, {-0.18f, 0.18f}}),
-				  rgb(0xcfe6f2), rgb(0x7a94a4));
-			edged(pts({{-0.3f, -0.14f}, {0.18f, -0.3f}, {0.3f, -0.14f}, {-0.18f, 0.02f}}),
-				  rgb(0xeaf6ff), rgb(0x7a94a4));
-			detail(-0.1f, -0.16f, 0.12f, -0.23f, 0.03f);
+			// Two cast ingots, one on the other: a rounded loaf with a flat
+			// top, not a milled bar. Dark steel with a wet highlight, which is
+			// what says poured and cooled.
+			edged(pts({{-0.3f, 0.06f}, {0.06f, -0.06f}, {0.32f, 0.06f}, {0.3f, 0.2f},
+					   {0.04f, 0.3f}, {-0.3f, 0.2f}}),
+				  rgb(0x4a5157), rgb(0x1e2225));
+			edged(pts({{-0.28f, -0.1f}, {0.06f, -0.24f}, {0.3f, -0.12f}, {0.28f, 0.0f},
+					   {0.04f, 0.1f}, {-0.28f, 0.0f}}),
+				  rgb(0x707a80), rgb(0x1e2225));
+			stroke(-0.2f, -0.1f, 0.1f, -0.18f, 0.03f, rgb(0xb8c4ca));
+			plainDisc(0.14f, -0.08f, 0.028f, rgb(0xd6e0e4));
+			plainDisc(-0.06f, -0.02f, 0.022f, rgb(0x9aa6ac));
 			break;
 		case sim::ItemId::Cloth:
 			// A folded bolt of fabric.
@@ -454,21 +515,44 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			disc(0.24f, -0.18f, 0.09f, rgb(0xeee7d2));
 			disc(0.16f, -0.25f, 0.08f, rgb(0xeee7d2));
 			break;
-		case sim::ItemId::Scrap:
-			// Torn, rusted plate, two pieces of it, one lying over the other.
-			edged(pts({{-0.34f, 0.02f}, {-0.12f, -0.16f}, {0.1f, -0.06f}, {0.04f, 0.22f},
-					   {-0.26f, 0.28f}}),
-				  rgb(0x7d4426), rgb(0x4a2617));
-			edged(pts({{-0.06f, -0.28f}, {0.3f, -0.18f}, {0.34f, 0.06f}, {0.06f, 0.16f}}),
-				  rgb(0xb4643a), rgb(0x5e3220));
-			fill(pts({{-0.06f, -0.28f}, {0.14f, -0.23f}, {0.2f, 0.11f}, {0.06f, 0.16f}}),
-				 rgb(0xcc8452));
-			plainDisc(0.11f, -0.12f, 0.035f, rgb(0x4a2617));
-			plainDisc(0.16f, 0.03f, 0.035f, rgb(0x4a2617));
-			plainDisc(-0.2f, 0.06f, 0.03f, rgb(0x4a2617));
-			plainDisc(-0.14f, 0.17f, 0.022f, rgb(0x4a2617));
-			plainDisc(0.26f, -0.04f, 0.022f, rgb(0x5e3220));
+		case sim::ItemId::Salvage: {
+			// Rusted machinery in a heap: a gear, a length of pipe bent at the
+			// elbow, a sheet of corrugated iron and two nuts. Parts, not
+			// plate: what you are looking at is a thing somebody built, taken
+			// off whatever it was bolted to.
+			const Color rust = rgb(0x8a4a2a);
+			const Color deep = rgb(0x4a2617);
+			const Color lit = rgb(0xb8703f);
+			// The corrugated sheet, behind everything, with its ribs.
+			edged(pts({{-0.04f, 0.0f}, {0.34f, 0.04f}, {0.3f, 0.3f}, {-0.08f, 0.26f}}), rust,
+				  deep);
+			for (int i = 0; i < 4; ++i) {
+				const float t = -0.02f + i * 0.09f;
+				stroke(t, 0.02f, t - 0.02f, 0.28f, 0.022f, deep);
+			}
+			// The pipe: a run with an elbow on the end of it.
+			stroke(-0.3f, -0.22f, -0.04f, -0.24f, 0.075f, rust);
+			stroke(-0.04f, -0.24f, 0.0f, -0.06f, 0.075f, rust);
+			stroke(-0.3f, -0.24f, -0.06f, -0.26f, 0.022f, lit);
+			// The gear, front and centre, with its teeth and its bore.
+			{
+				const float gx = -0.1f;
+				const float gy = 0.02f;
+				const float gr = 0.19f;
+				for (int i = 0; i < 8; ++i) {
+					const float a = static_cast<float>(i) / 8 * 6.28318530718f;
+					const float tx = gx + std::cos(a) * gr;
+					const float ty = gy + std::sin(a) * gr;
+					box(tx - 0.045f, ty - 0.045f, 0.09f, 0.09f, rust);
+				}
+				disc(gx, gy, gr * 0.86f, lit);
+				disc(gx, gy, gr * 0.3f, rgb(0x3a1d11));
+			}
+			// And the bolts, dropped in beside it.
+			disc(0.2f, -0.2f, 0.07f, rust);
+			disc(0.3f, -0.06f, 0.055f, deep);
 			break;
+		}
 		case sim::ItemId::Gunpowder:
 			// A pouch of powder.
 			edged(pts({{-0.22f, 0.3f}, {-0.26f, -0.02f}, {-0.1f, -0.2f}, {0.1f, -0.2f},

@@ -19,7 +19,7 @@ constexpr MonumentDef kDefs[kMonumentKindCount] = {
 	  {ItemId::LowGrade, 5, 15}},
 	 5, 8, false, true, false},
 	{MonumentKind::Lighthouse, "Lighthouse", 210, 0, 0, false, 3,
-	 {{ItemId::Scrap, 10, 25},
+	 {{ItemId::Salvage, 10, 25},
 	  {ItemId::Cloth, 10, 30},
 	  {ItemId::LowGrade, 10, 30},
 	  {ItemId::Metal, 20, 60},
@@ -28,7 +28,7 @@ constexpr MonumentDef kDefs[kMonumentKindCount] = {
 	// Irradiated but unheld: the airfield is a place the suit gets you into,
 	// not a place you fight your way into.
 	{MonumentKind::Airfield, "Airfield", 340, 4, 0, false, 6,
-	 {{ItemId::Scrap, 25, 60},
+	 {{ItemId::Salvage, 25, 60},
 	  {ItemId::Metal, 60, 160},
 	  {ItemId::Sulfur, 20, 60},
 	  {ItemId::PistolAmmo, 8, 24},
@@ -39,7 +39,7 @@ constexpr MonumentDef kDefs[kMonumentKindCount] = {
 	 8, 1, false, false, true},
 	// Now and then an AK, as in Rust's elite crates.
 	{MonumentKind::PowerPlant, "Power Plant", 380, 9, 7, false, 8,
-	 {{ItemId::Scrap, 50, 120},
+	 {{ItemId::Salvage, 50, 120},
 	  {ItemId::Metal, 120, 300},
 	  {ItemId::Sulfur, 60, 140},
 	  {ItemId::RifleAmmo, 10, 30},
@@ -51,7 +51,7 @@ constexpr MonumentDef kDefs[kMonumentKindCount] = {
 	// The one place with people in it who were trained: soldiers, and only
 	// here. What they carry does not drop; their ammunition does.
 	{MonumentKind::Military, "Military Camp", 400, 6, 9, true, 9,
-	 {{ItemId::Scrap, 40, 100},
+	 {{ItemId::Salvage, 40, 100},
 	  {ItemId::Metal, 100, 260},
 	  {ItemId::RifleAmmo, 10, 30},
 	  {ItemId::PistolAmmo, 10, 30},
@@ -62,7 +62,7 @@ constexpr MonumentDef kDefs[kMonumentKindCount] = {
 	  {ItemId::HqMetal, 6, 26}},
 	 9, 1, false, false, true},
 	{MonumentKind::Town, "Ashvale", 360, 0, 0, false, 7,
-	 {{ItemId::Scrap, 20, 50},
+	 {{ItemId::Salvage, 20, 50},
 	  {ItemId::Cloth, 20, 50},
 	  {ItemId::LowGrade, 15, 40},
 	  {ItemId::Metal, 40, 120},

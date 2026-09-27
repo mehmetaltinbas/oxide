@@ -28,7 +28,7 @@ struct Loot {
 };
 
 constexpr Loot kBarrelLoot[4] = {
-	{ItemId::Scrap, 3, 6, 1.0},
+	{ItemId::Salvage, 3, 6, 1.0},
 	{ItemId::Metal, 10, 25, 0.3},
 	{ItemId::LowGrade, 5, 12, 0.25},
 	{ItemId::PistolAmmo, 4, 8, 0.12},

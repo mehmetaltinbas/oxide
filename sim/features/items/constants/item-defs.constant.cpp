@@ -29,7 +29,7 @@ constexpr ItemDef kItems[] = {
 	{ItemId::SulfurOre, "Sulfur Ore", "Smelt it for sulfur.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::Sulfur, "Sulfur", "Half of gunpowder, and therefore half of every raid.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::Cloth, "Cloth", "Woven from nettle fibre. Bandages, clothing, bags.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
-	{ItemId::Scrap, "Scrap", "Salvaged at monuments. Buys the good blueprints.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
+	{ItemId::Salvage, "Salvage", "Gears, pipe and bolts, pulled out of what is left at a monument.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::LowGrade, "Low Grade Fuel", "Rendered from animal fat. Burns in lamps and satchels.", ItemCategory::Resource, 1000, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::PistolAmmo, "Pistol Ammo", "For the revolver.", ItemCategory::Ammo, 128, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	// Raw meat is food and a gamble: it feeds you a little and costs you some

@@ -37,7 +37,7 @@ const std::vector<Recipe>& table() {
 		{ItemId::ToolCupboard, 1, {{ItemId::Wood, 250}}, 1, 0, 6},
 		{ItemId::Furnace, 1,
 		 {{ItemId::Stone, 100}, {ItemId::Wood, 200}, {ItemId::LowGrade, 25}}, 3, 0, 6},
-		{ItemId::Workbench1, 1, {{ItemId::Wood, 500}, {ItemId::Scrap, 50}}, 2, 0, 8},
+		{ItemId::Workbench1, 1, {{ItemId::Wood, 500}, {ItemId::Salvage, 50}}, 2, 0, 8},
 		{ItemId::Bandage, 2, {{ItemId::Cloth, 8}}, 1, 0, 2},
 		{ItemId::Clothing, 1, {{ItemId::Leather, 30}, {ItemId::Cloth, 20}}, 2, 0, 5},
 		{ItemId::LowGrade, 4, {{ItemId::AnimalFat, 3}, {ItemId::Cloth, 1}}, 2, 0, 2},
@@ -52,22 +52,22 @@ const std::vector<Recipe>& table() {
 		{ItemId::Waterpipe, 1, {{ItemId::Wood, 150}, {ItemId::Metal, 75}}, 2, 1, 6},
 		{ItemId::ShotgunShell, 4, {{ItemId::Gunpowder, 8}, {ItemId::Metal, 6}}, 2, 1, 3},
 
-		{ItemId::Workbench2, 1, {{ItemId::Metal, 500}, {ItemId::Scrap, 250}}, 2, 1, 10},
-		{ItemId::Revolver, 1, {{ItemId::Metal, 150}, {ItemId::Scrap, 75}}, 2, 2, 8},
-		{ItemId::PumpShotgun, 1, {{ItemId::Metal, 200}, {ItemId::Scrap, 120}}, 2, 2, 8},
+		{ItemId::Workbench2, 1, {{ItemId::Metal, 500}, {ItemId::Salvage, 250}}, 2, 1, 10},
+		{ItemId::Revolver, 1, {{ItemId::Metal, 150}, {ItemId::Salvage, 75}}, 2, 2, 8},
+		{ItemId::PumpShotgun, 1, {{ItemId::Metal, 200}, {ItemId::Salvage, 120}}, 2, 2, 8},
 		// The first thing worth a bench: fifty cloth and twenty leather for
 		// twelve slots, which is the difference between a run and a trip.
 		{ItemId::Backpack, 1, {{ItemId::Cloth, 50}, {ItemId::Leather, 20}}, 2, 1, 12},
-		{ItemId::RadSuit, 1, {{ItemId::Cloth, 60}, {ItemId::Scrap, 100}, {ItemId::Metal, 40}}, 3, 2, 10},
+		{ItemId::RadSuit, 1, {{ItemId::Cloth, 60}, {ItemId::Salvage, 100}, {ItemId::Metal, 40}}, 3, 2, 10},
 		// Road signs strapped over hide: the first real armour, and the last
 		// one you can make without a trip to a monument.
-		{ItemId::MetalSuit, 1, {{ItemId::Metal, 120}, {ItemId::Scrap, 60}, {ItemId::Leather, 20}}, 3, 2, 10},
+		{ItemId::MetalSuit, 1, {{ItemId::Metal, 120}, {ItemId::Salvage, 60}, {ItemId::Leather, 20}}, 3, 2, 10},
 		{ItemId::PistolAmmo, 12, {{ItemId::Gunpowder, 10}, {ItemId::Metal, 10}}, 2, 2, 3},
 
-		{ItemId::Workbench3, 1, {{ItemId::Metal, 1000}, {ItemId::Scrap, 500}}, 2, 2, 14},
-		{ItemId::Rifle, 1, {{ItemId::Metal, 450}, {ItemId::Scrap, 300}}, 2, 3, 12},
+		{ItemId::Workbench3, 1, {{ItemId::Metal, 1000}, {ItemId::Salvage, 500}}, 2, 2, 14},
+		{ItemId::Rifle, 1, {{ItemId::Metal, 450}, {ItemId::Salvage, 300}}, 2, 3, 12},
 		{ItemId::Ak47, 1,
-		 {{ItemId::Metal, 600}, {ItemId::Scrap, 450}, {ItemId::Wood, 200}}, 3, 3, 15},
+		 {{ItemId::Metal, 600}, {ItemId::Salvage, 450}, {ItemId::Wood, 200}}, 3, 3, 15},
 		{ItemId::Satchel, 1,
 		 {{ItemId::Gunpowder, 80}, {ItemId::Metal, 30}, {ItemId::Cloth, 10}}, 3, 2, 8},
 		{ItemId::C4, 1,
@@ -75,7 +75,7 @@ const std::vector<Recipe>& table() {
 		// Rounds before rockets: within a category the list runs from the thing
 		// you make every day to the thing you make once.
 		{ItemId::RifleAmmo, 12, {{ItemId::Gunpowder, 20}, {ItemId::Metal, 15}}, 2, 3, 3},
-		{ItemId::RocketLauncher, 1, {{ItemId::Metal, 300}, {ItemId::Scrap, 150}}, 2, 3, 12},
+		{ItemId::RocketLauncher, 1, {{ItemId::Metal, 300}, {ItemId::Salvage, 150}}, 2, 3, 12},
 		{ItemId::Rocket, 1,
 		 {{ItemId::Gunpowder, 100}, {ItemId::Metal, 50}, {ItemId::Cloth, 15}}, 3, 3, 8},
 		// Plate over everything, and the one thing high quality metal is for

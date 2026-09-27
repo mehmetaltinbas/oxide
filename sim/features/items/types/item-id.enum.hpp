@@ -15,7 +15,7 @@ enum class ItemId : std::uint8_t {
 	SulfurOre,
 	Sulfur,
 	Cloth,
-	Scrap,
+	Salvage,
 	LowGrade,
 	PistolAmmo,
 	MeatRaw,

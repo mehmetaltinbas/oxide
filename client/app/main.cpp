@@ -562,7 +562,7 @@ int main(int argc, char** argv) {
 	if (showBase) {
 		// Two by two, walled in, with a doorway at the front and a door in it,
 		// put up a few cells away so you can see it from outside.
-		const int gx = static_cast<int>(player.x / sim::kBuildCell) + 1;
+		const int gx = static_cast<int>(player.x / sim::kBuildCell);
 		const int gy = static_cast<int>(player.y / sim::kBuildCell);
 		for (int oy = 0; oy < 2; ++oy) {
 			for (int ox = 0; ox < 2; ++ox) {
@@ -732,7 +732,7 @@ int main(int argc, char** argv) {
 		inventory.add(sim::ItemId::Stone, 180);
 		inventory.add(sim::ItemId::Cloth, 60);
 		inventory.add(sim::ItemId::Leather, 24);
-		inventory.add(sim::ItemId::Scrap, 12);
+		inventory.add(sim::ItemId::Salvage, 12);
 		if (showCraft) {
 			panel.toggleCraft();
 			if (craftCategory >= 0) panel.chooseCategory(craftCategory);
@@ -1835,10 +1835,17 @@ int main(int argc, char** argv) {
 				  [](const sim::ResourceNode* a, const sim::ResourceNode* b) { return a->y < b->y; });
 
 
+		bool anyFloor = false;
 		for (const sim::Structure& piece : build.list()) {
 			if (piece.kind != sim::BuildKind::Foundation) continue;
 			client::drawBuilt(paint, piece, camX, camY, scale, width, height);
+			anyFloor = true;
 		}
+		// The dots again, over the floors. They are the unit everything you
+		// put down is measured in, so they have to be there to measure
+		// against: a foundation that hid them left you placing a bench by eye
+		// on the one ground where the size of it matters.
+		if (anyFloor) terrain.drawScreen(camX, camY, scale, width, height);
 
 		const int myRegion = build.regionAt(player.x, player.y);
 		// What is sealed in a room you are not in is out of sight, roof and all.
