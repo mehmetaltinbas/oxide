@@ -155,6 +155,82 @@ SDL_Texture* Terrain::tile(sim::Biome biome, int variant) {
 	return texture;
 }
 
+void Terrain::drawOver(Paint& paint, const sim::World& world, double cameraX, double cameraY,
+					   double zoom, int screenW, int screenH, double clock) {
+	const double halfW = screenW / (2 * zoom);
+	const double halfH = screenH / (2 * zoom);
+	const int col0 = static_cast<int>(std::floor((cameraX - halfW) / sim::kBiomeTile)) - 1;
+	const int col1 = static_cast<int>(std::floor((cameraX + halfW) / sim::kBiomeTile)) + 1;
+	const int row0 = static_cast<int>(std::floor((cameraY - halfH) / sim::kBiomeTile)) - 1;
+	const int row1 = static_cast<int>(std::floor((cameraY + halfH) / sim::kBiomeTile)) + 1;
+
+	for (int row = row0; row <= row1; ++row) {
+		for (int col = col0; col <= col1; ++col) {
+			const bool inside =
+				col >= 0 && row >= 0 && col < sim::kBiomeCols && row < sim::kBiomeRows;
+			const sim::Biome biome = inside ? world.tile(col, row) : sim::Biome::Water;
+			// A road is inked where it meets anything else, the way a panel
+			// separates one thing from another. Only on the road's own side:
+			// drawn from both sides every seam came out twice as heavy.
+			if (biome == sim::Biome::Road) {
+				const float x0 = static_cast<float>((col * sim::kBiomeTile - cameraX) * zoom) +
+								 screenW * 0.5f;
+				const float y0 = static_cast<float>((row * sim::kBiomeTile - cameraY) * zoom) +
+								 screenH * 0.5f;
+				const float w = static_cast<float>(sim::kBiomeTile * zoom);
+				// Heavier than a node's outline: this is a panel border between
+				// two grounds, not a line round an object, and at a node's
+				// weight it came out under a pixel and could not be seen.
+				const float ink = kInkWidth * 3.0f * static_cast<float>(zoom);
+				const auto other = [&](int dc, int dr) {
+					const int c = col + dc;
+					const int r = row + dr;
+					if (c < 0 || r < 0 || c >= sim::kBiomeCols || r >= sim::kBiomeRows) return true;
+					return world.tile(c, r) != sim::Biome::Road;
+				};
+				if (other(0, -1)) paint.line(x0, y0, x0 + w, y0, ink, kInk);
+				if (other(0, 1)) paint.line(x0, y0 + w, x0 + w, y0 + w, ink, kInk);
+				if (other(-1, 0)) paint.line(x0, y0, x0, y0 + w, ink, kInk);
+				if (other(1, 0)) paint.line(x0 + w, y0, x0 + w, y0 + w, ink, kInk);
+				continue;
+			}
+			if (biome != sim::Biome::Water) continue;
+			const double wx = (col + 0.5) * sim::kBiomeTile;
+			const double wy = (row + 0.5) * sim::kBiomeTile;
+			// A lake is sheltered: a small ripple that barely travels. The open
+			// sea is not: a long swell that rolls across the tile and back.
+			const bool lake = inside && world.freshAt(wx, wy);
+			const int lines = lake ? 2 : 3;
+			const float amp = lake ? 1.6f : 5.5f;
+			const double speed = lake ? 0.35 : 1.1;
+			const float length = lake ? 0.34f : 0.62f;
+			const std::uint8_t ink = lake ? 54 : 96;
+			for (int i = 0; i < lines; ++i) {
+				// Its own offset down the tile and its own phase, so a field of
+				// tiles does not beat in unison.
+				const double seed = sim::seeded(static_cast<std::uint64_t>(col * 73 + row * 149),
+												i);
+				const double lane = (0.18 + 0.3 * i + seed * 0.12);
+				const double phase = clock * speed + seed * 6.28318530718 + col * 0.7 + row * 0.4;
+				const double ox = wx - sim::kBiomeTile * 0.5 +
+								  sim::kBiomeTile * (0.2 + 0.3 * std::sin(phase));
+				const double oy = wy - sim::kBiomeTile * 0.5 + sim::kBiomeTile * lane +
+								  amp * std::sin(phase * 1.3);
+				const float x0 = static_cast<float>((ox - cameraX) * zoom) + screenW * 0.5f;
+				const float y0 = static_cast<float>((oy - cameraY) * zoom) + screenH * 0.5f;
+				const float run = static_cast<float>(sim::kBiomeTile * length * zoom);
+				const float lift = static_cast<float>(amp * 0.5 * zoom);
+				// A crest, not a straight line: out, up over the top, and down.
+				const std::vector<Point> crest{{x0, y0},
+											   {x0 + run * 0.35f, y0 - lift},
+											   {x0 + run * 0.7f, y0 - lift},
+											   {x0 + run, y0}};
+				paint.outlinePoly(crest, 2.0f, Color{255, 255, 255, ink}, false);
+			}
+		}
+	}
+}
+
 void Terrain::draw(const sim::World& world, double cameraX, double cameraY, double zoom,
 				   int screenW, int screenH) {
 	const double halfW = screenW / (2 * zoom);

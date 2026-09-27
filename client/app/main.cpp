@@ -1641,6 +1641,8 @@ int main(int argc, char** argv) {
 		const double camY = cameraY + shakeY;
 		terrain.draw(world, camX, camY, scale, width, height);
 		terrain.drawScreen(camX, camY, scale, width, height);
+		// The swell and the ink along the roads: neither fits in a baked tile.
+		terrain.drawOver(paint, world, camX, camY, scale, width, height, clock);
 
 		// The looting places are ground: they go down before anything stands
 		// on them.
