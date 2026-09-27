@@ -1,80 +1,112 @@
 # Project structure
 
-Three binaries built over one rules library. Read this before adding a file, and
-before reaching for an include that crosses a boundary.
+**The shape of the tree is the architecture.** Where a file sits says what it
+belongs to, and a feature you can delete by deleting one folder is a feature
+that never grew roots into the rest of the game.
+
+## The rule
+
+`features/` is a **flat list of features**. One folder per feature, and that
+folder owns everything the feature needs: its types, its constants, its
+systems, its helpers, its drawing. `shared/` holds the handful of things no
+single feature owns.
+
+There is **no global `types/`, `utils/` or `systems/` dump** spanning features.
+A folder called `types/` only ever exists *inside* a feature, or inside
+`shared/`.
 
 ```
-CMakeLists.txt     the three binaries and the fetched libraries
-sim/               the rules of the game. No SDL, no sockets, no platform
-  include/sim/     the headers every other part includes
-  src/
-client/            the game you play: window, input, drawing, sound
-server/            the headless authority, run on a machine with no screen
-tools/             headless checks that drive the real rules
-assets/            fonts, and anything else read at runtime
-docs/              this
+oxide/
+	sim/                      the rules, with no SDL, no sockets, no drawing
+		shared/               owned by no feature, needed by several
+			constants/
+			utils/
+		features/
+			world/            the island, its nodes, what lies on the ground
+			monuments/        the landmarks and their loot
+			items/            what a thing is, and the bags it sits in
+			crafting/         recipes and the queue
+			survival/         the body, its meters, how it moves
+			combat/           swinging, shooting, blowing up
+			wildlife/         the animals and the food chain
+			building/         walls, doors, deployables
+			net/              what goes over the wire
+			session/          saving a world and loading it
+	client/                   the game as you play it
+		design/               the tokens everything draws with
+			tokens/
+			types/
+		features/
+			render/           the pen, the lettering, the ground, the night
+			creatures/        drawing anything that walks
+			items/            the thing in the hand, and the picture of it
+			building/         drawing what is built, put down, or always there
+			ui/               the interface over the world
+			audio/
+			net/
+		app/                  the window, the input, the frame
+	server/
+		app/
+	tools/                    one check, one program, one file
+	assets/
+	docs/
 ```
 
-## The arrows point one way
+## Inside a feature
 
-### Rule
+Per-kind sub-folders, and each holds one kind of thing:
 
-`sim/` knows nothing about anything else. It includes no SDL, opens no socket,
-reads no file it was not handed, and draws nothing. `client/`, `server/` and
-`tools/` all include `sim/`, and none of them includes another.
+| Folder       | What goes in it                                        |
+|--------------|--------------------------------------------------------|
+| `types/`     | one struct or enum per file, and nothing else           |
+| `constants/` | a definition table, or one named number and its reason  |
+| `systems/`   | a class that holds state and is stepped or drawn        |
+| `utils/`     | free functions with no state behind them                |
+| `draw/`      | client only: a routine that draws and mutates nothing   |
 
-If two of them need the same thing, it moves into `sim/`.
+A feature uses only the sub-folders it needs. `sim/features/crafting/` is one
+system and nothing else, and that is not a gap.
 
-### Why
+## Who may include whom
 
-The client and the server have to agree about the rules exactly, or a player
-sees one game and the server runs another. The way to make that impossible is
-for there to be one copy of the rules that both of them use rather than two
-that are kept in step by hand. This is the single largest thing the C++ rewrite
-bought: the game it replaced kept its numbers in three places and they drifted.
+Dependencies point **one way**, and there are no cycles:
 
-It also makes the checks in `tools/` worth something. They link `sim/` and
-nothing else, so what they assert on is the real game and not a test double of
-it.
+```
+app  ->  features  ->  shared
+                   ->  sim
+```
 
-### How to apply
+- `sim/` includes nothing from `client/`, `server/` or `tools/`, ever.
+- A feature may include another feature's headers, but never in both
+  directions. `wildlife` knows about `world` because an animal lives in a
+  biome; `world` knows nothing about animals.
+- Anything two features need and **neither owns** moves down into `shared/`.
+  Anything two features need that **one of them owns** stays where it is: the
+  owner keeps it. `Biome` belongs to `world` and is read by `wildlife`; it does
+  not move.
 
-Ask what a thing is. If it is a rule about what happens, it goes in `sim/`. If
-it is about what that looks like or sounds like, it goes in `client/`.
+## Includes are absolute from the repository root
 
 ```cpp
-// sim/: how far a wolf can see, how much a blow takes off.
-inline constexpr double kSkittishRange = 150;
-// client/: what a wolf is drawn with, and how heavy the line round it is.
-constexpr Color kInk = rgb(0x14110d);
+#include "sim/features/wildlife/types/npc-def.struct.hpp"
+#include "client/features/render/systems/paint.hpp"
 ```
 
-A header in `sim/include/sim/` is public to all three. A header in
-`client/src/` is private to the client. There is no third case.
+Never `"../../types/npc-def.struct.hpp"`, never a bare `"paint.hpp"`. An
+include line says where the file lives, so a reader can open it without
+searching and a move shows up as a compile error rather than as the wrong file
+being found. There is one include directory for the whole build: the root.
 
-### Exceptions
+## No barrels
 
-`tools/` may reach into the client for something it is checking about drawing,
-as `sound_check` does: it renders the audio to memory with no sound card. That
-is a check of the client, so it links the client. Nothing in `client/` or
-`server/` may do the same in reverse.
+There is no `everything.hpp` that pulls a feature together, and no header whose
+job is to include other headers. Each file includes exactly what it uses. A
+barrel makes every file depend on every other file in the feature, and then
+nobody can tell what would actually break.
 
-## One binary per job
+## Adding a feature
 
-### Rule
-
-`client/` produces `oxide`, `server/` produces `oxide_server`, and each file in
-`tools/` produces its own check binary. A binary does one job and is run one
-way.
-
-### Why
-
-A check that has to be reached through a flag on the game is a check nobody
-runs. `./build/bin/play_check` is a command; `--run-tests` is a thing you have
-to remember.
-
-### How to apply
-
-Adding a check means adding one `.cpp` to `tools/` and one line to
-`tools/CMakeLists.txt`. It prints what it found in plain English and returns
-non-zero when the thing it exists to catch has happened.
+Make the folder, put the sub-folders it needs inside it, add its `.cpp` files
+to the `add_library`/`add_executable` list under the feature's comment. The
+list in `CMakeLists.txt` is grouped by feature on purpose: it is the same map
+as this page, and a file that is not in a feature group has nowhere to go.

@@ -41,7 +41,7 @@ of five state machines.
 
 ### How to apply
 
-Adding an animal is one row in `sim/src/npc.cpp`, one value in `NpcKind`, and a
+Adding an animal is one row in `sim/features/wildlife/constants/npc-defs.constant.cpp`, one value in `NpcKind`, and a
 count in the populations table. Nothing else changes, because nothing else
 switches on the kind: `populate` reads `homes`, the chase reads `eats` and
 `rank`, the loot drop reads `loot`.
@@ -61,7 +61,7 @@ if (gun.singly) { /* one shell */ }
 
 Drawing is the one place a `switch` on a kind is right. A wolf and a bear do not
 differ by a number, they differ by being different drawings, and expressing that
-as data would be inventing a worse programming language. `client/src/animal.cpp`
+as data would be inventing a worse programming language. `client/features/creatures/draw/animal.cpp`
 switches on the kind to pick the body proportions and then draws from those.
 
 A table field should still be preferred where it works: an animal's whole build

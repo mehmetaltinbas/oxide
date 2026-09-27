@@ -8,7 +8,7 @@ width into a draw call.
 ### Rule
 
 No draw call contains a literal colour or a literal line width. They come from
-`client/src/palette.hpp` for the world and `client/src/ui.hpp` for the
+`client/design/tokens/world.tokens.hpp` for the world and `client/design/tokens/interface.tokens.hpp` for the
 interface.
 
 ### Why

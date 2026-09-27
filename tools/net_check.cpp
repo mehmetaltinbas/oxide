@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "sim/net/protocol.hpp"
+#include "sim/features/net/types/protocol.struct.hpp"
 
 using namespace sim::net;
 

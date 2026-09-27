@@ -1,0 +1,74 @@
+#pragma once
+
+#include <SDL3/SDL.h>
+
+#include <string>
+#include <vector>
+
+#include "client/features/render/systems/paint.hpp"
+#include "client/features/render/systems/text.hpp"
+#include "sim/features/items/systems/inventory.hpp"
+#include "sim/features/items/types/food.struct.hpp"
+#include "client/design/types/color.struct.hpp"
+#include "client/features/ui/types/popup.struct.hpp"
+
+namespace client {
+
+/**
+ * The interface: the belt, what you are carrying, your health, and the one
+ * line of prompt that tells you what the key under your finger would do.
+ *
+ * Not a comic panel, so it is not inked like one: flat plates and plain text,
+ * kept out of the middle of the screen.
+ */
+class Hud {
+public:
+	void say(const std::string& text, double x, double y, Color color);
+
+	void update(double dt);
+
+	/** The popups, in world coordinates, drawn with the world. */
+	void drawPopups(SDL_Renderer* renderer, double cameraX, double cameraY, double scale, int width,
+					int height) const;
+
+	/**
+	 * `uiScale` is how dense the display is: the interface is laid out in
+	 * points and drawn in pixels, so on a retina screen it doubles rather than
+	 * coming out half the size it was meant to be.
+	 */
+	void draw(Paint& paint, const sim::Inventory& inventory, int health, int width, int height,
+			  const char* prompt, float uiScale) const;
+
+	/**
+	 * What is loaded and what is left, the reload's progress, and how far a
+	 * bow is drawn. Rounds below zero means nothing is being aimed.
+	 */
+	void setAmmo(int carried, int loaded, double reloading, double bowDraw);
+
+	/** Food, water, warmth, what you have taken in, and what is being applied. */
+	void setVitals(double calories, double hydration, double temperature, double radiation,
+				   bool bleeding, double applying);
+
+	/** The clock, for anything that beats or blinks. */
+	void setClock(double seconds) { clock_ = seconds; }
+
+	/** The lettering, which the interface needs as much as the world does. */
+	void useText(Text* text) { lettering_ = text; }
+
+private:
+	std::vector<Popup> popups_;
+	int carried_ = -1;
+	int loaded_ = 0;
+	double reloading_ = 0;
+	double bowDraw_ = 0;
+	double calories_ = 100;
+	double hydration_ = 100;
+	double temperature_ = 20;
+	double radiation_ = 0;
+	bool bleeding_ = false;
+	double applying_ = 0;
+	double clock_ = 0;
+	Text* lettering_ = nullptr;
+};
+
+}  // namespace client

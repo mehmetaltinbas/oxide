@@ -46,7 +46,7 @@ Where the number belongs:
 | --- | --- |
 | One variant's behaviour | a field on its row in the definition table |
 | A rule shared by a whole system | a `constexpr` at the top of that system's header |
-| A colour, an ink weight, a spacing | `client/src/palette.hpp` or `client/src/ui.hpp` |
+| A colour, an ink weight, a spacing | `client/design/tokens/world.tokens.hpp` or `client/design/tokens/interface.tokens.hpp` |
 | The shape or size of one drawing | named locals at the top of that drawing routine |
 
 ### Exceptions

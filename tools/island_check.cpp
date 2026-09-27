@@ -4,7 +4,11 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "sim/world.hpp"
+#include "sim/features/world/systems/world.hpp"
+#include "sim/features/monuments/types/loot-crate.struct.hpp"
+#include "sim/features/world/types/biome.enum.hpp"
+#include "sim/features/world/types/node-kind.enum.hpp"
+#include "sim/features/world/types/resource-node.struct.hpp"
 
 int main(int argc, char** argv) {
 	const std::uint32_t seed = argc > 1 ? static_cast<std::uint32_t>(std::strtoul(argv[1], nullptr, 10)) : 12345u;

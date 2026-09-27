@@ -23,15 +23,15 @@ not a hypothetical here, it is where the collision bug came from.
 | Concern | Single source |
 | --- | --- |
 | The rules of the game | `sim/`, shared by the client and the server |
-| What an item is and does | `sim/src/item.cpp`, one row per item |
-| What an animal is and does | `sim/src/npc.cpp`, one row per kind |
-| What a resource node is worth | `sim/src/node.cpp`, one row per kind |
-| What a recipe costs | `sim/src/craft.cpp`, one row per recipe |
-| What is solid, and standing against it | `sim/include/sim/collide.hpp` |
-| Colour, ink weight, spacing of a mark | `client/src/palette.hpp` |
-| Colour, radius, spacing of the interface | `client/src/ui.hpp` |
-| How one item is drawn, anywhere | `client/src/held.cpp`, one glyph per item |
-| The wire format | `sim/include/sim/net/protocol.hpp` |
+| What an item is and does | `sim/features/items/constants/item-defs.constant.cpp`, one row per item |
+| What an animal is and does | `sim/features/wildlife/constants/npc-defs.constant.cpp`, one row per kind |
+| What a resource node is worth | `sim/features/world/constants/node-defs.constant.cpp`, one row per kind |
+| What a recipe costs | `sim/features/crafting/systems/crafting.cpp`, one row per recipe |
+| What is solid, and standing against it | `sim/shared/utils/collide.util.hpp` |
+| Colour, ink weight, spacing of a mark | `client/design/tokens/world.tokens.hpp` |
+| Colour, radius, spacing of the interface | `client/design/tokens/interface.tokens.hpp` |
+| How one item is drawn, anywhere | `client/features/items/draw/item-glyph.cpp`, one glyph per item |
+| The wire format | `sim/features/net/types/protocol.struct.hpp` |
 
 ## Placeholders
 
@@ -44,7 +44,8 @@ goes. The casing of the slot tells you the casing of the replacement.
 | `<system>` | a system class in `sim/` | `BuildSystem`, `NpcSystem` |
 | `<kind>` / `<Kind>` | a variant and its enum | `Wolf` / `NpcKind` |
 | `<Def>` | the definition struct for a kind | `ItemDef`, `NpcDef` |
-| `<name>` / `<Name>` / `k<Name>` | an identifier (snake file / PascalCase type / constant) | `world_life` / `ResourceNode` / `kDropLifetime` |
+| `<name>` / `<Name>` / `k<Name>` | an identifier (kebab file / PascalCase type / constant) | `world-life` / `ResourceNode` / `kDropLifetime` |
+| `<feature>` | a folder under `features/` | `wildlife`, `crafting`, `render` |
 | `<token>` | a design token | `kInkWidth`, `ui::kAccent` |
 
 **Fixed, non-slot names** are only the platform primitives you don't own: the

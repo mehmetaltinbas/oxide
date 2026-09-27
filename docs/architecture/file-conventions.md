@@ -1,91 +1,66 @@
 # File conventions
 
-One artifact per file, a predictable place for each kind, and names that say
-what a thing is. Read this before creating a file.
+## One artifact per file, and nothing else in the file
 
-## One artifact per file
+A file holds **one** thing: one struct, one enum, one class, one free function
+(or one small family of them that is meaningless apart), one constant table.
 
-### Rule
+The name of the file is the name of the thing, in `kebab-case`, with a suffix
+that says what kind of thing it is:
 
-A file holds one thing: one system, one definition table, one drawing routine
-family, one screen. The file is named after that thing, in `snake_case`, and
-the header and the source share the name.
+| Suffix            | Holds                                       | Example                          |
+|-------------------|---------------------------------------------|----------------------------------|
+| `*.struct.hpp`    | one struct                                  | `npc-def.struct.hpp`             |
+| `*.enum.hpp`      | one enum, plus its count if it has one      | `item-id.enum.hpp`               |
+| `*.constant.hpp`  | named numbers, or a definition table        | `wildlife-tuning.constant.hpp`   |
+| `*.util.hpp`      | free functions with no state                | `collide.util.hpp`               |
+| no suffix         | a class that holds state                    | `npc-system.hpp`, `paint.hpp`    |
 
-```
-sim/include/sim/npc.hpp     what an animal is         sim/src/npc.cpp     the table
-sim/include/sim/npcs.hpp    the system that runs them sim/src/npcs.cpp
-client/src/animal.hpp       how one is drawn          client/src/animal.cpp
-```
+A `.cpp` takes the name of the header it implements. A `.cpp` with no header of
+its own is named for what it does and sits beside its siblings:
+`world-nodes.cpp` and `world-life.cpp` are both parts of `world.hpp`, split
+because one file of two thousand lines is not a file anybody reads.
 
-### Why
+## Why one thing per file
 
-Where a thing lives should be derivable from its name without searching. A file
-that holds two unrelated things has no name that fits it, which is how
-`util.cpp` happens.
+Because the alternative is what this codebase had: a header called `npc.hpp`
+holding an enum, three structs, four free functions and three constants. Every
+file that wanted the enum got all of it, a change to a constant rebuilt
+everything, and nothing in the tree said what depended on what. Splitting it
+was mechanical and the include graph told the truth afterwards.
 
-### How to apply
+The cost is more files. That is the point: a file is a unit you can move,
+delete, or find by name.
 
-- A header declares; a source defines. A header that needs no source (a
-  definition struct, a constant, a tiny inline) has none.
-- `sim/include/sim/<name>.hpp` is public. `client/src/<name>.hpp` is private.
-- The singular is the thing, the plural is the system that runs many of them:
-  `npc.hpp` is what an animal is, `npcs.hpp` is the system that steps them.
+## Where the name comes from
 
-### Exceptions
+The file is named after the artifact, not after the feature it is in.
+`sim/features/wildlife/types/npc-def.struct.hpp` holds `NpcDef`. Not
+`wildlife-npc-def`: the folder already said `wildlife`, and repeating it in
+every name is noise you read a hundred times to learn nothing.
 
-Small families that are only ever used together stay in one file: every item
-glyph lives in `client/src/held.cpp`, because splitting fifty of them into
-fifty files would make the sheet impossible to read as a sheet.
+## The two names a thing has
 
-## Names say what a thing is
+C++ uses `PascalCase` for types and `camelCase` for functions; files use
+`kebab-case`. `NpcDef` lives in `npc-def.struct.hpp`, `stepPlayer` lives in
+`step-player.util.hpp`. The translation is mechanical, so either name gets you
+to the other.
 
-### Rule
+## Headers
 
-| Kind | Style | Example |
-| --- | --- | --- |
-| File | `snake_case` | `world_life.cpp` |
-| Type, struct, enum | `PascalCase` | `ResourceNode`, `NpcKind` |
-| Function, method, variable | `camelCase` | `keepOutOfSolids`, `dropLifetime` |
-| Member | `camelCase_` with a trailing underscore | `nodes_`, `worldScale_` |
-| Constant, enum value | `kPascalCase` | `kDropLifetime`, `NpcKind::Wolf` |
-| Namespace | `lowercase` | `sim`, `client`, `sim::net` |
+- `#pragma once` at the top. No include guards.
+- Standard headers first, then project headers, each group sorted, a blank line
+  between them.
+- Include what you use. If you use `ItemId`, include `item-id.enum.hpp`, even
+  if something else you include would have brought it in.
+- Forward declare a class you only hold a pointer or reference to, rather than
+  including its header.
 
-### Why
+## What does not exist
 
-The trailing underscore is the one that earns its keep: it says at a glance
-whether a name in a method body is state that outlives the call or a local that
-does not.
-
-### How to apply
-
-A definition struct is `<Kind>Def` and its table is `k<Kind>Defs`, reached
-through a `<kind>Def(kind)` accessor. Never index the table directly from
-outside the file that owns it.
-
-## Comments say why, not what
-
-### Rule
-
-A comment explains the reason a thing is the way it is, the measurement behind
-a number, or the mistake the code is avoiding. It never restates the code.
-
-### Why
-
-The code already says what it does. What it cannot say is why 176 and not 184,
-or that this loop is written the long way because the short way walked an
-animal through a wall.
-
-### How to apply
-
-```cpp
-// No: says what the line says.
-// Set the wolf's speed to 176.
-
-// Yes: says what the number is pinned between, and what broke.
-// 176 against a sprint of 185. Under a sprint or a wolf is a death sentence;
-// over an elk's 165 or it never eats. It was 184, a sprint to within a
-// rounding error, and you could not get away from one at all.
-```
-
-Every balance number carries the measurement that justifies it, beside it. See
-[no-hardcoded-values.md](no-hardcoded-values.md).
+- **No barrel headers.** Nothing whose job is to include other headers.
+- **No `common.hpp`, `util.hpp`, `helpers.hpp` or `misc.cpp`.** A file with a
+  name like that is a place things go to be forgotten. If a helper has no
+  feature, it belongs in `shared/` under its own name.
+- **No relative includes.** See
+  [project-structure.md](project-structure.md).

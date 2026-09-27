@@ -58,8 +58,17 @@ and there are flags for every state worth looking at: see
 - **One rules library.** `sim/` knows nothing about SDL, sockets or drawing.
   `client/`, `server/` and `tools/` include it and never each other. If two of
   them need the same thing, it moves into `sim/`.
-- **One artifact per file**, named after that artifact in `snake_case`. No
-  headers that hold two unrelated things.
+- **Feature-first.** A flat list of features under `features/`, each owning its
+  own `types/`, `constants/`, `systems/`, `utils/` and `draw/`. No global dump
+  folders. `shared/` is for what no single feature owns. See
+  [docs/architecture/project-structure.md](docs/architecture/project-structure.md).
+- **One artifact per file**, named after that artifact in `kebab-case` with the
+  suffix that says its kind: `*.struct.hpp`, `*.enum.hpp`, `*.constant.hpp`,
+  `*.util.hpp`, and no suffix for a class. No barrel headers, no
+  `common.hpp`. See
+  [docs/architecture/file-conventions.md](docs/architecture/file-conventions.md).
+- **Includes are absolute from the repository root.** Never relative, never
+  bare.
 - **Simulation never draws; drawing never mutates.** Step the rules, then draw
   what came out. A drawing routine takes `const&` and returns nothing.
 - **A new variant is a new row**, not a new `switch` case. Add a field to the
@@ -67,7 +76,7 @@ and there are flags for every state worth looking at: see
 - **No hardcoded tuning values.** Every balance number is a named constant or a
   field on a definition, and carries the reason it is that number.
 - **No raw visual values.** Colour, ink weight, spacing and radius come from
-  `client/src/palette.hpp` and `client/src/ui.hpp`.
+  `client/design/tokens/world.tokens.hpp` and `client/design/tokens/interface.tokens.hpp`.
 - **One routine per rule.** When two copies of a rule exist, one of them is
   wrong and nobody finds out until they watch it happen. Collision is the
   standing example: see [docs/systems/collision.md](docs/systems/collision.md).

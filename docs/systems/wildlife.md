@@ -20,7 +20,7 @@ than an oversight.
 
 ### How to apply
 
-Add the biomes to the row in `sim/src/npc.cpp` and nothing else. `populate`
+Add the biomes to the row in `sim/features/wildlife/constants/npc-defs.constant.cpp` and nothing else. `populate`
 rejects any spot whose biome is not one of them, and `play_check` counts how
 many ended up in the wrong country: the answer has to stay zero.
 

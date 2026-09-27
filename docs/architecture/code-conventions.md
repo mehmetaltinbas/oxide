@@ -76,7 +76,7 @@ turns that into a sound and a number floating off a body.
 ### Exceptions
 
 Save and load touch several systems at once by nature. They live in
-`sim/src/save.cpp` and take each one explicitly rather than holding anything.
+`sim/features/session/systems/save.cpp` and take each one explicitly rather than holding anything.
 
 ## Headers include what they use
 

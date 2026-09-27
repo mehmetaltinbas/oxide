@@ -52,7 +52,7 @@ id, and the client swaps its own piece for that one. If the server refuses, it
 sends `refused` naming the spot, and the client takes the piece back off the
 map. Waiting for the round trip instead would put a visible delay on every wall.
 
-`client/src/net_client.cpp` is the only place that turns wire pieces into local
+`client/features/net/systems/net-client.cpp` is the only place that turns wire pieces into local
 ones, and the only place that maps a client id to the numeric owner the build
 system uses.
 
@@ -83,7 +83,7 @@ Splitting these is what lets a 144 Hz client feel smooth against a 30 Hz server.
 
 ## Messages
 
-The wire format is in `sim/include/sim/net/protocol.hpp`, included by both
+The wire format is in `sim/features/net/types/protocol.struct.hpp`, included by both
 halves. It is binary and version-stamped: a client whose version does not match
 is turned away rather than half understood. Client
 sends `hello`, `rooms`, `create`, `join`, `leave`, `input`, `build`, `door`,

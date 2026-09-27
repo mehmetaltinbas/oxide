@@ -6,7 +6,11 @@
 #include <string>
 #include <vector>
 
-#include "audio.hpp"
+#include "client/features/audio/systems/audio.hpp"
+#include "sim/features/items/constants/item-defs.constant.hpp"
+#include "sim/features/items/types/item-id.enum.hpp"
+#include "client/features/audio/constants/gun-sounds.constant.hpp"
+#include "client/features/audio/types/gun-sound.struct.hpp"
 
 namespace {
 

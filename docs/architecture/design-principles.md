@@ -7,7 +7,7 @@ point at the principle that resolves it.
 ## 1. Single Responsibility Principle (SRP)
 
 Each system, class or function has one reason to change. `BuildSystem` owns what is built;
-`client/src/built.cpp` owns how it looks. A bug in wall placement has exactly one file to open.
+`client/features/built.cpp` owns how it looks. A bug in wall placement has exactly one file to open.
 
 ## 2. Open-Closed Principle (OCP)
 

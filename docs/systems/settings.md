@@ -4,7 +4,7 @@
 
 ## Controls is the only copy
 
-Every binding lives in the `kBindings` table in `client/src/main.cpp` and nowhere else.
+Every binding lives in the `kBindings` table in `client/app/main.cpp` and nowhere else.
 The hint strip under the belt is gone: it took up screen the whole run to say something you need
 once. **Adding a binding means adding a row to that constant.**
 

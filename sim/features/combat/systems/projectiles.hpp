@@ -1,0 +1,91 @@
+#pragma once
+
+#include <vector>
+
+#include "sim/features/building/systems/build-system.hpp"
+#include "sim/features/wildlife/systems/npc-system.hpp"
+#include "sim/features/survival/types/player.struct.hpp"
+#include "sim/features/world/systems/world.hpp"
+#include "sim/features/items/types/boom.struct.hpp"
+#include "sim/features/items/types/gun.struct.hpp"
+#include "sim/features/wildlife/types/npc-kind.enum.hpp"
+#include "sim/features/world/types/node-kind.enum.hpp"
+
+namespace sim {
+
+/** One round in flight. */
+struct Bullet {
+	int id;
+	double x;
+	double y;
+	double vx;
+	double vy;
+	/** Where it came from, so a tracer can be drawn behind it. */
+	double fromX;
+	double fromY;
+	/** How far it has left before it is spent: a bullet does not fly forever. */
+	double left;
+	double damage;
+	/** Whose it is. Only a player's for now; the monuments come later. */
+	bool fromPlayer;
+	/** An arrow is drawn as a shaft, a bullet as a streak of light. */
+	bool arrow;
+	/** A rocket, which goes off where it lands rather than simply stopping. */
+	bool rocket;
+	double blastDamage;
+	double blastRadius;
+};
+
+/** What the rounds in the air did this tick. */
+struct BulletHit {
+	double x;
+	double y;
+	/** What it went into: an animal, something standing, or nothing at all. */
+	bool npc;
+	NpcKind npcKind;
+	bool killed;
+	bool node;
+	NodeKind nodeKind;
+	bool brokeNode;
+	/** Or a wall, which takes the damage and may come down. */
+	bool built;
+	bool brokeBuilt;
+	/** Or the player, when it was a monument's guard that fired it. */
+	bool player;
+	double damage;
+	/** A rocket landing: whoever has the explosives sets this one off. */
+	bool rocket;
+	double blastDamage;
+	double blastRadius;
+	/** What it struck, so the piece takes the whole charge. */
+	int builtId;
+};
+
+/**
+ * Everything in the air.
+ *
+ * A round is stepped along its line and whatever that line crosses first is
+ * what it hits, so a fast bullet cannot skip through a trunk between two
+ * frames the way a point test lets it.
+ */
+class Projectiles {
+public:
+	void spawn(double x, double y, double angle, const Gun& gun, double damage, bool arrow);
+	/** One that goes off where it lands. */
+	void spawnRocket(double x, double y, double angle, const Gun& gun, const Boom& boom);
+	/** One fired at the player rather than by them. */
+	void spawnHostile(double x, double y, double angle, const Gun& gun, double damage);
+
+	const std::vector<Bullet>& list() const { return bullets_; }
+
+	std::vector<BulletHit> update(World& world, NpcSystem& npcs, BuildSystem& build, double dt,
+								  const Player* target);
+
+	void clear() { bullets_.clear(); }
+
+private:
+	std::vector<Bullet> bullets_;
+	int nextId_ = 1;
+};
+
+}  // namespace sim
