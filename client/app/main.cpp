@@ -207,12 +207,11 @@ int main(int argc, char** argv) {
 	int holdSlot = -1;
 	/** Seconds of bleeding to start with, for a look at the readout. */
 	double bleedFor = 0;
+	/** Which crafting category to open, for a screenshot. */
+	int craftCategory = -1;
 	/** A queued job picked up and held over another row, for a screenshot. */
 	int dragFrom = -1;
 	int dragOver = 0;
-	/** A bandage or a syringe frozen part way through, for a screenshot. */
-	sim::ItemId applyWhat = sim::ItemId::None;
-	double applyAt = -1;
 	/** Seconds left of the note that says multiplayer is not here yet. */
 	double titleNotice = 0;
 	/** The island's own map, opened for a look at it. */
@@ -283,13 +282,11 @@ int main(int argc, char** argv) {
 			arrowShot = true;
 		} else if (SDL_strcmp(argv[i], "--icons") == 0) {
 			icons = true;
-		} else if (SDL_strcmp(argv[i], "--apply") == 0 && i + 2 < argc) {
-			applyWhat = SDL_strcmp(argv[++i], "syringe") == 0 ? sim::ItemId::Medkit
-															  : sim::ItemId::Bandage;
-			applyAt = SDL_atof(argv[++i]);
 		} else if (SDL_strcmp(argv[i], "--dragqueue") == 0 && i + 2 < argc) {
 			dragFrom = SDL_atoi(argv[++i]);
 			dragOver = SDL_atoi(argv[++i]);
+		} else if (SDL_strcmp(argv[i], "--category") == 0 && i + 1 < argc) {
+			craftCategory = SDL_atoi(argv[++i]);
 		} else if (SDL_strcmp(argv[i], "--bleeding") == 0 && i + 1 < argc) {
 			bleedFor = SDL_atof(argv[++i]);
 		} else if (SDL_strcmp(argv[i], "--reload") == 0 && i + 1 < argc) {
@@ -573,6 +570,9 @@ int main(int argc, char** argv) {
 		projectiles.spawn(player.x - 150, player.y, 0, bowGun, bowGun.damage, true);
 		sim::Gun rifleGun = sim::itemDef(sim::ItemId::Rifle).gun;
 		projectiles.spawn(player.x - 150, player.y + 60, 0, rifleGun, rifleGun.damage, false);
+		// And a rocket, which is the one round you are meant to see coming.
+		const sim::ItemDef& tube = sim::itemDef(sim::ItemId::RocketLauncher);
+		projectiles.spawnRocket(player.x - 150, player.y + 130, 0, tube.gun, tube.boom);
 	}
 	sim::Explosives explosives;
 	client::Hud hud;
@@ -660,6 +660,7 @@ int main(int argc, char** argv) {
 		inventory.add(sim::ItemId::Scrap, 12);
 		if (showCraft) {
 			panel.toggleCraft();
+			if (craftCategory >= 0) panel.chooseCategory(craftCategory);
 		} else {
 			panel.toggleInventory();
 			panel.inspect(0);
@@ -1230,16 +1231,6 @@ int main(int argc, char** argv) {
 			player.aim = 0;
 		}
 		if (bleedFor > 0) player.bleeding = bleedFor;
-		if (applyAt >= 0) {
-			// In the hand as well: applying something is done with the thing
-			// held, and the hand is what the animation moves.
-			inventory.hotbar()[1] = sim::ItemStack{applyWhat, 1};
-			inventory.selectSlot(1);
-			player.applying = applyWhat;
-			player.useTotal = sim::itemDef(applyWhat).food.useSeconds;
-			player.useLeft = player.useTotal * (1 - applyAt);
-			player.aim = 0;
-		}
 		if (reloadAt >= 0) {
 			// Held part way through a magazine change, for a screenshot.
 			const sim::Gun& show = sim::itemDef(inventory.held()).gun;
@@ -1759,11 +1750,6 @@ int main(int argc, char** argv) {
 			look.reloading = player.reloadTotal > 0 && player.reloadLeft > 0
 								 ? static_cast<float>(1 - player.reloadLeft / player.reloadTotal)
 								 : -1.0f;
-			// A bandage or a syringe going on, and how far through it is.
-			look.applying = player.applying;
-			look.applyT = player.useTotal > 0 && player.useLeft > 0
-							  ? static_cast<float>(1 - player.useLeft / player.useTotal)
-							  : -1.0f;
 			look.swingT = player.swingAnim > 0 && player.swingLength > 0
 							  ? static_cast<float>(1 - player.swingAnim / player.swingLength)
 							  : -1;
@@ -2079,6 +2065,40 @@ int main(int argc, char** argv) {
 				paint.line(at(len * 0.9f, -0.35f).x, at(len * 0.9f, -0.35f).y,
 						   at(len * 0.68f, -0.9f).x, at(len * 0.68f, -0.9f).y,
 						   client::kInkFine * 0.7f, client::rgb(0x7f7a70));
+			} else if (bullet.rocket) {
+				// A rocket is a thing you can see coming, not a tracer: a
+				// body, a nose cone, fins at the tail and the flame behind it.
+				const float len = 11.0f;
+				const float ax = -uy;
+				const float ay = ux;
+				const auto at = [&](float along, float across) {
+					return client::Point{bx + ux * along * static_cast<float>(scale) +
+											 ax * across * static_cast<float>(scale),
+										 by + uy * along * static_cast<float>(scale) +
+											 ay * across * static_cast<float>(scale)};
+				};
+				// The flame, flickering off the tail on the round's own clock.
+				const float flare =
+					1.0f + 0.35f * static_cast<float>(SDL_sin(bullet.left * 70));
+				paint.fillPoly({at(-len * 0.62f, -2.2f), at(-len * 0.62f, 2.2f),
+								at(-len * (1.5f + flare * 0.6f), 0)},
+							   client::rgb(0xff8a3a));
+				paint.fillPoly({at(-len * 0.62f, -1.2f), at(-len * 0.62f, 1.2f),
+								at(-len * (1.0f + flare * 0.45f), 0)},
+							   client::rgb(0xffe08a));
+				// The fins, one either side of the tail.
+				paint.inkedPoly({at(-len * 0.55f, -1.8f), at(-len * 0.2f, -1.8f),
+								 at(-len * 0.5f, -4.0f)},
+								client::rgb(0x6c727a), client::kInkFine);
+				paint.inkedPoly({at(-len * 0.55f, 1.8f), at(-len * 0.2f, 1.8f),
+								 at(-len * 0.5f, 4.0f)},
+								client::rgb(0x6c727a), client::kInkFine);
+				// The body, and the warhead in front of it.
+				paint.inkedPoly({at(-len * 0.62f, -1.9f), at(len * 0.3f, -1.9f),
+								 at(len * 0.3f, 1.9f), at(-len * 0.62f, 1.9f)},
+								client::rgb(0x8d949c), client::kInkFine);
+				paint.inkedPoly({at(len * 0.3f, -1.9f), at(len, 0), at(len * 0.3f, 1.9f)},
+								client::rgb(0xc2452f), client::kInkFine);
 			} else {
 				const float core = width * (0.4f + 0.6f * left);
 				const std::uint8_t fade = static_cast<std::uint8_t>(255 * left);

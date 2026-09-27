@@ -22,10 +22,12 @@ const std::vector<Recipe>& table() {
 		{ItemId::Hatchet, 1, {{ItemId::Wood, 60}, {ItemId::Stone, 40}}, 2, 0, 4},
 		{ItemId::Pickaxe, 1, {{ItemId::Wood, 60}, {ItemId::Stone, 60}}, 2, 0, 4},
 		{ItemId::Hammer, 1, {{ItemId::Wood, 40}, {ItemId::Stone, 20}}, 2, 0, 3},
-		// A hunting bow is the first weapon you make, as in Rust: no bench.
+		// The spear heads the weapons: it is the cheapest of them and the one
+		// you make first, so it is the one at the top of the list.
+		{ItemId::Spear, 1, {{ItemId::Wood, 60}, {ItemId::Cloth, 10}}, 2, 0, 4},
+		// Then the hunting bow, the first ranged thing you make, as in Rust.
 		{ItemId::Bow, 1, {{ItemId::Wood, 200}, {ItemId::Cloth, 50}}, 2, 0, 6},
 		{ItemId::BuildingPlan, 1, {{ItemId::Wood, 20}}, 1, 0, 2},
-		{ItemId::Spear, 1, {{ItemId::Wood, 60}, {ItemId::Cloth, 10}}, 2, 0, 4},
 		{ItemId::Campfire, 1, {{ItemId::Wood, 100}}, 1, 0, 3},
 		{ItemId::SleepingBag, 1, {{ItemId::Cloth, 30}}, 1, 0, 4},
 		{ItemId::WoodenBox, 1, {{ItemId::Wood, 120}}, 1, 0, 4},

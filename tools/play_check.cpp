@@ -32,6 +32,7 @@
 #include "sim/features/wildlife/utils/npc-traits.util.hpp"
 #include "sim/features/world/types/node-kind.enum.hpp"
 #include "sim/features/world/types/resource-node.struct.hpp"
+#include "sim/features/wildlife/constants/wildlife-tuning.constant.hpp"
 
 int main() {
 	sim::World world;
@@ -537,6 +538,42 @@ int main() {
 					bitten.reloadLeft, reloadWas, bitten.useLeft, useWas);
 		if (bitten.reloadLeft <= 0 || bitten.useLeft <= 0) {
 			std::printf("  A HIT CANCELLED IT\n");
+		}
+	}
+
+	// A wound stops being advertised after a while, and the animal keeps the
+	// health it had. Both halves: the bar goes, the hit points do not.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem empty;
+		sim::Projectiles none;
+		sim::NpcSystem wild;
+		wild.mutableList().clear();
+		sim::Player away{};
+		away.x = 0;
+		away.y = 0;
+		away.alive = true;
+		sim::Npc elk{};
+		elk.id = 1;
+		elk.kind = sim::NpcKind::Elk;
+		elk.x = 10368;
+		elk.y = 10368;
+		elk.hp = sim::npcDef(sim::NpcKind::Elk).hp;
+		elk.homeX = elk.x;
+		elk.homeY = elk.y;
+		elk.leash = 400;
+		wild.mutableList().push_back(elk);
+		wild.hurt(island, wild.mutableList()[0], 30, elk.x - 10, elk.y);
+		const int after = wild.list()[0].hp;
+		const bool shownAtOnce = wild.list()[0].sinceHurt < sim::kHealthShownFor;
+		for (int i = 0; i < 61 * 60; ++i) wild.update(island, empty, none, dt, away);
+		const bool shownLater = wild.list()[0].sinceHurt < sim::kHealthShownFor;
+		std::printf("wound: elk on %d, bar at once %s, a minute later %s, still on %d\n",
+					after, shownAtOnce ? "yes" : "NO", shownLater ? "STILL" : "gone",
+					wild.list()[0].hp);
+		if (!shownAtOnce || shownLater || wild.list()[0].hp != after) {
+			std::printf("  WOUND TIMEOUT IS WRONG\n");
 		}
 	}
 

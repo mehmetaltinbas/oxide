@@ -50,16 +50,6 @@ struct HumanLook {
 	float reloading = -1;
 	/** Whether that reload is a magazine change, so one is drawn in the hand. */
 	bool reloadFed = false;
-	/**
-	 * What is being applied, and how far through it is, or below zero when
-	 * nothing is.
-	 *
-	 * A bandage and a syringe are the two things you use on yourself, and both
-	 * take long enough that standing still doing nothing visible read as the
-	 * game having ignored the key.
-	 */
-	sim::ItemId applying = sim::ItemId::None;
-	float applyT = -1;
 };
 
 /**

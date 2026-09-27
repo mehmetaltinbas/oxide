@@ -53,6 +53,15 @@ struct Npc {
 	 * so "has it been provoked" could not be read off the state alone.
 	 */
 	double alarm;
+	/**
+	 * Seconds since anything last took health off it.
+	 *
+	 * What the health bar is about. Left to run, so an animal that was hurt an
+	 * hour ago and has been grazing ever since stops advertising it: see
+	 * `kHealthShownFor`. The wound itself does not heal, and the number is not
+	 * how much health it has.
+	 */
+	double sinceHurt;
 	std::uint32_t seed;
 };
 

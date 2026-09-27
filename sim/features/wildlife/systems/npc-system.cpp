@@ -152,6 +152,7 @@ void NpcSystem::hurt(World& world, Npc& npc, double amount, double fromX, double
 	// Anything hit turns on whoever hit it, however far off they were.
 	if (npc.hp <= 0) return;
 	npc.hp -= static_cast<int>(amount);
+	npc.sinceHurt = 0;
 	if (npc.hp <= 0) {
 		npc.hp = 0;
 		drop(world, npc);
@@ -265,31 +266,9 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 							   [](const Npc& npc) { return npc.hp <= 0; }),
 				npcs_.end());
 
-	// What was killed comes back where it belonged, a day on.
-	for (std::size_t i = regrowth_.size(); i-- > 0;) {
-		regrowth_[i].seconds -= dt;
-		if (regrowth_[i].seconds > 0) continue;
-		Rng rng(rolls_ += 0x9e3779b9u);
-		Npc npc{};
-		npc.id = nextId_++;
-		npc.kind = regrowth_[i].kind;
-		npc.x = regrowth_[i].homeX;
-		npc.y = regrowth_[i].homeY;
-		npc.facing = rng.unit() * kTau;
-		npc.hp = npcDef(npc.kind).hp;
-		npc.state = NpcState::Wander;
-		npc.homeX = npc.x;
-		npc.homeY = npc.y;
-		npc.leash = regrowth_[i].leash;
-		npc.guard = regrowth_[i].guard;
-		npc.seed = static_cast<std::uint32_t>(rng.unit() * 1e5);
-		npcs_.push_back(npc);
-		regrowth_.erase(regrowth_.begin() + static_cast<long>(i));
-	}
-	// A body is cleared away once it has given up what it was worth.
-	npcs_.erase(std::remove_if(npcs_.begin(), npcs_.end(),
-							   [](const Npc& npc) { return npc.hp <= 0; }),
-				npcs_.end());
+	// Every one of them, awake or not: an animal that went to sleep wounded
+	// should stop showing its health on the same clock as one you can see.
+	for (Npc& npc : npcs_) npc.sinceHurt += dt;
 
 	// Who has an eye on whom.
 	//
