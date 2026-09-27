@@ -27,7 +27,6 @@ Color coatOf(sim::NpcKind kind) {
 	switch (kind) {
 		case sim::NpcKind::Rabbit: return rgb(0xc9bda8);
 		case sim::NpcKind::Elk: return rgb(0x8a6038);
-		case sim::NpcKind::Kangaroo: return rgb(0xb07a52);
 		case sim::NpcKind::Wolf: return rgb(0x8e97a5);
 		case sim::NpcKind::Bear: return rgb(0x88522c);
 		// The people of the monuments: a lab coat and a field green.
@@ -41,7 +40,6 @@ Color darkOf(sim::NpcKind kind) {
 	switch (kind) {
 		case sim::NpcKind::Rabbit: return rgb(0x8e8471);
 		case sim::NpcKind::Elk: return rgb(0x5c3f22);
-		case sim::NpcKind::Kangaroo: return rgb(0x7a5236);
 		case sim::NpcKind::Wolf: return rgb(0x505d6d);
 		case sim::NpcKind::Bear: return rgb(0x523119);
 		case sim::NpcKind::Scientist: return rgb(0x758494);
@@ -121,11 +119,6 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 			// the shoulder, and the rack over the head is enormous.
 			b = Build{1.3f, 0.68f, 0.16f, 0.66f, 1.75f, 0.44f, 0.32f, 0.8f, 1.0f, 0.28f, 0.28f};
 			break;
-		case sim::NpcKind::Kangaroo:
-			// Narrow at the front, heavy at the back, and the tail is half the
-			// animal: drawn separately, thick where it leaves the body.
-			b = Build{1.08f, 0.66f, -0.3f, 0.36f, 1.42f, 0.42f, 0.28f, 0.5f, 1.1f, 0.3f, 1.25f};
-			break;
 		case sim::NpcKind::Wolf:
 			b = Build{1.3f, 0.7f, 0.08f, 0.45f, 1.6f, 0.44f, 0.46f, 0.62f, 0.72f, 0.26f, 0.66f};
 			break;
@@ -152,11 +145,7 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 	// body forward is what that looked like, so the reach below is left alone
 	// for all of them and the blow is drawn after the body as a limb.
 	//
-	// A kangaroo does it differently enough to be worth its own case: it sits
-	// back on that tail and drives both hind feet forward at once, which is the
-	// one thing everybody knows about them.
 	const bool claws = !def.human;
-	const bool kicks = npc.kind == sim::NpcKind::Kangaroo;
 	// Running, the body reaches forward and narrows; anything that hits with
 	// its head, rather than a paw, throws itself at what it is hitting.
 	const float reach =
@@ -283,17 +272,6 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 			paint.inkedPoly(ear, coat, kInkWidth);
 		}
 	}
-	if (npc.kind == sim::NpcKind::Kangaroo) {
-		// The haunches, which is where all its weight is, and the big hind
-		// feet turned out under them.
-		for (int side = -1; side <= 1; side += 2) {
-			const float s = static_cast<float>(side);
-			oval(paint, f, -r * 0.5f, s * r * 0.58f, r * 0.42f, r * 0.34f, dark, true);
-			oval(paint, f, -r * 0.15f + gait * s * 0.4f, s * r * 0.74f, r * 0.46f, r * 0.17f,
-				 dark, true);
-		}
-	}
-
 	// Eyes: the one thing that says which end is which at a glance. Dark in
 	// every animal, because a red eye read as a status light rather than as a
 	// creature, and what a bear is does not need announcing.
@@ -304,37 +282,7 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 			 r * 0.09f, eye, false);
 	}
 
-	if (kicks && striking) {
-		// Both hind feet forward together, past the head, with the tail
-		// planted behind: a kangaroo kicks off its tail like a tripod.
-		const float out = 0.4f + lunge * 1.15f;
-		const Color pad = hurt ? rgb(0xffb0b0) : rgb(0x5f4028);
-		for (int side = -1; side <= 1; side += 2) {
-			const float sd = static_cast<float>(side);
-			const float along = r * (0.3f + out * 1.25f);
-			const float across = sd * r * (0.52f - out * 0.08f);
-			const Point hip = f.at(-r * 0.35f, sd * r * 0.6f);
-			const Point foot = f.at(along, across);
-			paint.line(hip.x, hip.y, foot.x, foot.y, r * 0.2f + kInkWidth * scale, kInk);
-			paint.line(hip.x, hip.y, foot.x, foot.y, r * 0.2f, dark);
-			// The foot itself, long and turned along the kick.
-			paint.inkedPoly({f.at(along - r * 0.34f, across - r * 0.19f),
-							 f.at(along + r * 0.4f, across - r * 0.1f),
-							 f.at(along + r * 0.4f, across + r * 0.1f),
-							 f.at(along - r * 0.34f, across + r * 0.19f)},
-							pad, kInkFine);
-			// Three claws off the end of it.
-			const Color claw = hurt ? rgb(0xffb0b0) : rgb(0xe8e2d0);
-			for (int i = -1; i <= 1; ++i) {
-				const float spread = i * 0.11f;
-				paint.inkedPoly(
-					{f.at(along + r * 0.36f, across + r * (spread - 0.05f)),
-					 f.at(along + r * 0.62f, across + r * spread * 1.3f),
-					 f.at(along + r * 0.36f, across + r * (spread + 0.05f))},
-					claw, kInkFine);
-			}
-		}
-	} else if (claws && striking) {
+	if (claws && striking) {
 		// A foreleg out and across, with three claws on the end of it: which
 		// side it swings from is the animal's own, so a pack does not swipe in
 		// unison. The paw is furthest out just as the blow lands.

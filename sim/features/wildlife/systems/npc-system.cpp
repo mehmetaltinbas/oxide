@@ -35,15 +35,19 @@ struct Population {
 	int count;
 };
 
-// Thinned to a little over half of what it was, keeping every ratio between
-// the species: at the old numbers you could not cross a field without meeting
-// something, and an island you never walk alone on is not a frightening one.
-constexpr Population kWildlife[5] = {
-	{NpcKind::Rabbit, 72},
-	{NpcKind::Elk, 47},
-	{NpcKind::Kangaroo, 39},
-	{NpcKind::Wolf, 44},
-	{NpcKind::Bear, 15},
+// Four species, and the numbers are the balance between them.
+//
+// The kangaroo's thirty-nine head of prey went with it, so the rabbit and the
+// elk take that weight up between them: the wolves lost a third of what they
+// eat, and a predator with nothing to catch turns on you instead. Fifty-two
+// hunters to a hundred and fifty-four hunted, near enough one to three, which
+// is where it was before and where it should stay. The rabbit also inherits
+// the sand, or the desert is a walk with nothing living on it.
+constexpr Population kWildlife[4] = {
+	{NpcKind::Rabbit, 94},
+	{NpcKind::Elk, 60},
+	{NpcKind::Wolf, 38},
+	{NpcKind::Bear, 14},
 };
 
 /** How far off an animal notices another one worth chasing or running from. */
@@ -194,11 +198,10 @@ void NpcSystem::drop(World& world, const Npc& npc) {
 		world.dropStack(ItemStack{loot.id, amount}, npc.x + std::cos(a) * d,
 						npc.y + std::sin(a) * d);
 	}
-	// Whatever they were shooting at you with is on the ground now.
-	if (def.gun.damage > 0) {
-		const ItemId weapon = npc.kind == NpcKind::Soldier ? ItemId::Ak47 : ItemId::Revolver;
-		world.dropStack(ItemStack{weapon, 1}, npc.x, npc.y);
-	}
+	// Their gun is not on the ground. A rifle for every soldier you shoot is a
+	// rifle nobody has to build, and it made the military camp the cheapest
+	// way to arm yourself rather than the most dangerous. What they carry
+	// dies with them; their ammunition does not.
 }
 
 void NpcSystem::garrison(const World& world, std::uint32_t seed) {
@@ -206,7 +209,7 @@ void NpcSystem::garrison(const World& world, std::uint32_t seed) {
 	for (const Monument& monument : world.monuments()) {
 		const MonumentDef& def = monumentDef(monument.kind);
 		const NpcKind kind = def.soldiers ? NpcKind::Soldier : NpcKind::Scientist;
-		for (int i = 0; i < def.scientists; ++i) {
+		for (int i = 0; i < def.guards; ++i) {
 			// Posted around the place they hold, not dropped in the middle.
 			for (int tries = 0; tries < 40; ++tries) {
 				const double a = rng.unit() * kTau;

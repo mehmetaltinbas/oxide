@@ -25,7 +25,9 @@ constexpr MonumentDef kDefs[kMonumentKindCount] = {
 	  {ItemId::Metal, 20, 60},
 	  {ItemId::Bandage, 1, 3}},
 	 5, 6, true, false, false},
-	{MonumentKind::Airfield, "Airfield", 340, 4, 4, false, 6,
+	// Irradiated but unheld: the airfield is a place the suit gets you into,
+	// not a place you fight your way into.
+	{MonumentKind::Airfield, "Airfield", 340, 4, 0, false, 6,
 	 {{ItemId::Scrap, 25, 60},
 	  {ItemId::Metal, 60, 160},
 	  {ItemId::Sulfur, 20, 60},
@@ -46,7 +48,9 @@ constexpr MonumentDef kDefs[kMonumentKindCount] = {
 	  {ItemId::Gunpowder, 30, 90},
 	  {ItemId::HqMetal, 4, 20}},
 	 8, 1, false, false, true},
-	{MonumentKind::Military, "Military Base", 400, 6, 9, true, 9,
+	// The one place with people in it who were trained: soldiers, and only
+	// here. What they carry does not drop; their ammunition does.
+	{MonumentKind::Military, "Military Camp", 400, 6, 9, true, 9,
 	 {{ItemId::Scrap, 40, 100},
 	  {ItemId::Metal, 100, 260},
 	  {ItemId::RifleAmmo, 10, 30},
@@ -57,7 +61,7 @@ constexpr MonumentDef kDefs[kMonumentKindCount] = {
 	  {ItemId::Ak47, 0, 1},
 	  {ItemId::HqMetal, 6, 26}},
 	 9, 1, false, false, true},
-	{MonumentKind::Town, "Ashvale", 360, 0, 3, false, 7,
+	{MonumentKind::Town, "Ashvale", 360, 0, 0, false, 7,
 	 {{ItemId::Scrap, 20, 50},
 	  {ItemId::Cloth, 20, 50},
 	  {ItemId::LowGrade, 15, 40},

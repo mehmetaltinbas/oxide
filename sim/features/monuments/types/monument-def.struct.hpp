@@ -11,8 +11,16 @@ struct MonumentDef {
 	double radius;
 	/** Radiation a second at the heart of it, and nought for the safe ones. */
 	double rads;
-	int scientists;
-	/** The military base is held by soldiers rather than scientists. */
+	/**
+	 * How many hold it, and nought for the places nobody holds.
+	 *
+	 * Only two monuments have anybody in them: the power plant has its
+	 * scientists and the military camp has its soldiers. The airfield is
+	 * irradiated and empty, which makes the suit the way in rather than the
+	 * gun, and the rest are neither.
+	 */
+	int guards;
+	/** The military camp is held by soldiers rather than scientists. */
 	bool soldiers;
 	int crates;
 	LootEntry loot[9];

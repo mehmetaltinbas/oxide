@@ -710,11 +710,11 @@ int main() {
 		const double gap = runner.x - wild.list()[0].x;
 		std::printf("outrun: sprinting away from a wolf for ten seconds, gap %.0f from 90\n",
 					gap);
-		std::printf("speeds: sprint %.0f, wolf %.0f, bear %.0f, elk %.0f, kangaroo %.0f\n",
+		std::printf("speeds: sprint %.0f, wolf %.0f, bear %.0f, elk %.0f, rabbit %.0f\n",
 					sim::PlayerRules::kSpeed * sim::PlayerRules::kSprint,
 					sim::npcDef(sim::NpcKind::Wolf).speed, sim::npcDef(sim::NpcKind::Bear).speed,
 					sim::npcDef(sim::NpcKind::Elk).speed,
-					sim::npcDef(sim::NpcKind::Kangaroo).speed);
+					sim::npcDef(sim::NpcKind::Rabbit).speed);
 	}
 
 	// Something startled keeps running. Standing still after it has bolted,

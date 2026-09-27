@@ -28,8 +28,8 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	{NpcKind::Rabbit, "Rabbit", 12, 150, 6, 0, 14, 1.4, false, false, kNoGun,
 	 {{ItemId::MeatRaw, 1, 2}, {ItemId::Leather, 1, 3}, {ItemId::Bone, 1, 2}},
 	 3,
-	 {Biome::Grass, Biome::Forest},
-	 2,
+	 {Biome::Grass, Biome::Forest, Biome::Desert},
+	 3,
 	 0,
 	 {},
 	 0,
@@ -56,20 +56,6 @@ constexpr NpcDef kDefs[kNpcKindCount] = {
 	// Neutral, and the one thing on the island that teaches it. It will graze
 	// past you all day. Hit it once and it turns round and kicks hard enough
 	// that you will not do it twice without meaning to.
-	{NpcKind::Kangaroo, "Kangaroo", 130, 168, 13, 24, 26, 1.2, false, false, kNoGun,
-	 {{ItemId::MeatRaw, 4, 8},
-	  {ItemId::Leather, 11, 19},
-	  {ItemId::Bone, 5, 10},
-	  {ItemId::AnimalFat, 5, 11}},
-	 4,
-	 {Biome::Grass, Biome::Desert},
-	 2,
-	 3,
-	 {},
-	 0,
-	 false,
-	 0},
-
 	// Everywhere that is not trees: grass, tundra and sand alike, which is what
 	// keeps the desert from being a free walk.
 	//
