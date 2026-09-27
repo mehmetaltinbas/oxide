@@ -246,7 +246,7 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
  * drawn as a line gets ink laid under it and its own colour on top.
  */
 void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, float angle,
-				  bool flip, bool magOut) {
+				  bool flip, bool magOut, float inkScale) {
 	const float u = size;
 	// The pen, in proportion to the picture rather than in flat pixels.
 	//
@@ -261,8 +261,8 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 	// letting Paint scale it again squared the zoom: at three times in, the
 	// held item's outline came out nine times heavy.
 	const float measure = std::max(1.0f, paint.inWorld(u) / 26.0f);
-	const float ink = kGlyphInk * measure;
-	const float mark = kGlyphMark * measure;
+	const float ink = kGlyphInk * measure * inkScale;
+	const float mark = kGlyphMark * measure * inkScale;
 	const float ca = std::cos(angle);
 	const float sa = std::sin(angle);
 	// Turned over along its own length when asked: the picture is drawn in
@@ -393,37 +393,38 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			break;
 		}
 		case sim::ItemId::SulfurOre: {
-			// One dark lump of rock with the crystal growing out of the top of
-			// it. Big crystals, few of them, and drawn over the silhouette so
-			// they break it: a scattering of small ones on a pile of pebbles
-			// read as grit rather than as ore.
-			const Color rock = rgb(0x3f3124);
-			const Color rockEdge = rgb(0x1d150e);
-			edged(pts({{-0.32f, 0.06f}, {-0.2f, -0.16f}, {0.06f, -0.22f}, {0.3f, -0.04f},
-					   {0.28f, 0.2f}, {0.02f, 0.3f}, {-0.26f, 0.24f}}),
-				  rock, rockEdge);
-			// The cleft across it, which is where the crystal came through.
-			stroke(-0.2f, 0.08f, 0.22f, 0.02f, 0.03f, rgb(0x2a1f16));
-			const float grow[4][3] = {
-				{-0.16f, -0.16f, 0.12f}, {0.06f, -0.22f, 0.15f}, {0.22f, -0.04f, 0.1f},
-				{-0.02f, -0.06f, 0.09f}};
-			for (int i = 0; i < 4; ++i) {
-				const float cx = grow[i][0];
-				const float cy = grow[i][1];
-				const float r = grow[i][2];
-				edged(pts({{cx, cy - r},
-						   {cx + r * 0.62f, cy - r * 0.15f},
-						   {cx + r * 0.34f, cy + r * 0.7f},
-						   {cx - r * 0.42f, cy + r * 0.6f},
-						   {cx - r * 0.6f, cy - r * 0.2f}}),
-					  (i % 2) ? rgb(0xf0e35e) : rgb(0xd0c132), rgb(0x6f6414));
-				// One lit facet down the left of each, so they read as glass.
-				fill(pts({{cx - r * 0.5f, cy - r * 0.1f},
-						  {cx - r * 0.06f, cy - r * 0.8f},
-						  {cx, cy - r * 0.1f},
-						  {cx - r * 0.3f, cy + r * 0.4f}}),
-					 rgb(0xf8f0a6));
+			// A geode: a dark shell cracked open and the crystal blazing out of
+			// the break. The rock is a frame rather than the subject, so what
+			// you see from across the belt is the yellow.
+			const Color shell = rgb(0x3a2f26);
+			const Color shellLit = rgb(0x5b4b3c);
+			const Color deep = rgb(0x16110d);
+			// The two halves of the shell, split down the middle.
+			edged(pts({{-0.34f, -0.02f}, {-0.24f, -0.22f}, {-0.02f, -0.3f}, {-0.06f, 0.02f},
+					   {-0.1f, 0.28f}, {-0.3f, 0.2f}}),
+				  shell, deep);
+			edged(pts({{0.06f, -0.3f}, {0.28f, -0.2f}, {0.34f, 0.04f}, {0.24f, 0.26f},
+					   {0.02f, 0.3f}, {0.06f, 0.0f}}),
+				  shellLit, deep);
+			// The crystal in the break, a column of facets from top to bottom.
+			const float face[5][4] = {{0.0f, -0.28f, 0.085f, 0.13f},
+									  {-0.03f, -0.06f, 0.075f, 0.12f},
+									  {0.03f, 0.12f, 0.07f, 0.11f},
+									  {-0.05f, 0.24f, 0.05f, 0.08f},
+									  {0.05f, -0.18f, 0.045f, 0.07f}};
+			for (int i = 0; i < 5; ++i) {
+				const float cx = face[i][0];
+				const float cy = face[i][1];
+				const float w = face[i][2];
+				const float h = face[i][3];
+				edged(pts({{cx, cy - h}, {cx + w, cy}, {cx, cy + h}, {cx - w, cy}}),
+					  (i % 2) ? rgb(0xf2e45c) : rgb(0xd4c02c), rgb(0x7a6b10));
+				// The lit half of each facet, which is what makes it glass.
+				fill(pts({{cx, cy - h}, {cx - w, cy}, {cx, cy}}), rgb(0xfbf5b0));
 			}
+			// A spark or two thrown off the break.
+			plainDisc(0.16f, -0.24f, 0.026f, rgb(0xfbf5b0));
+			plainDisc(-0.18f, 0.2f, 0.022f, rgb(0xf2e45c));
 			break;
 		}
 		case sim::ItemId::Metal: {
@@ -454,27 +455,38 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			break;
 		}
 		case sim::ItemId::Sulfur: {
-			// A heap of powder, not a stone: smelting takes the crystal apart,
-			// and what comes out pours. A soft mound with a rounded top, one
-			// paler face where the light falls, and the grain stippled over it.
-			const Color body = rgb(0xd8c73c);
-			const Color deep = rgb(0x8a7c18);
-			edged(pts({{-0.34f, 0.24f}, {-0.26f, 0.02f}, {-0.1f, -0.14f}, {0.08f, -0.2f},
-					   {0.24f, -0.06f}, {0.34f, 0.16f}, {0.34f, 0.26f}}),
-				  body, deep);
-			fill(pts({{-0.22f, 0.06f}, {-0.06f, -0.12f}, {0.08f, -0.18f}, {0.06f, 0.02f},
-					  {-0.12f, 0.16f}}),
-				 rgb(0xf2e784));
-			// The grain: a scatter of fine dots, which is the whole of what
-			// makes a heap read as powder rather than as a painted lump.
-			const float grain[7][2] = {{-0.2f, 0.16f}, {-0.06f, 0.1f},  {0.1f, 0.14f},
-									   {0.2f, 0.06f},  {-0.14f, -0.02f}, {0.02f, -0.06f},
-									   {0.24f, 0.18f}};
-			for (const auto& g : grain) plainDisc(g[0], g[1], 0.018f, deep);
-			// And a few spilt beside it, so the heap has somewhere to have
-			// come from.
-			plainDisc(-0.3f, 0.3f, 0.026f, body);
-			plainDisc(0.3f, 0.3f, 0.022f, body);
+			// A cone of powder, poured and settled: a clean curve at the top,
+			// a lit face down one side and a shadowed one down the other, and
+			// the loose grain that ran off the bottom of it. Bright, because
+			// it is the thing gunpowder is made of and it should look it.
+			const Color lit = rgb(0xf6e766);
+			const Color body = rgb(0xdcc72e);
+			const Color shade = rgb(0xa8930f);
+			const Color deep = rgb(0x6b5c06);
+			std::vector<Point> heap;
+			heap.push_back(P(-0.34f, 0.26f));
+			for (int i = 0; i <= 10; ++i) {
+				const float t = static_cast<float>(i) / 10;
+				const float hx = -0.34f + t * 0.68f;
+				// A poured heap is steeper at the sides than a circle is.
+				const float hy = 0.26f - std::pow(std::sin(t * 3.14159265f), 0.7f) * 0.5f;
+				heap.push_back(P(hx, hy));
+			}
+			heap.push_back(P(0.34f, 0.26f));
+			fill(heap, body);
+			paint.outlinePoly(heap, ink, kInk);
+			// The lit side and the shadowed one, meeting under the peak.
+			fill(pts({{-0.3f, 0.24f}, {-0.16f, -0.06f}, {0.0f, -0.24f}, {0.0f, 0.24f}}), lit);
+			fill(pts({{0.0f, -0.24f}, {0.18f, -0.04f}, {0.3f, 0.24f}, {0.08f, 0.24f}}), shade);
+			// The grain: fine dots over the face, which is what says powder.
+			const float grain[8][2] = {{-0.18f, 0.12f}, {-0.08f, 0.0f},  {0.02f, 0.1f},
+									   {0.12f, 0.16f},  {-0.24f, 0.2f},  {0.2f, 0.2f},
+									   {-0.04f, -0.12f}, {0.08f, -0.02f}};
+			for (const auto& g : grain) plainDisc(g[0], g[1], 0.016f, deep);
+			// And what ran off the pile, in front of it.
+			plainDisc(-0.3f, 0.3f, 0.03f, body);
+			plainDisc(-0.2f, 0.32f, 0.022f, lit);
+			plainDisc(0.26f, 0.31f, 0.026f, body);
 			break;
 		}
 		case sim::ItemId::Charcoal: pile(rgb(0x4a4a4a), rgb(0x2a2a2a)); break;

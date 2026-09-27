@@ -601,6 +601,10 @@ int main(int argc, char** argv) {
 		build.deploy(sim::DeployKind::WoodenBox, at(gx, gy), down(gy), false, 0);
 		build.deploy(sim::DeployKind::ToolCupboard, at(gx + 1, gy), down(gy), true, 0);
 		build.deploy(sim::DeployKind::SleepingBag, at(gx + 2, gy), down(gy), false, 0);
+		// One of each bench, so the three tiers can be told apart on sight.
+		build.deploy(sim::DeployKind::Workbench1, at(gx, gy) - 20, down(gy) + 22, false, 0);
+		build.deploy(sim::DeployKind::Workbench2, at(gx, gy) + 22, down(gy) + 22, false, 0);
+		build.deploy(sim::DeployKind::Workbench3, at(gx + 1, gy) + 20, down(gy) + 22, false, 0);
 		sim::Deployable& fire = *build.deployableById(fireId);
 		fire.lit = true;
 		fire.container.add(sim::ItemId::Wood, 20);
@@ -1878,7 +1882,8 @@ int main(int argc, char** argv) {
 			const float bob = static_cast<float>(SDL_sin(drop.age * 2.4 + drop.id) * 2 * scale);
 			client::drawItemIcon(paint, drop.stack.id, sx,
 								 sy - 2 * static_cast<float>(scale) + bob,
-								 static_cast<float>(22 * scale));
+								 static_cast<float>(22 * scale), 0, false, false,
+								 client::kGroundInkScale);
 		}
 		for (const sim::Deployable& thing : build.deployables()) {
 			if (thing.kind != sim::DeployKind::SleepingBag) continue;

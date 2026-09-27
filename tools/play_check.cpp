@@ -924,6 +924,45 @@ int main() {
 		}
 	}
 
+	// Prey outruns you and a wolf still eats. Both halves, because the second
+	// is what the burst is carefully not: a rabbit bolts from a person faster
+	// than you can sprint, and an elk running from a wolf runs at its own
+	// speed so the wolf can catch it.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem empty;
+		sim::Projectiles none;
+		sim::NpcSystem wild;
+		wild.mutableList().clear();
+		sim::Player chaser{};
+		chaser.x = 10368;
+		chaser.y = 10368;
+		chaser.alive = true;
+		sim::Npc rabbit{};
+		rabbit.id = 1;
+		rabbit.kind = sim::NpcKind::Rabbit;
+		rabbit.x = chaser.x + 90;
+		rabbit.y = chaser.y;
+		rabbit.hp = sim::npcDef(sim::NpcKind::Rabbit).hp;
+		rabbit.homeX = rabbit.x;
+		rabbit.homeY = rabbit.y;
+		rabbit.leash = 6000;
+		wild.mutableList().push_back(rabbit);
+		sim::PlayerInput after;
+		after.moveX = 1;
+		after.sprint = true;
+		for (int i = 0; i < 60 * 6; ++i) {
+			island.clearNaturalIn(chaser.x - 300, chaser.y - 300, chaser.x + 1600,
+								  chaser.y + 300);
+			sim::stepPlayer(island, empty, chaser, after, dt);
+			wild.update(island, empty, none, dt, chaser);
+		}
+		const double gap = wild.list()[0].x - chaser.x;
+		std::printf("bolt: sprinting after a rabbit for six seconds, gap %.0f from 90\n", gap);
+		if (gap <= 90) std::printf("  YOU CAN RUN A RABBIT DOWN\n");
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.

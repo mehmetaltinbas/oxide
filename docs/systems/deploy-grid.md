@@ -16,6 +16,27 @@ printed on the ground. That is **the unit**: you can count a campfire's two
 squares off the floor without opening anything, and a thing that says it is
 three across is three dots across.
 
+## The dots
+
+The dots printed on the ground are not a texture. They are the grid, and two
+things are true of them:
+
+**They sit on the multiples of eight.** A building cell is sixty-four across,
+which is eight steps, so a foundation's corner lands **on** a dot and a fine
+square is the square around one. This is what makes a building line up with
+what is drawn under it. Shift the lattice half a step either way and one edge
+of a foundation lines up while the other does not, which is the bug this rule
+exists to prevent.
+
+**They run north-west to south-east, not north to south.** A press screens a
+flat colour on the diagonal: rows and columns read as graph paper and fight
+whatever is drawn over them, while a diagonal reads as tone. There is a dot at
+the corner of every tile and a second at its middle, which is what makes the
+lattice diagonal while keeping the corner dots on the eights.
+
+Both live in `Terrain::drawScreen`. Changing either one changes where every
+building in the game appears to sit, so neither is a visual preference.
+
 ## Footprints
 
 `deployFootprint(kind)` is the table, in fine squares, measured the way the

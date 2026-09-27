@@ -33,9 +33,12 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
  *
  * `magOut` leaves the magazine off a gun that has one, for the moment between
  * the spent one hitting the ground and the fresh one going in.
+ *
+ * `inkScale` thins the pen for a picture that is not being read on a panel:
+ * see kGroundInkScale.
  */
 void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, float angle = 0,
-				  bool flip = false, bool magOut = false);
+				  bool flip = false, bool magOut = false, float inkScale = 1.0f);
 
 /**
  * How one item sits in a fist.

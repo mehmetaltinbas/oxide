@@ -93,15 +93,21 @@ Terrain::~Terrain() {
 }
 
 void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screenW, int screenH) {
-	// One dot every eight world units, on the eights.
+	// The screen: a diagonal lattice of dots, eight world units to a step.
 	//
-	// The dots are the unit the building system is measured in, so where they
-	// fall is a rule rather than a texture. A building cell is sixty-four
-	// across, which is eight of them, and a fine square is one of them: a
-	// foundation's corner therefore lands on a dot, and a dot is the middle of
-	// a fine square. Two dots per tile at a quarter and three quarters put
-	// them on the twos and the sixes and never on a cell edge, which is why
-	// one side of a foundation lined up and the other did not.
+	// Where the dots fall is a rule rather than a texture, because they are
+	// the unit the building system is measured in. Two things are true of
+	// them at once and both matter:
+	//
+	// They sit on the multiples of eight. A building cell is sixty-four
+	// across, which is eight steps, so a foundation's corner lands on a dot
+	// and a fine square is the square around one.
+	//
+	// They run north-west to south-east, not north to south. A press screens
+	// a flat colour on the diagonal: rows and columns read as graph paper and
+	// fight the drawing over them, while a diagonal reads as tone. That is
+	// what the halftone is for, and it is why there is a second dot at the
+	// middle of every tile rather than one at its corner.
 	constexpr int kSpacing = 8;
 	constexpr int kOversample = 4;
 	if (!screen_) {
@@ -119,17 +125,23 @@ void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screen
 		SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
 		Paint paint(renderer_);
 		const float dot = 0.55f * kOversample;
+		// The corner dot, drawn at all four corners so it survives tiling, and
+		// the middle one that makes the lattice diagonal.
+		paint.fillCircle(0, 0, dot, Color{20, 17, 13, 190});
+		paint.fillCircle(static_cast<float>(size), 0, dot, Color{20, 17, 13, 190});
+		paint.fillCircle(0, static_cast<float>(size), dot, Color{20, 17, 13, 190});
+		paint.fillCircle(static_cast<float>(size), static_cast<float>(size), dot,
+						 Color{20, 17, 13, 190});
 		paint.fillCircle(size * 0.5f, size * 0.5f, dot, Color{20, 17, 13, 190});
 		SDL_SetRenderTarget(renderer_, was);
 	}
 	// Pinned to the world rather than the screen, so the dots do not swim
 	// about as you walk.
 	const float tile = static_cast<float>(kSpacing * zoom);
-	// The dots land on the multiples of eight, which is what makes them the
-	// unit: a building cell is eight of them across, so a foundation's corner
-	// sits on a dot, and a fine square is the square around one. Shifted half
-	// a tile either way they fall between the cells instead, and one edge of a
-	// foundation lines up while the other does not.
+	// The tiling starts on a multiple of eight in the world, so the corner dot
+	// of each tile lands on one. Shifted half a tile either way they fall
+	// between the cells instead, and one edge of a foundation lines up while
+	// the other does not.
 	const float offX = static_cast<float>(std::fmod(cameraX * zoom, tile));
 	const float offY = static_cast<float>(std::fmod(cameraY * zoom, tile));
 	const SDL_FRect dst{-offX - tile, -offY - tile, screenW + tile * 2, screenH + tile * 2};

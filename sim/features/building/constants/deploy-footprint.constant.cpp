@@ -14,8 +14,11 @@ DeployFootprint deployFootprint(DeployKind kind) {
 		case DeployKind::ToolCupboard: return {3, 2};
 		// The furnace is the one square thing that is not small.
 		case DeployKind::Furnace: return {3, 3};
-		// A first bench is a plank on two legs; the later ones are furniture.
-		case DeployKind::Workbench1: return {2, 1};
+		// All three the same floor. A bench is a bench: what tells them apart
+		// is what is on it, not how much room it takes, and a first bench you
+		// could squeeze in where a second would not fit made the tier a
+		// question of space rather than of materials.
+		case DeployKind::Workbench1: return {3, 2};
 		case DeployKind::Workbench2: return {3, 2};
 		case DeployKind::Workbench3: return {3, 2};
 	}

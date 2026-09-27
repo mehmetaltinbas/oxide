@@ -125,15 +125,47 @@ void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, fl
 		case sim::DeployKind::Workbench1:
 		case sim::DeployKind::Workbench2:
 		case sim::DeployKind::Workbench3: {
-			// A bench top filling its own footprint, with the work laid out on
-			// it and a mark for its tier along the front edge.
-			box(paint, x, y, hw * 0.96f, hd * 0.92f, rgb(0x8a6034));
-			box(paint, x, y - hd * 0.22f, hw * 0.74f, hd * 0.34f, rgb(0xb0b9c1));
+			// Three benches on the same floor, told apart by what they are
+			// made of and what is lying on them. A tier you can read across a
+			// room without counting pips on it.
 			const int tier = sim::benchTier(deployable.kind);
-			for (int i = 0; i < tier; ++i) {
-				const float step = hw * 0.34f;
-				paint.fillCircle(x - step + i * step, y + hd * 0.5f, std::min(hw, hd) * 0.16f,
-								 rgb(0xc9a227));
+			const Color top = tier == 1   ? rgb(0x9a6b3a)
+							  : tier == 2 ? rgb(0x6f7a84)
+										  : rgb(0x4a5a6b);
+			const Color trim = tier == 1   ? rgb(0x6b4522)
+							   : tier == 2 ? rgb(0x4a525a)
+										   : rgb(0x2c3845);
+			box(paint, x, y, hw * 0.96f, hd * 0.92f, top);
+			if (tier == 1) {
+				// Planks and a vice: rough carpentry, and it looks it.
+				for (int i = -1; i <= 1; ++i) {
+					const float py = y + i * hd * 0.46f;
+					paint.line(x - hw * 0.9f, py, x + hw * 0.9f, py, kInkFine, trim);
+				}
+				box(paint, x + hw * 0.58f, y, hw * 0.2f, hd * 0.3f, rgb(0x6a6a74));
+				box(paint, x - hw * 0.3f, y - hd * 0.2f, hw * 0.28f, hd * 0.3f, rgb(0xc8b89a));
+			} else if (tier == 2) {
+				// A steel top with a cutting mat on it and a lamp over the end.
+				box(paint, x - hw * 0.15f, y, hw * 0.5f, hd * 0.55f, rgb(0x2f4a3a));
+				box(paint, x + hw * 0.62f, y - hd * 0.28f, hw * 0.16f, hd * 0.2f, rgb(0xffd98a));
+				paint.line(x - hw * 0.9f, y - hd * 0.66f, x + hw * 0.9f, y - hd * 0.66f, kInkFine,
+						   trim);
+				for (int i = -1; i <= 1; i += 2) {
+					paint.fillCircle(x + i * hw * 0.74f, y + hd * 0.5f, std::min(hw, hd) * 0.12f,
+									 rgb(0x9aa6b0));
+				}
+			} else {
+				// Plate, bolted down, with a vat at one end and a press at the
+				// other: the tier you build guns on.
+				box(paint, x - hw * 0.5f, y, hw * 0.3f, hd * 0.55f, rgb(0x8a9aa8));
+				paint.fillCircle(x + hw * 0.42f, y, std::min(hw, hd) * 0.42f, rgb(0x2a3a2a));
+				paint.fillCircle(x + hw * 0.42f, y, std::min(hw, hd) * 0.3f, rgb(0x5fe08a));
+				for (int i = -1; i <= 1; i += 2) {
+					for (int j = -1; j <= 1; j += 2) {
+						paint.fillCircle(x + i * hw * 0.84f, y + j * hd * 0.7f,
+										 std::min(hw, hd) * 0.1f, rgb(0xc8d2da));
+					}
+				}
 			}
 			break;
 		}

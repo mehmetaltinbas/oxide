@@ -74,6 +74,16 @@ constexpr double kAlarmSeconds = 7.0;
  * settles.
  */
 constexpr double kFleeSafeRange = 620;
+/**
+ * How much faster a frightened animal runs from *you* than it walks.
+ *
+ * A third again, which puts every prey animal over a sprint: you do not run a
+ * rabbit down, you shoot it. Only from a person. A wolf races an elk at the
+ * elk's own speed, or the wolf would never eat and the food chain would be a
+ * decoration: the burst is fright at a two-legged thing, not a second top
+ * speed the animal has.
+ */
+constexpr double kBoltFromPlayer = 1.3;
 
 /** Everything killed comes back a day later, as every other resource does. */
 constexpr double kRegrowthSeconds = 3600;
@@ -466,7 +476,8 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 			if (startled) npc.alarm = kAlarmSeconds;
 			npc.state = NpcState::Flee;
 			npc.facing = std::atan2(npc.y - player.y, npc.x - player.x);
-			const double bolt = toPlayer < 420 ? def.speed : def.speed * 0.5;
+			const double bolt =
+				toPlayer < 420 ? def.speed * kBoltFromPlayer : def.speed * 0.5;
 			npc.vx = std::cos(npc.facing) * bolt;
 			npc.vy = std::sin(npc.facing) * bolt;
 			step(npc, def, dt);

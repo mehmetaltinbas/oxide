@@ -200,9 +200,11 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 							  : health > 35 ? rgb(0xd8483a)
 											: rgb(0xff6a5a);
 	gauge(Vital::Health, health, 100, healthColor, 0);
+	// Out of two hundred, not a hundred: the top half is the reserve comfort
+	// spends, and a bar that read full at a hundred hid the half that matters.
 	// Dark orange: the lighter one read as a warning rather than a meal.
-	gauge(Vital::Food, calories_, 100, rgb(0xcf6a12), 1);
-	gauge(Vital::Water, hydration_, 100, rgb(0x4a9ee8), 2);
+	gauge(Vital::Food, calories_, sim::PlayerVitals::kMaxCalories, rgb(0xcf6a12), 1);
+	gauge(Vital::Water, hydration_, sim::PlayerVitals::kMaxHydration, rgb(0x4a9ee8), 2);
 
 	if (comfort_ > 0.01) {
 		// Over the health bar: a fire's worth, as the percentage it is, with a

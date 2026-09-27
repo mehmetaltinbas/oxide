@@ -70,6 +70,26 @@ constexpr float kInkHatch = 1.7f;
  */
 constexpr float kNodeLineScale = 1.5f;
 
+/**
+ * The marks *inside* a node, as a fraction of its outline.
+ *
+ * The facets of a boulder, the bedding planes of an ore seam: the lines that
+ * say what a thing is made of, not the line that says where it ends. At the
+ * full pen they read as cracks all the way through the rock and the ore
+ * disappears behind them. The one number to turn if a stone or an ore looks
+ * scribbled on.
+ */
+constexpr float kNodeInnerScale = 0.38f;
+
+/**
+ * The pen on a stack lying on the ground, as a fraction of kGlyphInk.
+ *
+ * An item on the belt is read at twenty pixels against a flat panel; the same
+ * item lying in the grass is small, moving and surrounded by ink already. The
+ * outline that makes it legible on the belt makes it a blot on the floor.
+ */
+constexpr float kGroundInkScale = 0.6f;
+
 // ------------------------------------------------------------ item pictures
 //
 // These two are in PIXELS, not world units, because an item's picture is drawn
