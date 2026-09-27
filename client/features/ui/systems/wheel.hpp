@@ -25,7 +25,7 @@ public:
 
 	/** Opens it at a point on screen, with the slices in order from the top. */
 	void show(std::vector<WheelOption> options, float x, float y);
-	/** Closes it and says which slice was under the cursor, or -1 for none. */
+	/** Closes it and gives the chosen slice's `value`, or -1 for none. */
 	int release(float mouseX, float mouseY, float uiScale);
 	void close() { open_ = false; }
 

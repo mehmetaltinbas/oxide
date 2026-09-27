@@ -71,6 +71,16 @@ struct CraftJob {
  */
 class Crafting {
 public:
+	/**
+	 * Where a finished thing goes when there is nowhere to put it.
+	 *
+	 * On the ground at your feet. The bench does not hold the job back: you
+	 * asked for it, it is made, and a full pack is your problem rather than a
+	 * reason for the queue to stop and quietly wait for room. Wired once, the
+	 * way the world is wired for dropping: see docs/systems/dropped-items.md.
+	 */
+	void setOverflow(const void* owner, void (*drop)(const void*, ItemStack));
+
 	/** How many orders may be waiting at once, whatever their size. */
 	static constexpr int kQueueMax = 10;
 	/** And how many of one thing a single order may be for. */
@@ -117,6 +127,8 @@ public:
 	const std::vector<CraftJob>& jobs() const { return jobs_; }
 
 private:
+	const void* overflowOwner_ = nullptr;
+	void (*overflow_)(const void*, ItemStack) = nullptr;
 	std::vector<CraftJob> jobs_;
 	int nextId_ = 1;
 	bool free_ = false;

@@ -63,6 +63,15 @@ public:
 	void setVitals(double calories, double hydration, double temperature, double radiation,
 				   double bleeding, double applying);
 
+	/**
+	 * Health still to come back, which reads beside the bar like a wound does.
+	 *
+	 * The same shape as the bleed, in green rather than red: a number that is
+	 * coming to you rather than going from you. Both at once is a real state
+	 * to be in, so both are drawn.
+	 */
+	void setMending(double health) { mending_ = health; }
+
 	/** The clock, for anything that beats or blinks. */
 	void setClock(double seconds) { clock_ = seconds; }
 
@@ -85,6 +94,8 @@ private:
 	/** Seconds of bleeding left, which at one a second is also the health it
 	 * will cost: see PlayerVitals::kBleedDamage. */
 	double bleeding_ = 0;
+	/** Health still owed by a syringe, at one a second. */
+	double mending_ = 0;
 	double applying_ = 0;
 	double clock_ = 0;
 	Text* lettering_ = nullptr;

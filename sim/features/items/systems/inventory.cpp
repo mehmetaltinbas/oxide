@@ -57,10 +57,17 @@ void Inventory::selectSlot(int slot) {
 
 int Inventory::add(ItemId id, int count) {
 	if (id == ItemId::None || count <= 0) return 0;
-	// The belt takes what you hold; everything else, and any overflow, goes
-	// into the pack behind it.
-	if (isBeltItem(id)) count = addInto(hotbar_.data(), kHotbarSlots, id, count);
-	count = addInto(pack_.data(), kPackSlots, id, count);
+	// The belt takes what you hold, and only what you hold. Everything else
+	// goes to the pack first and falls back to the belt when the pack is full,
+	// which is the other way round: a suit or a stack of ore belongs behind
+	// you, and only takes a belt slot when there is nowhere else for it.
+	if (isBeltItem(id)) {
+		count = addInto(hotbar_.data(), kHotbarSlots, id, count);
+		count = addInto(pack_.data(), kPackSlots, id, count);
+	} else {
+		count = addInto(pack_.data(), kPackSlots, id, count);
+		count = addInto(hotbar_.data(), kHotbarSlots, id, count);
+	}
 	return count;
 }
 

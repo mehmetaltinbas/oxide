@@ -79,7 +79,9 @@ void updateSurvival(const World& world, Player& player, const Inventory& invento
 	}
 
 	if (player.healOverTime > 0) {
-		const double tick = std::min(player.healOverTime, 12 * dt);
+		// One a second, so twenty health is twenty seconds and the number
+		// beside the bar counts down at the rate it reads.
+		const double tick = std::min(player.healOverTime, 1.0 * dt);
 		player.health = std::min(PlayerVitals::kMaxHealth, player.health + tick);
 		player.healOverTime -= tick;
 	} else if (player.calories > 40 && player.hydration > 40 && damage == 0) {
@@ -120,17 +122,18 @@ void apply(Player& player, Inventory& inventory, ItemId id) {
 		player.hydration = std::min(PlayerVitals::kMaxHydration, player.hydration + food.hydration);
 	}
 	if (food.health > 0) {
-		// A syringe works over a few seconds; everything else is at once.
-		if (id == ItemId::Medkit) {
-			player.healOverTime += food.health;
-		} else {
-			player.health = std::min(PlayerVitals::kMaxHealth, player.health + food.health);
-		}
-		player.bleeding = 0;
+		player.health = std::min(PlayerVitals::kMaxHealth, player.health + food.health);
 	} else if (food.health < 0) {
 		// Raw meat: it feeds you and it costs you.
 		player.health = std::max(1.0, player.health + food.health);
 	}
+	// What comes back slowly, what stops the bleeding, and what clears the
+	// dose: three separate things a thing can do, on the definition rather
+	// than on the item's name. A bandage stops fifty seconds of bleeding and
+	// a syringe stops none, which is why the two are worth carrying together.
+	if (food.overTime > 0) player.healOverTime += food.overTime;
+	if (food.bleedCure > 0) player.bleeding = std::max(0.0, player.bleeding - food.bleedCure);
+	if (food.radCure > 0) player.radiation = std::max(0.0, player.radiation - food.radCure);
 }
 
 bool isFood(const Food& food) {

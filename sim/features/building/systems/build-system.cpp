@@ -23,10 +23,10 @@ namespace {
 constexpr double kRebuildBlock = 30;
 
 constexpr TierDef kTiers[kBuildTierCount] = {
-	{BuildTier::Twig, "Twig", 10, {ItemId::Wood, 10}},
-	{BuildTier::Wood, "Wood", 250, {ItemId::Wood, 50}},
-	{BuildTier::Stone, "Stone", 500, {ItemId::Stone, 150}},
-	{BuildTier::Metal, "Sheet Metal", 1000, {ItemId::Metal, 200}},
+	{BuildTier::Twig, "Twig", 10, {ItemId::Wood, 10}, 1.0},
+	{BuildTier::Wood, "Wood", 250, {ItemId::Wood, 50}, 0.45},
+	{BuildTier::Stone, "Stone", 500, {ItemId::Stone, 150}, 0.06},
+	{BuildTier::Metal, "Sheet Metal", 1000, {ItemId::Metal, 200}, 0.03},
 };
 
 std::uint64_t cellKey(int gx, int gy) {
@@ -290,6 +290,8 @@ bool BuildSystem::upgrade(Structure& piece, Inventory& inventory) {
 bool BuildSystem::damage(Structure& piece, double amount, double fromX, double fromY, bool melee,
 						 bool blast) {
 	if (piece.hp <= 0) return false;
+	// What a tier gives up to a tool. Twig comes apart; stone does not.
+	if (melee) amount *= tierDef(piece.tier).meleeMul;
 	if (melee && piece.kind != BuildKind::Foundation) {
 		// Struck from the hard side, a wall barely notices: that is what stops
 		// anyone chopping their way out of a base from the inside.
@@ -391,6 +393,30 @@ Structure* BuildSystem::hitSegment(double ax, double ay, double bx, double by, d
 		best = &piece;
 	}
 	at = bestAt;
+	return best;
+}
+
+Structure* BuildSystem::nearestDoor(double x, double y, double within) {
+	// Not `nearest`: standing in a doorway, the nearest piece of building is
+	// the floor under your feet, which is why pressing E on a door did
+	// nothing at all.
+	Structure* best = nullptr;
+	double bestD = within;
+	for (Structure& piece : pieces_) {
+		if (piece.kind != BuildKind::Door && piece.kind != BuildKind::Doorway) continue;
+		double x0 = 0;
+		double y0 = 0;
+		double x1 = 0;
+		double y1 = 0;
+		edgeSegment(piece.gx, piece.gy, piece.side, x0, y0, x1, y1);
+		double px = 0;
+		double py = 0;
+		closestOnSegment(x, y, x0, y0, x1, y1, px, py);
+		const double d = std::hypot(px - x, py - y);
+		if (d > bestD) continue;
+		best = &piece;
+		bestD = d;
+	}
 	return best;
 }
 

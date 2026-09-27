@@ -470,6 +470,7 @@ int main(int argc, char** argv) {
 	// told once what is solid and settles every drop itself.
 	sim::settleDropsAgainst(world, build);
 
+
 	// Nothing grows back up through a floor: the world asks the building
 	// system before it puts anything back.
 	world.setRegrowthBlocked(&build, [](const void* owner, double x, double y) {
@@ -519,6 +520,17 @@ int main(int argc, char** argv) {
 		inventory.selectSlot(1);
 	}
 	sim::Crafting crafting;
+	// A finished thing with nowhere to go lands at your feet rather than
+	// holding the queue up: pack, then belt, then the ground.
+	struct DropAtFeet {
+		sim::World* world;
+		sim::Player* player;
+	};
+	DropAtFeet atFeet{&world, &player};
+	crafting.setOverflow(&atFeet, [](const void* owner, sim::ItemStack stack) {
+		const auto* at = static_cast<const DropAtFeet*>(owner);
+		at->world->dropStack(stack, at->player->x, at->player->y);
+	});
 	const auto fillSandbox = [&] {
 		// Nothing is handed out: in sandbox the whole recipe book is open and
 		// costs nothing, so anything you want is a few seconds at the bench.
@@ -1065,7 +1077,8 @@ int main(int argc, char** argv) {
 				} else if (sim::drink(world, player)) {
 					audio.pickup();
 				}
-				if (sim::Structure* door = build.nearest(player.x, player.y, sim::kBuildCell * 0.9)) {
+				if (sim::Structure* door =
+						build.nearestDoor(player.x, player.y, sim::kBuildCell * 0.9)) {
 					if (door->kind == sim::BuildKind::Door) {
 						if (door->locked && door->owner != 0) {
 						} else if (online) {
@@ -1585,10 +1598,16 @@ int main(int argc, char** argv) {
 			float my = 0;
 			const float d = cursorOnScreen(mx, my);
 			const int picked = upgradeWheel.release(mx, my, d);
-			if (picked >= 0) {
+			if (picked != -1) {
 				for (sim::Structure& piece : build.mutableList()) {
 					if (piece.id != upgradePiece) continue;
-					if (build.upgradeTo(piece, static_cast<sim::BuildTier>(picked), inventory)) {
+					if (picked == client::kWheelWreck) {
+						if (build.demolish(piece, 0)) {
+							audio.build();
+							specks.burst(cursorX, cursorY, 14, client::rgb(0xc9b08a), 120, 0.5, 3);
+						}
+					} else if (build.upgradeTo(piece, static_cast<sim::BuildTier>(picked),
+											   inventory)) {
 						audio.build();
 						specks.burst(cursorX, cursorY, 12, client::rgb(0x9aa8b4), 110, 0.5, 3);
 					}
@@ -1617,15 +1636,10 @@ int main(int argc, char** argv) {
 					audio.build();
 					specks.burst(cursorX, cursorY, 8, client::rgb(0xc9e08a), 90, 0.4, 2.2);
 				}
-			} else if (piece) {
-				// Whole, and yours, and young: the hammer takes it back down.
-				// Upgrading moved to the wheel on the right button, so the
-				// left one is mend-or-unbuild and nothing else.
-				if (build.demolish(*piece, 0)) {
-					audio.build();
-					specks.burst(cursorX, cursorY, 14, client::rgb(0xc9b08a), 120, 0.5, 3);
-				}
 			}
+			// The left button mends, and does nothing else. Upgrading and
+			// taking a piece down both live on the ring, because both are
+			// decisions and a click is not.
 			player.attackTimer = 0.35;
 		}
 
@@ -2083,9 +2097,21 @@ int main(int argc, char** argv) {
 		{
 			const int myGx = static_cast<int>(SDL_floor(player.x / sim::kBuildCell));
 			const int myGy = static_cast<int>(SDL_floor(player.y / sim::kBuildCell));
+			const auto& sealed = build.enclosedCells();
 			for (const sim::Structure& piece : build.list()) {
 				if (piece.kind != sim::BuildKind::Ceiling) continue;
 				if (piece.gx == myGx && piece.gy == myGy) continue;
+				// The whole room lifts, not the one square you stand on. A
+				// roof that opens a hole under your feet and closes a pace
+				// later is worse than no roof: you are inside a room, so you
+				// can see the room.
+				if (myRegion != 0) {
+					const auto it = sealed.find((static_cast<std::uint64_t>(
+													 static_cast<std::uint32_t>(piece.gx))
+												 << 32) |
+												static_cast<std::uint32_t>(piece.gy));
+					if (it != sealed.end() && it->second == myRegion) continue;
+				}
 				client::drawBuilt(paint, piece, camX, camY, scale, width, height);
 			}
 		}
@@ -2396,6 +2422,21 @@ int main(int argc, char** argv) {
 								 sim::itemDef(sim::itemOf(thing->kind)).name);
 				}
 			}
+			if (!prompt[0]) {
+				// A door says what E would do to it, and says when it will not
+				// open for you.
+				if (sim::Structure* door =
+						build.nearestDoor(player.x, player.y, sim::kBuildCell * 0.9)) {
+					if (door->kind == sim::BuildKind::Door) {
+						if (door->locked && door->owner != 0) {
+							SDL_snprintf(prompt, sizeof(prompt), "Locked");
+						} else {
+							SDL_snprintf(prompt, sizeof(prompt), "E   %s",
+										 door->open ? "Close" : "Open");
+						}
+					}
+				}
+			}
 			// Fresh water is the last thing offered, being the one you are
 			// standing in rather than standing at.
 			if (!prompt[0] && world.freshAt(player.x, player.y)) {
@@ -2407,6 +2448,7 @@ int main(int argc, char** argv) {
 					  player.useTotal > 0 && player.useLeft > 0 ? player.useLeft / player.useTotal
 																: 0);
 		// Whichever gun holds rounds says so on its own slot, held or not.
+		hud.setMending(player.healOverTime);
 		hud.setLoadedGun(player.loaded, player.rounds);
 		hud.setClock(clock);
 		hud.setAmmo(sim::isRanged(sim::itemDef(inventory.held()).gun)

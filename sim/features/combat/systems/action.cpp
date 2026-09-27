@@ -107,15 +107,16 @@ SwingResult swing(World& world, NpcSystem& npcs, BuildSystem& build, Player& pla
 	if (tool) {
 		const double tipX = player.x + std::cos(player.aim) * melee.reach * 0.75;
 		const double tipY = player.y + std::sin(player.aim) * melee.reach * 0.75;
+		// Anybody's, including your own: a wall is a wall, and a hatchet does
+		// not ask who put it up. What decides whether the swing is worth
+		// throwing is the tier, not the owner.
 		if (Structure* piece = build.nearest(tipX, tipY, 26)) {
-			if (piece->owner != 0) {
-				out.landed = true;
-				out.built = true;
-				out.x = tipX;
-				out.y = tipY;
-				out.brokeBuilt = build.damage(*piece, melee.damage, player.x, player.y, true);
-				return out;
-			}
+			out.landed = true;
+			out.built = true;
+			out.x = tipX;
+			out.y = tipY;
+			out.brokeBuilt = build.damage(*piece, melee.damage, player.x, player.y, true);
+			return out;
 		}
 	}
 

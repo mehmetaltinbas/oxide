@@ -40,6 +40,16 @@ struct TierDef {
 	const char* name;
 	int hp;
 	Cost cost;
+	/**
+	 * How much of a swing gets through, before the soft-side rule.
+	 *
+	 * Twig is kindling: a hatchet takes it apart, which is the point of a
+	 * tier you put up to claim ground and never keep. Wood gives way slowly.
+	 * Stone and sheet metal barely notice a tool at all, so from stone
+	 * upwards the only way in is explosives, which is what makes a stone base
+	 * a decision rather than a delay.
+	 */
+	double meleeMul;
 };
 
 const TierDef& tierDef(BuildTier tier);
@@ -267,6 +277,8 @@ public:
 
 	/** The piece nearest a point, for a hammer or a hand on a door. */
 	Structure* nearest(double x, double y, double within);
+	/** The nearest door or doorway, which is what E is asking about. */
+	Structure* nearestDoor(double x, double y, double within);
 
 	void update(double dt);
 

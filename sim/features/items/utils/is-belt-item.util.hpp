@@ -25,8 +25,10 @@ inline bool isBeltItem(ItemId id) {
 		case ItemCategory::Weapon:
 		case ItemCategory::Consumable:
 		case ItemCategory::Deployable:
-		case ItemCategory::Explosive:
-		case ItemCategory::Clothing: return true;
+		case ItemCategory::Explosive: return true;
+		// Not clothing. A suit is not a thing you hold: it goes in the pack
+		// and from there onto your back, and a freshly made one filling a belt
+		// slot pushed out the hatchet you actually had in your hand.
 		default: return false;
 	}
 }

@@ -19,8 +19,20 @@ std::vector<WheelOption> tierOptions(const sim::Structure& piece,
 					 sim::itemDef(def.cost.id).name);
 		const bool higher = i > static_cast<int>(piece.tier);
 		const bool afford = inventory.count(def.cost.id) >= def.cost.count;
-		out.push_back(WheelOption{def.name, def.cost.id, notes[i], higher && afford});
+		out.push_back(WheelOption{def.name, def.cost.id, notes[i], higher && afford, i, false});
 	}
+	// And the way back down, if it is still young enough and yours.
+	static char window[40];
+	const double left = sim::BuildSystem::kFreeDemolishSeconds - piece.age;
+	const bool canWreck = piece.owner == 0 && left > 0;
+	if (canWreck) {
+		SDL_snprintf(window, sizeof(window), "%dm%02ds left", static_cast<int>(left) / 60,
+					 static_cast<int>(left) % 60);
+	} else {
+		SDL_snprintf(window, sizeof(window), "too old");
+	}
+	out.push_back(
+		WheelOption{"Take it down", sim::ItemId::Hammer, window, canWreck, kWheelWreck, true});
 	return out;
 }
 

@@ -50,7 +50,8 @@ int Wheel::release(float mouseX, float mouseY, float uiScale) {
 	const int at = hovered(mouseX, mouseY, uiScale);
 	open_ = false;
 	if (at < 0) return -1;
-	return options_[static_cast<std::size_t>(at)].allowed ? at : -1;
+	const WheelOption& slice = options_[static_cast<std::size_t>(at)];
+	return slice.allowed ? slice.value : -1;
 }
 
 void Wheel::draw(Paint& paint, float mouseX, float mouseY, float uiScale) const {
@@ -81,11 +82,16 @@ void Wheel::draw(Paint& paint, float mouseX, float mouseY, float uiScale) const 
 		// well as over a dark panel: the interface colours are translucent by
 		// design and a menu you are choosing from cannot be.
 		paint.fillPoly(band, Color{18, 20, 18, 240});
-		const Color fill = !slice.allowed ? Color{40, 34, 30, 190}
-							 : i == on    ? ui::kSelected
-										  : ui::kSurfaceAlt;
+		const Color fill = !slice.allowed  ? Color{40, 34, 30, 190}
+						   : i == on       ? (slice.danger ? Color{150, 52, 38, 235}
+														   : Color{58, 122, 190, 235})
+						   : slice.danger  ? Color{72, 34, 28, 225}
+										   : ui::kSurfaceAlt;
 		paint.fillPoly(band, fill);
-		paint.outlinePoly(band, 1.5f * uiScale, kInk);
+		// The one under your hand is ringed as well as lit: over a bright
+		// ground the fill alone was not enough to say which you would get.
+		paint.outlinePoly(band, (i == on ? 3.5f : 1.5f) * uiScale,
+						  i == on ? Color{240, 236, 220, 255} : kInk);
 
 		// What is on it, half way along the slice and half way out.
 		const float mid = (from + to) * 0.5f;
@@ -96,7 +102,8 @@ void Wheel::draw(Paint& paint, float mouseX, float mouseY, float uiScale) const 
 			drawItemIcon(paint, slice.icon, cx, cy - 10 * uiScale, 30 * uiScale);
 		}
 		if (Text* lettering = paint.text()) {
-			lettering->draw(slice.label, cx, cy + 10 * uiScale, 12 * uiScale,
+			lettering->draw(slice.label, cx, cy + 10 * uiScale, i == on ? 13.5f * uiScale
+																		: 12 * uiScale,
 							slice.allowed ? ui::kInk : ui::kFaint, Face::BodyBold, Align::Centre);
 			if (slice.note[0] != '\0') {
 				lettering->draw(slice.note, cx, cy + 24 * uiScale, 10 * uiScale, ui::kSubtle,

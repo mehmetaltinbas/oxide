@@ -47,9 +47,15 @@ constexpr ItemDef kItems[] = {
 	{ItemId::Water, "Water", "Collected at rivers and lakes.", ItemCategory::Consumable, 250,
 	 kNone, kNoGun, {0, 40, 0, 0}, kNoWear, kNoBoom},
 	// Stops bleeding, heals a little, slowly.
-	{ItemId::Bandage, "Bandage", "Stops bleeding. Heals a little, slowly. Takes five seconds.", ItemCategory::Consumable, 12, kNone, kNoGun, {0, 0, 5, 5}, kNoWear, kNoBoom},
-	{ItemId::Medkit, "Medical Syringe", "Heals a lot over a few seconds. Quick to apply.", ItemCategory::Consumable, 10, kNone, kNoGun,
-	 {0, 0, 60, 1.5}, kNoWear},
+	// Five seconds, five health, and fifty seconds of bleeding stopped: a
+	// bandage is for the wound rather than for the health bar.
+	{ItemId::Bandage, "Bandage", "Stops bleeding. Heals a little. Takes five seconds.", ItemCategory::Consumable, 12, kNone, kNoGun, {0, 0, 5, 5, 0, 50, 0}, kNoWear, kNoBoom},
+	// Two and a half seconds, fifteen health at once and twenty more over the
+	// next twenty, and it clears ten radiation on the way. The instant part is
+	// what makes it worth carrying into a fight; the rest is what makes it
+	// worth using before one.
+	{ItemId::Medkit, "Medical Syringe", "Fifteen health at once and twenty more over the next twenty seconds. Clears a little radiation.", ItemCategory::Consumable, 10, kNone, kNoGun,
+	 {0, 0, 15, 2.5, 20, 0, 10}, kNoWear},
 	// Keeps the cold off and turns a little damage.
 	{ItemId::Clothing, "Hide Clothing", "Keeps the cold off and turns a little damage.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
 	// The warmest thing on the island: hide is what you wear because it is

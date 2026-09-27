@@ -164,16 +164,28 @@ std::vector<ItemStack> Crafting::abandon() {
 	return back;
 }
 
+void Crafting::setOverflow(const void* owner, void (*drop)(const void*, ItemStack)) {
+	overflowOwner_ = owner;
+	overflow_ = drop;
+}
+
 void Crafting::update(double dt, Inventory& inventory) {
 	if (jobs_.empty()) return;
 	CraftJob& job = jobs_.front();
 	job.left -= dt;
 	if (job.left > 0) return;
-	// A pack with no room for it keeps the job waiting rather than losing it.
+	// Pack first, then the belt, then the ground: see Inventory::add and
+	// setOverflow. Nothing is lost and nothing waits.
 	const int left = inventory.add(job.recipe->out, job.recipe->amount);
 	if (left > 0) {
-		job.left = 0.25;
-		return;
+		if (overflow_) {
+			overflow_(overflowOwner_, ItemStack{job.recipe->out, left});
+		} else {
+			// Nobody wired anywhere to put it: hold the job rather than lose
+			// the materials that went into it.
+			job.left = 0.25;
+			return;
+		}
 	}
 	// One off the order; the rest of it starts on the next one straight away.
 	if (--job.count > 0) {

@@ -825,6 +825,28 @@ int main() {
 		if (!tookDown || tookOld) std::printf("  THE DEMOLISH WINDOW IS WRONG\n");
 	}
 
+	// A tool takes twig apart and barely marks stone. Both ends, because the
+	// whole point of the tier is the difference between them.
+	{
+		sim::BuildSystem build;
+		const double swing = sim::itemDef(sim::ItemId::Hatchet).melee.damage;
+		// On a floor, which has no soft side: this is about the tier and
+		// nothing else, and a wall would fold the hard-side rule in with it.
+		int cell = 80;
+		const auto bite = [&](sim::BuildTier tier) {
+			sim::Structure& floor = build.placeFoundation(cell, cell, 0, tier);
+			cell += 4;
+			const int before = floor.hp;
+			build.damage(floor, swing, 0, 0, true);
+			const int took = before - floor.hp;
+			return 100.0 * took / std::max(1, before);
+		};
+		const double twig = bite(sim::BuildTier::Twig);
+		const double stone = bite(sim::BuildTier::Stone);
+		std::printf("chop: a hatchet takes %.0f%% off twig and %.1f%% off stone\n", twig, stone);
+		if (twig < 90 || stone > 2) std::printf("  THE TIERS DO NOT HOLD\n");
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.
