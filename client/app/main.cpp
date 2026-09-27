@@ -1503,6 +1503,11 @@ int main(int argc, char** argv) {
 		const sim::ItemId inHand = inventory.held();
 		// Running keeps your hands busy. Medicine is the exception: you can
 		// always patch yourself up on the move.
+		// Whether there is a roof over you, which is what decides whether a
+		// tool reaches the floor you are standing on or the roof above it.
+		const bool underRoof =
+			build.ceilingAt(static_cast<int>(SDL_floor(player.x / sim::kBuildCell)),
+							static_cast<int>(SDL_floor(player.y / sim::kBuildCell))) != nullptr;
 		const bool handsFree =
 			!player.sprinting ||
 			sim::itemDef(inHand).category == sim::ItemCategory::Consumable;
@@ -1606,7 +1611,7 @@ int main(int argc, char** argv) {
 			!upgradeWheel.open() && player.attackTimer <= 0) {
 			// Right click on your own piece: the ring of what it could be made
 			// of, held open while the button is down.
-			sim::Structure* piece = build.nearest(cursorX, cursorY, 30);
+			sim::Structure* piece = build.nearest(cursorX, cursorY, 30, underRoof);
 			if (piece && piece->owner == 0) {
 				float mx = 0;
 				float my = 0;
@@ -1643,7 +1648,7 @@ int main(int argc, char** argv) {
 			player.attackTimer <= 0) {
 			// The hammer mends what is damaged and puts what is whole up a
 			// tier. Only your own, and only within arm's length of you.
-			sim::Structure* piece = build.nearest(cursorX, cursorY, 30);
+			sim::Structure* piece = build.nearest(cursorX, cursorY, 30, underRoof);
 			if (piece && piece->owner != 0) piece = nullptr;
 			if (piece &&
 				SDL_sqrt((cursorX - player.x) * (cursorX - player.x) +
@@ -2544,7 +2549,7 @@ int main(int argc, char** argv) {
 		// with the hammer in hand, so it is something you ask for rather than
 		// something the screen keeps telling you.
 		if (inventory.held() == sim::ItemId::Hammer && !panel.open() && !map.open()) {
-			if (const sim::Structure* piece = build.nearest(cursorX, cursorY, 30)) {
+			if (const sim::Structure* piece = build.nearest(cursorX, cursorY, 30, underRoof)) {
 				const float scaleUi = static_cast<float>(density);
 				float mx = 0;
 				float my = 0;

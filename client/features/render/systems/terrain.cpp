@@ -94,8 +94,14 @@ Terrain::~Terrain() {
 
 void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screenW, int screenH) {
 	// Two dots half a tile apart, so the grid reads as a screen rather than as
-	// rows and columns. Nine world units between them, as the press had it.
-	constexpr int kSpacing = 9;
+	// rows and columns.
+	//
+	// Eight world units between them, not nine. A building cell is sixty-four
+	// across: at nine it divided into seven and a bit, so one edge of a
+	// foundation landed on the dots and the other landed between them, and the
+	// two grids read as a mistake. At eight a cell is exactly eight dots and
+	// every edge of everything you put down sits on one.
+	constexpr int kSpacing = 8;
 	constexpr int kOversample = 4;
 	if (!screen_) {
 		const int size = kSpacing * kOversample;
@@ -245,23 +251,39 @@ void Terrain::drawOver(Paint& paint, const sim::World& world, double cameraX, do
 				// the end of it and round again, so the sea runs one way for
 				// ever the way water does. Swung on a sine it read as a field
 				// of things rocking on the spot.
-				const double travel = std::fmod(clock * speed * 34.0 + seed * sim::kBiomeTile +
-													col * 19.0 + row * 7.0,
-												static_cast<double>(sim::kBiomeTile));
+				// Kept inside the tile it belongs to. A crest that ran off the
+				// end of a shore tile carried the sea a stride up the beach.
+				const double run = sim::kBiomeTile * length;
+				const double travel =
+					std::fmod(clock * speed * 34.0 + seed * sim::kBiomeTile + col * 19.0 +
+								  row * 7.0,
+							  sim::kBiomeTile - run);
 				const double bob = clock * speed * 2.2 + seed * 6.28318530718;
 				const double ox = wx - sim::kBiomeTile * 0.5 + travel;
 				const double oy = wy - sim::kBiomeTile * 0.5 + sim::kBiomeTile * lane +
 								  amp * std::sin(bob);
 				const float x0 = static_cast<float>((ox - cameraX) * zoom) + screenW * 0.5f;
 				const float y0 = static_cast<float>((oy - cameraY) * zoom) + screenH * 0.5f;
-				const float run = static_cast<float>(sim::kBiomeTile * length * zoom);
-				const float lift = static_cast<float>(amp * 0.5 * zoom);
-				// A crest, not a straight line: out, up over the top, and down.
-				const std::vector<Point> crest{{x0, y0},
-											   {x0 + run * 0.35f, y0 - lift},
-											   {x0 + run * 0.7f, y0 - lift},
-											   {x0 + run, y0}};
-				paint.outlinePoly(crest, 2.0f, Color{255, 255, 255, ink}, false);
+				const float reach = static_cast<float>(run * zoom);
+				const float lift = static_cast<float>(amp * 0.6 * zoom);
+				// A swell in the water rather than a line on top of it: a band
+				// of a paler blue, thickest in the middle and tapering to
+				// nothing at both ends, so it reads as the surface lifting.
+				// Drawn white, it sat on the sea like a scratch on the glass.
+				const Color crestColor{176, 214, 238, ink};
+				std::vector<Point> band;
+				constexpr int kSteps = 8;
+				for (int k = 0; k <= kSteps; ++k) {
+					const float t = static_cast<float>(k) / kSteps;
+					const float swell = std::sin(t * 3.14159265f);
+					band.push_back({x0 + reach * t, y0 - lift * swell * 0.5f});
+				}
+				for (int k = kSteps; k >= 0; --k) {
+					const float t = static_cast<float>(k) / kSteps;
+					const float swell = std::sin(t * 3.14159265f);
+					band.push_back({x0 + reach * t, y0 + lift * swell * 0.5f});
+				}
+				paint.fillPoly(band, crestColor);
 			}
 		}
 	}

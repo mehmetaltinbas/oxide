@@ -164,14 +164,12 @@ void updateUse(Player& player, Inventory& inventory, double dt, bool sprinting) 
 	// Put it away and you stop applying it: the same question a reload asks,
 	// for the same reason. See docs/systems/channelled-actions.md.
 	if (!stillInHand(inventory, player.applying)) {
-		player.applying = ItemId::None;
-		player.useLeft = 0;
+		stopChannelling(player);
 		return;
 	}
 	if (sprinting) {
 		// You can walk through a bandage. You cannot run through one.
-		player.applying = ItemId::None;
-		player.useLeft = 0;
+		stopChannelling(player);
 		return;
 	}
 	player.useLeft -= dt;

@@ -425,7 +425,7 @@ Structure* BuildSystem::nearestDoor(double x, double y, double within) {
 	return best;
 }
 
-Structure* BuildSystem::nearest(double x, double y, double within) {
+Structure* BuildSystem::nearest(double x, double y, double within, bool underRoof) {
 	// Edges first, and only then the floor and the roof.
 	//
 	// A cell piece was measured from the middle of its cell, so standing in a
@@ -454,6 +454,12 @@ Structure* BuildSystem::nearest(double x, double y, double within) {
 
 	for (Structure& piece : pieces_) {
 		if (!onCell(piece.kind)) continue;
+		// Inside, the roof is over your head and out of reach; outside, the
+		// floor is under the roof and out of sight.
+		if (underRoof && piece.kind == BuildKind::Ceiling) continue;
+		if (!underRoof && piece.kind == BuildKind::Foundation && ceilingAt(piece.gx, piece.gy)) {
+			continue;
+		}
 		// To the cell itself rather than to its middle: standing on a floor
 		// you are on it, whichever corner of it you happen to be in.
 		const double x0 = piece.gx * static_cast<double>(kBuildCell);

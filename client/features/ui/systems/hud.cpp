@@ -204,34 +204,36 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 	gauge(Vital::Food, calories_, 100, rgb(0xcf6a12), 1);
 	gauge(Vital::Water, hydration_, 100, rgb(0x4a9ee8), 2);
 
-	if (bleeding_ > 0) {
-		// A drop beside the gauges, beating, and beside it what the wound is
-		// still going to cost. A bleed takes one health a second, so the
-		// seconds left and the health left to lose are the same number, and it
-		// is written as health because that is what you are deciding about
-		// when you look at it.
-		drawVitalIcon(paint, Vital::Water, gaugeX + 208 * uiScale, baseY + 15 * uiScale,
-					  icon * static_cast<float>(0.9 + pulse * 0.2), rgb(0x7a1c1c));
-		char cost[16];
-		SDL_snprintf(cost, sizeof(cost), "-%d",
-					 static_cast<int>(std::ceil(bleeding_ * sim::PlayerVitals::kBleedDamage)));
-		if (lettering_) {
-			lettering_->drawInked(cost, gaugeX + 224 * uiScale, baseY + 7 * uiScale,
-								  13 * uiScale, rgb(0xd8483a), Face::BodyBold, Align::Left, 1);
+	// The two things the health bar is owed or owes, beside it, in a fixed
+	// order: what is coming back first, what is going second. One on its own
+	// takes the first place, so a bandaged player and a bleeding one both read
+	// at a glance without counting along the row.
+	{
+		int place = 0;
+		const auto beside = [&](Vital vital, Color mark, Color ink, const char* line, float size) {
+			const float x = gaugeX + (208 + place * 60) * uiScale;
+			drawVitalIcon(paint, vital, x, baseY + 15 * uiScale, size, mark);
+			if (lettering_) {
+				lettering_->drawInked(line, x + 16 * uiScale, baseY + 7 * uiScale, 13 * uiScale,
+									  ink, Face::BodyBold, Align::Left, 1);
+			}
+			++place;
+		};
+		if (mending_ > 0.5) {
+			// What a syringe still owes you, at one a second.
+			char owed[16];
+			SDL_snprintf(owed, sizeof(owed), "+%d", static_cast<int>(std::ceil(mending_)));
+			beside(Vital::Health, rgb(0x5fb85f), rgb(0x5fb85f), owed, icon * 0.85f);
 		}
-	}
-	if (mending_ > 0.5) {
-		// What a syringe still owes you, under the bleed and in green: the
-		// same reading, the other way round.
-		// On the health row, to the right of the bleed: both are about the one
-		// bar, and a green number on the food row read as food.
-		drawVitalIcon(paint, Vital::Health, gaugeX + 268 * uiScale, baseY + 15 * uiScale,
-					  icon * 0.85f, rgb(0x5fb85f));
-		char owed[16];
-		SDL_snprintf(owed, sizeof(owed), "+%d", static_cast<int>(std::ceil(mending_)));
-		if (lettering_) {
-			lettering_->drawInked(owed, gaugeX + 284 * uiScale, baseY + 7 * uiScale,
-								  13 * uiScale, rgb(0x5fb85f), Face::BodyBold, Align::Left, 1);
+		if (bleeding_ > 0) {
+			// A drop, beating, and what the wound is still going to cost. A
+			// bleed takes one health every two seconds, and it is written as
+			// health because that is what you are deciding about.
+			char cost[16];
+			SDL_snprintf(cost, sizeof(cost), "-%d",
+						 static_cast<int>(std::ceil(bleeding_ * sim::PlayerVitals::kBleedDamage)));
+			beside(Vital::Water, rgb(0x7a1c1c), rgb(0xd8483a), cost,
+				   icon * static_cast<float>(0.9 + pulse * 0.2));
 		}
 	}
 

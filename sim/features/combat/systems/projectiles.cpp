@@ -188,11 +188,13 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
 			hit.blastDamage = bullet.blastDamage;
 			hit.blastRadius = bullet.blastRadius;
 			hit.nodeKind = hitNode->kind;
-			// Everything takes the round, not only a barrel. A tree that
-			// stopped an arrow and did not so much as shed a log read as
-			// scenery rather than as a thing standing in the world.
-			if (ResourceNode* live = world.nodeById(hitNode->id)) {
-				hit.brokeNode = world.hurtNode(*live, bullet.damage);
+			// What a round is worth against this kind of thing, which for a
+			// boulder or an ore seam is nothing: see NodeDef::shotShare.
+			const double share = nodeDef(hitNode->kind).shotShare;
+			if (share > 0) {
+				if (ResourceNode* live = world.nodeById(hitNode->id)) {
+					hit.brokeNode = world.hurtNode(*live, bullet.damage * share);
+				}
 			}
 			hits.push_back(hit);
 			bullet.left = 0;

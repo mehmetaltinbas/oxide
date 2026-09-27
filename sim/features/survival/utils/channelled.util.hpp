@@ -2,6 +2,7 @@
 
 #include "sim/features/items/systems/inventory.hpp"
 #include "sim/features/items/types/item-id.enum.hpp"
+#include "sim/features/survival/types/player.struct.hpp"
 
 namespace sim {
 
@@ -24,6 +25,29 @@ namespace sim {
  */
 inline bool stillInHand(const Inventory& inventory, ItemId what) {
 	return what != ItemId::None && inventory.held() == what;
+}
+
+/**
+ * Stops whatever is in progress, and gives back the time it was holding.
+ *
+ * This is the whole of stopping one, and it is one routine because the part
+ * everybody forgets is the last line. A channelled action books `attackTimer`
+ * for as long as it expects to take: five seconds for a bandage, four for a
+ * magazine. Dropping the action and leaving the booking standing meant that
+ * putting the bandage away bought you five seconds in which nothing else
+ * worked either, and the slot you switched to did nothing at all.
+ *
+ * Anything that adds a new channelled action clears it through here rather
+ * than by setting its own fields to nought, and gets that for free.
+ */
+inline void stopChannelling(Player& player) {
+	player.applying = ItemId::None;
+	player.useLeft = 0;
+	player.useTotal = 0;
+	player.reloadLeft = 0;
+	player.reloadTotal = 0;
+	player.bowDraw = 0;
+	player.attackTimer = 0;
 }
 
 }  // namespace sim

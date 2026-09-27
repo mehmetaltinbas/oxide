@@ -23,7 +23,14 @@ namespace {
  * however many fit at the same size, so a square is always square whatever
  * shape the island is.
  */
-constexpr int kCellsAcross = 15;
+/**
+ * How many lettered squares the island is divided into, each way.
+ *
+ * Twenty. At fifteen a square was twenty-one foundations across, which is a
+ * whole base and its garden: "he is in H7" told you almost nothing. At twenty
+ * it is sixteen, which is a place rather than a district.
+ */
+constexpr int kCellsAcross = 20;
 constexpr double kGridSize =
 	(sim::kWorldWidth > sim::kWorldHeight ? sim::kWorldWidth : sim::kWorldHeight) / kCellsAcross;
 

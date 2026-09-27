@@ -303,7 +303,19 @@ public:
 	Structure* hitSegment(double ax, double ay, double bx, double by, double& at);
 
 	/** The piece nearest a point, for a hammer or a hand on a door. */
-	Structure* nearest(double x, double y, double within);
+	/**
+	 * What a tool aimed at this point would land on.
+	 *
+	 * Edges first, then the floor and the roof, because what you are aiming at
+	 * is the thing with an edge and the cell is what you get when you are
+	 * aiming at nothing.
+	 *
+	 * `underRoof` says you are standing inside, which decides between the two
+	 * cell pieces: from inside a room the roof is over your head and the floor
+	 * is what you are standing on and can reach, and from outside the roof is
+	 * the only one of them you can see at all.
+	 */
+	Structure* nearest(double x, double y, double within, bool underRoof = false);
 	/** The nearest door or doorway, which is what E is asking about. */
 	Structure* nearestDoor(double x, double y, double within);
 

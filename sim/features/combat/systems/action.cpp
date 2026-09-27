@@ -294,15 +294,13 @@ void tickReload(Player& player, Inventory& inventory, double dt) {
 	// wherever the slot changed means no call site can forget. See
 	// docs/systems/channelled-actions.md.
 	if (!stillInHand(inventory, player.loaded)) {
-		player.reloadLeft = 0;
-		player.reloadTotal = 0;
+		stopChannelling(player);
 		return;
 	}
 	// Breaking into a sprint drops a rocket being loaded, for the same reason
 	// it cannot be started at a run. Every other reload carries on.
 	if (player.sprinting && player.loaded == ItemId::RocketLauncher) {
-		player.reloadLeft = 0;
-		player.reloadTotal = 0;
+		stopChannelling(player);
 		return;
 	}
 	player.reloadLeft -= dt;
