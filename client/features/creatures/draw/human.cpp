@@ -262,7 +262,20 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 	blob(paint, f, 6.6f, hy - 0.4f, 1.6f, 2.3f, skin, true);
 	blob(paint, f, 0, hy, 6.8f, 6.8f, skin, true);
 	blob(paint, f, 0, hy - 7, 1.5f, 1.9f, skin, true);
-	blob(paint, f, 0, hy + 1.7f, 6.6f, 6.6f, hair, true);
+	if (look.helmet.a > 0) {
+		// The hood or the helm, over the whole skull, with a visor across the
+		// front of it: from above that band is the only thing that says there
+		// is a face under there rather than a painted ball.
+		blob(paint, f, 0, hy + 0.6f, 7.4f, 7.4f, tint(look.helmet), true);
+		paint.fillPoly({f.at(-4.6f, hy - 5.4f), f.at(4.6f, hy - 5.4f), f.at(3.6f, hy - 2.2f),
+						f.at(-3.6f, hy - 2.2f)},
+					   kInk);
+		paint.fillPoly({f.at(-4.0f, hy - 5.1f), f.at(4.0f, hy - 5.1f), f.at(3.1f, hy - 2.6f),
+						f.at(-3.1f, hy - 2.6f)},
+					   tint(Color{0x8f, 0xa6, 0xb0, 255}));
+	} else {
+		blob(paint, f, 0, hy + 1.7f, 6.6f, 6.6f, hair, true);
+	}
 
 	paint.useWorldScale(wasScale);
 }

@@ -67,6 +67,13 @@ public:
 		inspectingWorn_ = false;
 	}
 
+	/** Looks at what is being worn instead, as a click on that slot would. */
+	void inspectWorn(bool on) {
+		if (!on) return;
+		inspecting_ = 0;
+		inspectingWorn_ = true;
+	}
+
 	/** What Eat, Wear, Take off and Drop do. Handed over once at startup. */
 	void useActions(ItemActions actions) { actions_ = std::move(actions); }
 

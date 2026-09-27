@@ -22,6 +22,15 @@ struct HumanLook {
 	bool swimming = false;
 	Color skin{0xc0, 0x8a, 0x5e, 255};
 	Color hair{0x3a, 0x2c, 0x22, 255};
+	/**
+	 * What is over the head, or nothing when the head is bare.
+	 *
+	 * A sealed suit is sealed: a radiation suit with a bare head keeps nothing
+	 * out, and heavy plate over the body with a haircut on top reads as fancy
+	 * dress. Set alongside the shirt by whoever decides what is worn, so the
+	 * two cannot disagree about whether the suit has a hood.
+	 */
+	Color helmet{0, 0, 0, 0};
 	Color shirt{0x6a, 0x7f, 0x9a, 255};
 	Color legs{0x4a, 0x3a, 0x2c, 255};
 	/** Set while hurt: everything of them is drawn in it. */

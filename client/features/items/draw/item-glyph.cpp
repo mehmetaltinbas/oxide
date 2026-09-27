@@ -744,12 +744,14 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			plainDisc(-0.16f, 0.21f, 0.03f, rgb(0x5d6a74));
 			plainDisc(0.16f, 0.21f, 0.03f, rgb(0x5d6a74));
 			break;
-		case sim::ItemId::Hazmat:
+		case sim::ItemId::RadSuit:
+			// Yellow, the colour everything that keeps radiation out is, and
+			// the same yellow it is drawn in on the body.
 			edged(pts({{-0.28f, -0.1f}, {-0.1f, -0.26f}, {0.1f, -0.26f}, {0.28f, -0.1f},
 					   {0.18f, 0.0f}, {0.18f, 0.28f}, {-0.18f, 0.28f}, {-0.18f, 0.0f}}),
-				  rgb(0x5ac8a0), rgb(0x2f8a6a));
+				  rgb(0xe8c73c), rgb(0x8a7414));
 			disc(0, -0.14f, 0.11f, rgb(0x2f3a3a));
-			plainDisc(-0.03f, -0.17f, 0.04f, rgb(0x8fe8c8));
+			plainDisc(-0.03f, -0.17f, 0.04f, rgb(0x9fb4b4));
 			break;
 
 		// ----------------------------------------------------- deployables

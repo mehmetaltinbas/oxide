@@ -30,7 +30,7 @@ enum class ItemId : std::uint8_t {
 	Bandage,
 	Medkit,
 	Clothing,
-	Hazmat,
+	RadSuit,
 	// What you put down rather than carry.
 	Campfire,
 	Furnace,

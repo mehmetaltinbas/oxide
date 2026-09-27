@@ -54,7 +54,7 @@ constexpr ItemDef kItems[] = {
 	{ItemId::Clothing, "Hide Clothing", "Keeps the cold off and turns a little damage.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
 	 {14, 0.12, 0}},
 	// The only way to loot a hot monument and walk out.
-	{ItemId::Hazmat, "Hazmat Suit", "The only way to loot a hot monument and walk out.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
+	{ItemId::RadSuit, "Radiation Suit", "The only way to loot a hot monument and walk out.", ItemCategory::Clothing, 1, kNone, kNoGun, kNoFood,
 	 {8, 0.2, 0.9}},
 	{ItemId::Campfire, "Campfire", "Warmth, light, and it cooks meat.", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	{ItemId::Furnace, "Furnace", "Burns wood to smelt ore into fragments and sulfur.", ItemCategory::Deployable, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},

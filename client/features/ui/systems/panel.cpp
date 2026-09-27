@@ -26,6 +26,7 @@
 #include "client/features/render/types/face.enum.hpp"
 #include "client/features/ui/types/tab.enum.hpp"
 #include "client/features/ui/utils/belt-slot-box.util.hpp"
+#include "sim/features/items/utils/is-ranged.util.hpp"
 
 namespace client {
 
@@ -377,9 +378,11 @@ void Panel::drawInventory(Paint& paint, const sim::Inventory& inventory, const L
 		SDL_snprintf(value, sizeof(value), "%.0f", def.melee.reach);
 		stat("Reach", value);
 	}
-	if (def.gun.damage > 0) {
-		SDL_snprintf(value, sizeof(value), "%.0f", def.gun.damage);
-		stat("Damage", value);
+	if (sim::isRanged(def.gun)) {
+		if (def.gun.damage > 0) {
+			SDL_snprintf(value, sizeof(value), "%.0f", def.gun.damage);
+			stat("Damage", value);
+		}
 		SDL_snprintf(value, sizeof(value), "%.0f", def.gun.range);
 		stat("Range", value);
 		if (def.gun.magazine > 0) {
@@ -388,11 +391,16 @@ void Panel::drawInventory(Paint& paint, const sim::Inventory& inventory, const L
 		}
 		stat("Ammunition", sim::itemDef(def.gun.ammo).name);
 	}
-	if (def.wear.warmth > 0) {
-		SDL_snprintf(value, sizeof(value), "%.0f", def.wear.warmth);
-		stat("Warmth", value);
+	// Everything worn says all three, including the noughts: what a suit does
+	// not do is as much of the decision as what it does, and a radiation suit
+	// that says nothing about armour reads as untested rather than as thin.
+	if (def.category == sim::ItemCategory::Clothing) {
 		SDL_snprintf(value, sizeof(value), "%.0f%%", def.wear.armor * 100);
 		stat("Armour", value);
+		SDL_snprintf(value, sizeof(value), "%+.0f degrees", def.wear.warmth);
+		stat("Cold", value);
+		SDL_snprintf(value, sizeof(value), "%.0f%%", def.wear.radiation * 100);
+		stat("Radiation", value);
 	}
 	if (def.boom.damage > 0) {
 		SDL_snprintf(value, sizeof(value), "%.0f", def.boom.damage);

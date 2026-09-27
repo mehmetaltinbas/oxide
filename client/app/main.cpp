@@ -208,6 +208,8 @@ int main(int argc, char** argv) {
 	int holdSlot = -1;
 	/** Seconds of bleeding to start with, for a look at the readout. */
 	double bleedFor = 0;
+	/** Something worn from the off, for a screenshot. */
+	sim::ItemId wearWhat = sim::ItemId::None;
 	/** Which crafting category to open, for a screenshot. */
 	int craftCategory = -1;
 	/** A queued job picked up and held over another row, for a screenshot. */
@@ -286,6 +288,12 @@ int main(int argc, char** argv) {
 		} else if (SDL_strcmp(argv[i], "--dragqueue") == 0 && i + 2 < argc) {
 			dragFrom = SDL_atoi(argv[++i]);
 			dragOver = SDL_atoi(argv[++i]);
+		} else if (SDL_strcmp(argv[i], "--wear") == 0 && i + 1 < argc) {
+			const char* what = argv[++i];
+			wearWhat = SDL_strcmp(what, "rad") == 0     ? sim::ItemId::RadSuit
+					   : SDL_strcmp(what, "heavy") == 0 ? sim::ItemId::HeavyMetalSuit
+					   : SDL_strcmp(what, "metal") == 0 ? sim::ItemId::MetalSuit
+														: sim::ItemId::Clothing;
 		} else if (SDL_strcmp(argv[i], "--category") == 0 && i + 1 < argc) {
 			craftCategory = SDL_atoi(argv[++i]);
 		} else if (SDL_strcmp(argv[i], "--bleeding") == 0 && i + 1 < argc) {
@@ -671,6 +679,10 @@ int main(int argc, char** argv) {
 		} else {
 			panel.toggleInventory();
 			panel.inspect(0);
+			// What is being worn, when there is one, so the suit's own numbers
+			// can be looked at rather than a rock's. After inspect, which
+			// clears it.
+			panel.inspectWorn(wearWhat != sim::ItemId::None);
 		}
 		crafting.queue(inventory, sim::recipes()[0], 0, 4);
 		if (dragFrom >= 0) {
@@ -1237,6 +1249,7 @@ int main(int argc, char** argv) {
 			player.bowDraw = sim::kBowDrawSeconds * poseDraw;
 			player.aim = 0;
 		}
+		if (wearWhat != sim::ItemId::None) inventory.worn() = sim::ItemStack{wearWhat, 1};
 		if (bleedFor > 0) player.bleeding = bleedFor;
 		if (reloadAt >= 0) {
 			// Held part way through a magazine change, for a screenshot.
@@ -1729,9 +1742,12 @@ int main(int argc, char** argv) {
 					look.shirt = client::rgb(0x8a6134);
 					look.legs = client::rgb(0x6a4a28);
 					break;
-				case sim::ItemId::Hazmat:
-					look.shirt = client::rgb(0xd8c24a);
-					look.legs = client::rgb(0xb59f34);
+				case sim::ItemId::RadSuit:
+					// Sealed, hood and all: a radiation suit with a bare head
+					// keeps nothing out.
+					look.shirt = client::rgb(0xe8c73c);
+					look.legs = client::rgb(0xc0a220);
+					look.helmet = client::rgb(0xe8c73c);
 					break;
 				case sim::ItemId::MetalSuit:
 					// Road signs over hide: a grey plate on a brown body.
@@ -1739,14 +1755,21 @@ int main(int argc, char** argv) {
 					look.legs = client::rgb(0x6a4a28);
 					break;
 				case sim::ItemId::HeavyMetalSuit:
-					// Plate over everything, legs included.
+					// Plate over everything, legs and head included.
 					look.shirt = client::rgb(0xa9b6c0);
 					look.legs = client::rgb(0x76828c);
+					look.helmet = client::rgb(0x9aa7b2);
 					break;
 				default:
 					look.shirt = look.skin;
 					look.legs = look.skin;
 					break;
+			}
+			// Bare unless the case above said otherwise, and set every frame,
+			// or taking a suit off leaves the helmet on.
+			if (inventory.worn().id != sim::ItemId::RadSuit &&
+				inventory.worn().id != sim::ItemId::HeavyMetalSuit) {
+				look.helmet = client::Color{0, 0, 0, 0};
 			}
 			look.held = inventory.held();
 			look.bowDraw = static_cast<float>(player.bowDraw / sim::kBowDrawSeconds);
