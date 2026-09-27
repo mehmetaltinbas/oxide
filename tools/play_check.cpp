@@ -566,6 +566,47 @@ int main() {
 					sim::npcDef(sim::NpcKind::Kangaroo).speed);
 	}
 
+	// Something startled keeps running. Standing still after it has bolted,
+	// the rabbit must put real ground between itself and you rather than
+	// stopping dead the moment it is one unit outside the startle range.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem empty;
+		sim::Projectiles none;
+		sim::NpcSystem wild;
+		wild.mutableList().clear();
+		sim::Player watcher{};
+		watcher.x = 10368;
+		watcher.y = 10368;
+		watcher.alive = true;
+		sim::Npc rabbit{};
+		rabbit.id = 1;
+		rabbit.kind = sim::NpcKind::Rabbit;
+		rabbit.x = watcher.x + 120;
+		rabbit.y = watcher.y;
+		rabbit.hp = sim::npcDef(sim::NpcKind::Rabbit).hp;
+		rabbit.homeX = rabbit.x;
+		rabbit.homeY = rabbit.y;
+		rabbit.leash = 400;
+		wild.mutableList().push_back(rabbit);
+		double atRange = 0;
+		for (int i = 0; i < 60 * 8; ++i) {
+			island.clearNaturalIn(watcher.x - 300, watcher.y - 300, watcher.x + 1400,
+								  watcher.y + 300);
+			wild.update(island, empty, none, dt, watcher);
+			const double d = std::hypot(wild.list()[0].x - watcher.x,
+										wild.list()[0].y - watcher.y);
+			// Where it was as it left the range it was startled inside.
+			if (atRange == 0 && d > 155) atRange = d;
+		}
+		const double gone = std::hypot(wild.list()[0].x - watcher.x,
+									   wild.list()[0].y - watcher.y);
+		std::printf("bolt: startled at 120, still running at %.0f, eight seconds later %.0f\n",
+					atRange, gone);
+		if (gone < 600) std::printf("  BOLT STOPPED SHORT\n");
+	}
+
 	// Nothing walks through a barrel, whoever it is: the one collision routine.
 	{
 		sim::World island;

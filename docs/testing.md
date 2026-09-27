@@ -97,6 +97,7 @@ time. The flags that exist for looking at things:
 | `--icons` | every item picture on one sheet |
 | `--arrow` | arrows and a rifle round frozen in the air |
 | `--reload <t>` | a gun frozen part way through a magazine change |
+| `--bleeding <s>` | that many seconds of a wound, for the cost beside the gauges |
 | `--swing <t>`, `--draw <t>` | a blow or a bow frozen part way through |
 | `--monument <n>` | dropped at the nth looting place |
 | `--night`, `--panel`, `--craft`, `--title`, `--map` | the state you want to see |

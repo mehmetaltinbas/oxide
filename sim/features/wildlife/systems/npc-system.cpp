@@ -34,12 +34,15 @@ struct Population {
 	int count;
 };
 
+// Thinned to a little over half of what it was, keeping every ratio between
+// the species: at the old numbers you could not cross a field without meeting
+// something, and an island you never walk alone on is not a frightening one.
 constexpr Population kWildlife[5] = {
-	{NpcKind::Rabbit, 130},
-	{NpcKind::Elk, 85},
-	{NpcKind::Kangaroo, 70},
-	{NpcKind::Wolf, 80},
-	{NpcKind::Bear, 26},
+	{NpcKind::Rabbit, 72},
+	{NpcKind::Elk, 47},
+	{NpcKind::Kangaroo, 39},
+	{NpcKind::Wolf, 44},
+	{NpcKind::Bear, 15},
 };
 
 /** How far off an animal notices another one worth chasing or running from. */
@@ -56,6 +59,16 @@ constexpr double kMindSeconds = 6.0;
 constexpr double kSkittishRange = 150;
 /** How long a frightened animal keeps running after it is hurt. */
 constexpr double kAlarmSeconds = 7.0;
+/**
+ * How far it puts between you before it stops running.
+ *
+ * Once something has bolted it keeps bolting until it is properly clear of
+ * you. Stopping the moment you are one unit past `kSkittishRange` had a rabbit
+ * sprint two paces and then stand there, which is not what a frightened animal
+ * does. Further than the sight range, so it is out of the picture before it
+ * settles.
+ */
+constexpr double kFleeSafeRange = 620;
 
 /** Everything killed comes back a day later, as every other resource does. */
 constexpr double kRegrowthSeconds = 3600;
@@ -461,7 +474,13 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 		// Peaceful things run from you on sight, not only once you have hit
 		// them: you do not walk up to a deer, and a deer that has been shot at
 		// does not stand and take the second arrow either.
-		if (fleesPlayer(def) && player.alive && (provoked || toPlayer < kSkittishRange)) {
+		// Startled once it is inside the range, and still running until it is
+		// clear: the state itself keeps it going, so leaving the range does not
+		// stop it dead.
+		const bool startled = toPlayer < kSkittishRange;
+		const bool stillRunning = npc.state == NpcState::Flee && toPlayer < kFleeSafeRange;
+		if (fleesPlayer(def) && player.alive && (provoked || startled || stillRunning)) {
+			if (startled) npc.alarm = kAlarmSeconds;
 			npc.state = NpcState::Flee;
 			npc.facing = std::atan2(npc.y - player.y, npc.x - player.x);
 			const double bolt = toPlayer < 420 ? def.speed : def.speed * 0.5;

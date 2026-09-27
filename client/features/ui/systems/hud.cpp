@@ -7,6 +7,7 @@
 #include "client/design/tokens/interface.tokens.hpp"
 #include "client/features/render/systems/text.hpp"
 #include "client/features/ui/draw/vital-icon.hpp"
+#include "sim/features/survival/systems/survival.hpp"
 #include "sim/features/items/constants/item-defs.constant.hpp"
 #include "sim/features/items/types/food.struct.hpp"
 #include "sim/features/items/types/gun.struct.hpp"
@@ -61,7 +62,7 @@ void Hud::setAmmo(int carried, int loaded, double reloading, double bowDraw) {
 }
 
 void Hud::setVitals(double calories, double hydration, double temperature, double radiation,
-					bool bleeding, double applying) {
+					double bleeding, double applying) {
 	calories_ = calories;
 	hydration_ = hydration;
 	temperature_ = temperature;
@@ -139,13 +140,16 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 			lettering_->draw(count, x + slot - 5 * uiScale, y0 + slot - 18 * uiScale,
 							 11 * uiScale, ui::kInk, Face::BodyBold, Align::Right);
 		}
-		// A gun reads "in the gun / in the pack", and only the one actually in
-		// your hand: a rifle on the belt used to print the pistol's rounds.
+		// What is in the gun, and nothing else: what is left in the pack is
+		// already on the slot's own count and in the pack screen, and printing
+		// it a third time here said nothing you could act on. Only the gun
+		// actually in your hand: a rifle on the belt used to print the
+		// pistol's rounds.
 		const sim::Gun& gun = sim::itemDef(stack.id).gun;
 		if (gun.damage > 0 && active && carried_ >= 0 && lettering_) {
 			char ammo[16];
 			if (gun.magazine > 0) {
-				SDL_snprintf(ammo, sizeof(ammo), "%d/%d", loaded_, std::max(0, carried_ - loaded_));
+				SDL_snprintf(ammo, sizeof(ammo), "%d", loaded_);
 			} else {
 				SDL_snprintf(ammo, sizeof(ammo), "%d", std::max(0, carried_));
 			}
@@ -196,10 +200,21 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 	gauge(Vital::Food, calories_, 100, rgb(0xcf6a12), 1);
 	gauge(Vital::Water, hydration_, 100, rgb(0x4a9ee8), 2);
 
-	if (bleeding_) {
-		// A drop beside the gauges, beating.
+	if (bleeding_ > 0) {
+		// A drop beside the gauges, beating, and beside it what the wound is
+		// still going to cost. A bleed takes one health a second, so the
+		// seconds left and the health left to lose are the same number, and it
+		// is written as health because that is what you are deciding about
+		// when you look at it.
 		drawVitalIcon(paint, Vital::Water, gaugeX + 208 * uiScale, baseY + 15 * uiScale,
 					  icon * static_cast<float>(0.9 + pulse * 0.2), rgb(0x7a1c1c));
+		char cost[16];
+		SDL_snprintf(cost, sizeof(cost), "-%d",
+					 static_cast<int>(std::ceil(bleeding_ * sim::PlayerVitals::kBleedDamage)));
+		if (lettering_) {
+			lettering_->drawInked(cost, gaugeX + 224 * uiScale, baseY + 7 * uiScale,
+								  13 * uiScale, rgb(0xd8483a), Face::BodyBold, Align::Left, 1);
+		}
 	}
 
 	{
@@ -219,17 +234,6 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 		}
 	}
 
-	if (carried_ >= 0) {
-		// Over on the right, where the belt ends: what is in the gun and what
-		// is left in the pack for it.
-		const float ax = x0 + total + 20 * uiScale;
-		const float ay = y0 + slot * 0.5f - 10 * uiScale;
-		char ammo[32];
-		SDL_snprintf(ammo, sizeof(ammo), "%d / %d", loaded_, carried_ - loaded_);
-		if (lettering_) {
-			lettering_->draw(ammo, ax, ay, 20 * uiScale, rgb(0xffffff), Face::Display);
-		}
-	}
 	if (prompt && prompt[0]) {
 		// One line, over the belt: what the key under your finger would do.
 		const float size = 16 * uiScale;

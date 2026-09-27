@@ -114,6 +114,43 @@ std::vector<Point> blob(float cx, float cy, float radius, int variant, int slot,
 }
 
 /**
+ * The stem under a canopy.
+ *
+ * The camera is not quite overhead: it looks down at the island from a little
+ * way back, so a tree shows a short length of its trunk below the leaves
+ * rather than a disc of foliage with nothing holding it up. The trunk tapers
+ * as it rises, is darker down the side away from the light, and carries the
+ * bark across it.
+ */
+void trunk(Paint& paint, float ox, float oy, float r, float half, float top, Color bark,
+		   int variant) {
+	const float foot = oy + r * 0.82f;
+	const float flare = half * 1.35f;
+	const std::vector<Point> stem{{ox - half, top},
+								  {ox + half, top},
+								  {ox + flare, foot},
+								  {ox - flare, foot}};
+	paint.inkedPoly(stem, bark, pen());
+	// The shaded flank, a third of the width, down the right.
+	paint.fillPoly({{ox + half * 0.3f, top},
+					{ox + half, top},
+					{ox + flare, foot},
+					{ox + flare * 0.3f, foot}},
+				   darken(bark, 0.86f));
+	// The bark, straight across: rings of it are what say wood at this size.
+	// Three, finely: at four and full weight the stem came out as a black
+	// block under the tree.
+	const int rings = 3;
+	for (int i = 0; i < rings; ++i) {
+		const float t = (i + 0.6f) / rings;
+		const float ty = top + (foot - top) * t;
+		const float w = half + (flare - half) * t;
+		markInside(paint, stem, ox - w * 0.8f, ty, ox + w * 0.8f, ty + r * 0.04f, fine() * 0.65f,
+				   kInk);
+	}
+}
+
+/**
  * A prickly round mass: a blob with teeth round it.
  *
  * The radius alternates in and out as it goes round, so the edge comes out as a
@@ -121,6 +158,8 @@ std::vector<Point> blob(float cx, float cy, float radius, int variant, int slot,
  * with the tips of its branches sticking out of it all the way round, and the
  * teeth are what say needles without drawing a needle.
  */
+constexpr float kCanopySquash = 0.66f;
+
 std::vector<Point> prickle(float cx, float cy, float radius, int teeth, int variant, int slot) {
 	std::vector<Point> out;
 	for (int i = 0; i < teeth * 2; ++i) {
@@ -128,8 +167,10 @@ std::vector<Point> prickle(float cx, float cy, float radius, int teeth, int vari
 		const bool tip = (i % 2) == 0;
 		const float reach = tip ? 1.0f + v(variant, slot + i) * 0.22f
 								: 0.6f + v(variant, slot + i) * 0.12f;
+		// Squashed: the camera looks down at a slight angle, so foliage comes
+		// out as an oval and there is room under it for the trunk to show.
 		out.push_back({cx + std::cos(a) * radius * reach,
-					   cy + std::sin(a) * radius * reach * 0.94f});
+					   cy + std::sin(a) * radius * reach * kCanopySquash});
 	}
 	return out;
 }
@@ -176,21 +217,10 @@ void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snow
 	const float size = 0.92f + v(variant, 1) * 0.18f;
 	const float lean = (v(variant, 3) - 0.5f) * r * 0.16f;
 
-	// The trunk, thicker than a grassland tree's and barked across.
-	const float trunkW = r * 0.23f * (0.85f + v(variant, 4) * 0.3f);
-	paint.inkedPoly({{ox - trunkW, oy - r * 0.25f},
-					 {ox + trunkW, oy - r * 0.25f},
-					 {ox + trunkW * 1.3f, oy + r * 0.66f},
-					 {ox - trunkW * 1.3f, oy + r * 0.66f}},
-					rgb(0x6a5236), pen());
-	for (int i = 0; i < 3; ++i) {
-		const float ty = oy + r * (-0.08f + i * 0.22f);
-		markInside(paint, {{ox - trunkW * 1.4f, oy - r * 0.35f},
-						   {ox + trunkW * 1.4f, oy - r * 0.35f},
-						   {ox + trunkW * 1.4f, oy + r * 0.66f},
-						   {ox - trunkW * 1.4f, oy + r * 0.66f}},
-				   ox - trunkW, ty, ox + trunkW, ty + r * 0.08f, fine(), kInk);
-	}
+	// The trunk, thicker than a grassland tree's, standing clear below the
+	// skirt: the rings above start high enough to leave it showing.
+	trunk(paint, ox, oy, r, r * 0.21f * (0.85f + v(variant, 4) * 0.3f), oy - r * 0.2f,
+		  rgb(0x7d6243), variant);
 
 	struct Ring {
 		float y;
@@ -201,17 +231,17 @@ void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snow
 	// Skirt first and crown last, so the top sits in front of what is under it,
 	// and each ring narrower than the one below: that is the cone.
 	const Ring rings[4] = {
-		{oy - r * 0.35f * size, r * 1.42f * size, kPineDark, 13},
-		{oy - r * 0.8f * size, r * 1.16f * size, kPineDark, 11},
-		{oy - r * 1.25f * size, r * 0.9f * size, kPineMid, 10},
-		{oy - r * 1.65f * size, r * 0.6f * size, kPineLight, 8},
+		{oy - r * 0.72f * size, r * 1.42f * size, kPineDark, 13},
+		{oy - r * 1.14f * size, r * 1.16f * size, kPineDark, 11},
+		{oy - r * 1.54f * size, r * 0.9f * size, kPineMid, 10},
+		{oy - r * 1.9f * size, r * 0.6f * size, kPineLight, 8},
 	};
 
 	// The shade inside the canopy. Without it the gaps between the rings show
 	// the ground through the tree, and separate leaves round a hole is what a
 	// nettle looks like.
-	paint.fillPoly(blob(ox + lean * 0.2f, rings[0].y + r * 0.1f, rings[0].reach * 0.95f,
-						variant, 110),
+	paint.fillPoly(blob(ox + lean * 0.2f, rings[0].y + r * 0.08f, rings[0].reach * 0.9f,
+						variant, 110, kCanopySquash),
 				   darken(kPineDark, 0.66f));
 
 	for (int t = 0; t < 4; ++t) {
@@ -246,7 +276,7 @@ void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snow
 		// And what has gathered in the crown, which is what you see first from
 		// a distance. Not a circle: a drawn circle of white reads as a ball
 		// stuck on the tree.
-		paint.inkedPoly(blob(ox + lean * 1.4f, rings[3].y, r * 0.24f * size, variant, 170),
+		paint.inkedPoly(blob(ox + lean * 1.4f, rings[3].y, r * 0.24f * size, variant, 170, kCanopySquash),
 						kSnow, pen() * 0.5f);
 	}
 }
@@ -263,21 +293,10 @@ void paintBroadleaf(Paint& paint, float ox, float oy, float r, int variant) {
 	const float size = 0.94f + v(variant, 1) * 0.16f;
 	const float lean = (v(variant, 2) - 0.5f) * r * 0.22f;
 
-	// The trunk, with the bark marked across it, showing under the skirt.
-	const float trunkW = r * 0.19f * (0.85f + v(variant, 9) * 0.3f);
-	paint.inkedPoly({{ox - trunkW, oy - r * 0.2f},
-					 {ox + trunkW, oy - r * 0.2f},
-					 {ox + trunkW * 1.25f, oy + r * 0.62f},
-					 {ox - trunkW * 1.25f, oy + r * 0.62f}},
-					rgb(0x8a7256), pen());
-	for (int i = 0; i < 3; ++i) {
-		const float ty = oy + r * (-0.05f + i * 0.2f);
-		markInside(paint, {{ox - trunkW * 1.3f, oy - r * 0.3f},
-						   {ox + trunkW * 1.3f, oy - r * 0.3f},
-						   {ox + trunkW * 1.3f, oy + r * 0.62f},
-						   {ox - trunkW * 1.3f, oy + r * 0.62f}},
-				   ox - trunkW, ty, ox + trunkW, ty + r * 0.07f, fine(), kInk);
-	}
+	// The trunk, standing clear below the canopy: paler and thinner than a
+	// conifer's, which is most of what tells the two apart at the foot.
+	trunk(paint, ox, oy, r, r * 0.17f * (0.85f + v(variant, 9) * 0.3f), oy - r * 0.15f,
+		  rgb(0x9c8262), variant);
 
 	struct Tier {
 		float y;
@@ -290,14 +309,14 @@ void paintBroadleaf(Paint& paint, float ox, float oy, float r, int variant) {
 	// Kept close together: spread up the screen they stack into a cone, and a
 	// broadleaf seen from above is one round mass, not a pine's tiers.
 	const Tier tiers[3] = {
-		{oy - r * 0.34f * size, r * 1.46f * size, kBroadleafDark, 11},
-		{oy - r * 0.7f * size, r * 1.24f * size, kBroadleafMid, 9},
-		{oy - r * 1.02f * size, r * 0.94f * size, kBroadleafLight, 7},
+		{oy - r * 0.66f * size, r * 1.46f * size, kBroadleafDark, 11},
+		{oy - r * 1.0f * size, r * 1.24f * size, kBroadleafMid, 9},
+		{oy - r * 1.3f * size, r * 0.94f * size, kBroadleafLight, 7},
 	};
 
 	// The shade under the canopy, so the gaps between clumps show dark leaf
 	// rather than the grass beneath the tree.
-	paint.fillPoly(blob(ox + lean * 0.3f, tiers[0].y, tiers[0].reach * 0.95f, variant, 110),
+	paint.fillPoly(blob(ox + lean * 0.3f, tiers[0].y, tiers[0].reach * 0.95f, variant, 110, kCanopySquash),
 				   darken(kBroadleafDark, 0.68f));
 
 	for (int t = 0; t < 3; ++t) {
@@ -315,14 +334,15 @@ void paintBroadleaf(Paint& paint, float ox, float oy, float r, int variant) {
 			// Small clumps, and a lot of them: a few big ones read as the
 			// leaves of a cabbage rather than as the crown of a tree.
 			const float lobe = tier.reach * (0.24f + v(variant, 60 + t * 13 + i) * 0.24f);
-			paint.inkedPoly(blob(cx + std::cos(a) * ride, tier.y + std::sin(a) * ride * 0.92f,
-								 lobe, variant, 130 + t * 17 + i),
+			paint.inkedPoly(blob(cx + std::cos(a) * ride,
+								 tier.y + std::sin(a) * ride * kCanopySquash, lobe, variant,
+								 130 + t * 17 + i, kCanopySquash),
 							tier.fill, pen() * 0.5f);
 		}
 		// One more over the middle of the tier, so the ring of clumps closes up
 		// into a mass instead of leaving a hole at its heart.
-		paint.inkedPoly(blob(cx, tier.y, tier.reach * 0.5f, variant, 200 + t * 7), tier.fill,
-						pen() * 0.6f);
+		paint.inkedPoly(blob(cx, tier.y, tier.reach * 0.5f, variant, 200 + t * 7, kCanopySquash),
+						tier.fill, pen() * 0.6f);
 	}
 
 	// The shaded flank: hatching down the side the sun is not on. Kept out on
@@ -330,11 +350,12 @@ void paintBroadleaf(Paint& paint, float ox, float oy, float r, int variant) {
 	// end read as a post sticking out of the tree.
 	const float cx = ox + lean * 1.2f;
 	const float cy = tiers[2].y;
-	const std::vector<Point> crown = blob(cx, cy, tiers[1].reach, variant, 214);
+	const std::vector<Point> crown = blob(cx, cy, tiers[1].reach, variant, 214, kCanopySquash);
 	const float step = std::max(hatchStep() * 0.7f, tiers[1].reach * 0.16f);
 	for (float hx = tiers[1].reach * 0.3f; hx < tiers[1].reach; hx += step) {
 		markInside(paint, crown, cx + hx, cy + tiers[1].reach * 0.62f,
-				   cx + hx + tiers[1].reach * 0.34f, cy - tiers[1].reach * 0.2f, fine(), kInk);
+				   cx + hx + tiers[1].reach * 0.34f, cy - tiers[1].reach * 0.2f, fine() * 0.7f,
+				   kInk);
 	}
 }
 

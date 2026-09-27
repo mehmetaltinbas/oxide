@@ -70,6 +70,14 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 	// arms and the head are drawn in that turned frame.
 	const MeleeStyle style = meleeStyleOf(look.held);
 	MeleePose pose = meleeMotion(style, look.swingT, look.phase);
+	// A magazine change is done with the gun turned over, magazine side inwards
+	// where the off hand can reach it, and with the old magazine already gone:
+	// it is on the ground by now. The fresh one goes in at `kMagIn`, which is
+	// the same moment the hand carrying it lets go.
+	constexpr float kMagIn = 0.62f;
+	const bool changing = look.reloading >= 0 && look.reloadFed;
+	const bool magOut = changing && look.reloading < kMagIn;
+
 	// Reloading: the muzzle swings down and in and comes back up as it ends,
 	// which from above is the gun turning across the body and back.
 	if (look.reloading >= 0) {
@@ -151,8 +159,8 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 			// The fresh magazine, carried up to the gun in the off hand and
 			// let go once it is in: it is there for the first two thirds of
 			// the reload and gone for the last, which is the bolt.
-			const float carry = std::min(1.0f, look.reloading / 0.62f);
-			if (look.reloading < 0.62f) {
+			const float carry = std::min(1.0f, look.reloading / kMagIn);
+			if (magOut) {
 				// Offset off the hand rather than under it: drawn dead on the
 				// knuckles it was buried by the gun it was going into.
 				const float mx = hands[0].x - 3.5f;
@@ -186,11 +194,11 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 		// of the tool, and the hand is behind it.
 		const bool holding = i == 1 && look.held != sim::ItemId::None && !look.swimming;
 		if (holding && look.held != sim::ItemId::Bow && !pose.overHand) {
-			drawHeldItem(paint, f, look.held, pose, look.bowDraw);
+			drawHeldItem(paint, f, look.held, pose, look.bowDraw, changing, magOut);
 		}
 		blob(paint, f, hands[i].x, hands[i].y, 2.9f, 2.9f, skin, true);
 		if (holding && look.held != sim::ItemId::Bow && pose.overHand) {
-			drawHeldItem(paint, f, look.held, pose, look.bowDraw);
+			drawHeldItem(paint, f, look.held, pose, look.bowDraw, changing, magOut);
 		}
 	}
 
@@ -218,7 +226,7 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 		bowPose.angle = 0;
 		bowPose.stretch = 1;
 		bowPose.overHand = false;
-		drawHeldItem(paint, f, look.held, bowPose, look.bowDraw);
+		drawHeldItem(paint, f, look.held, bowPose, look.bowDraw, changing, magOut);
 	}
 
 	// The shoulders and chest: wider than deep, rounded at the ends.

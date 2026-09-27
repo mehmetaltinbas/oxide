@@ -157,7 +157,7 @@ const HeldPose& heldPoseOf(sim::ItemId item) {
  * through a blow it is; the item's own row says how it is gripped.
  */
 void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const MeleePose& pose,
-				  float bowDraw) {
+				  float bowDraw, bool flip, bool magOut) {
 	if (item == sim::ItemId::None) return;
 	// The bow is the one thing not drawn from its own picture: it is held
 	// across the body with a string that moves, which no flat glyph can say.
@@ -226,7 +226,7 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
 	const float offY = -grip.gripY * size;
 	const float cx = hand.x + offX * std::cos(angle) - offY * std::sin(angle);
 	const float cy = hand.y + offX * std::sin(angle) + offY * std::cos(angle);
-	drawItemIcon(paint, item, cx, cy, size, angle);
+	drawItemIcon(paint, item, cx, cy, size, angle, flip, magOut);
 }
 
 /**
@@ -241,7 +241,8 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
  * the pen round it, a thin mark is redrawn as a bold black one, and a shape
  * drawn as a line gets ink laid under it and its own colour on top.
  */
-void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, float angle) {
+void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, float angle,
+				  bool flip, bool magOut) {
 	const float u = size;
 	// The pen, in proportion to the picture rather than in flat pixels.
 	//
@@ -260,7 +261,12 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 	const float mark = kGlyphMark * measure;
 	const float ca = std::cos(angle);
 	const float sa = std::sin(angle);
-	const auto P = [&](float ux, float uy) {
+	// Turned over along its own length when asked: the picture is drawn in
+	// profile, so mirroring it across that axis puts the magazine on the other
+	// side of the gun without pointing the barrel back at its owner.
+	const float side = flip ? -1.0f : 1.0f;
+	const auto P = [&](float ux, float uyIn) {
+		const float uy = uyIn * side;
 		return Point{x + (ux * ca - uy * sa) * u, y + (ux * sa + uy * ca) * u};
 	};
 	const auto pts = [&](std::initializer_list<std::pair<float, float>> list) {
@@ -599,7 +605,8 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			box(0.1f, -0.1f, 0.24f, 0.05f, rgb(0x6a6a74));
 			edged(pts({{-0.34f, -0.06f}, {-0.2f, -0.06f}, {-0.16f, 0.16f}, {-0.34f, 0.2f}}), kWood,
 				  kWoodDark);
-			box(-0.06f, 0.03f, 0.06f, 0.16f, rgb(0x4a4a52));
+			// The magazine, which is gone while it is being changed.
+			if (!magOut) box(-0.06f, 0.03f, 0.06f, 0.16f, rgb(0x4a4a52));
 			box(-0.14f, 0.14f, 0.1f, 0.16f, rgb(0x3a3a42));
 			break;
 		case sim::ItemId::Ak47:
@@ -609,8 +616,11 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			edged(pts({{-0.44f, -0.07f}, {-0.2f, -0.05f}, {-0.2f, 0.03f}, {-0.42f, 0.12f}}),
 				  rgb(0x9a5a2e), kWoodDark);
 			box(-0.2f, -0.08f, 0.26f, 0.11f, rgb(0x3c3c44));
-			edged(pts({{-0.02f, 0.03f}, {0.06f, 0.03f}, {0.1f, 0.3f}, {0.02f, 0.32f}}),
-				  rgb(0x35353c), rgb(0x1f1f24));
+			// The curved magazine, which is gone while it is being changed.
+			if (!magOut) {
+				edged(pts({{-0.02f, 0.03f}, {0.06f, 0.03f}, {0.1f, 0.3f}, {0.02f, 0.32f}}),
+					  rgb(0x35353c), rgb(0x1f1f24));
+			}
 			edged(pts({{-0.16f, 0.03f}, {-0.08f, 0.03f}, {-0.12f, 0.18f}, {-0.19f, 0.17f}}),
 				  rgb(0x6e4122), kWoodDark);
 			box(0.06f, -0.07f, 0.18f, 0.09f, rgb(0xb0703a));

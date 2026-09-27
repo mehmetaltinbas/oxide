@@ -47,7 +47,7 @@ public:
 
 	/** Food, water, warmth, what you have taken in, and what is being applied. */
 	void setVitals(double calories, double hydration, double temperature, double radiation,
-				   bool bleeding, double applying);
+				   double bleeding, double applying);
 
 	/** The clock, for anything that beats or blinks. */
 	void setClock(double seconds) { clock_ = seconds; }
@@ -65,7 +65,9 @@ private:
 	double hydration_ = 100;
 	double temperature_ = 20;
 	double radiation_ = 0;
-	bool bleeding_ = false;
+	/** Seconds of bleeding left, which at one a second is also the health it
+	 * will cost: see PlayerVitals::kBleedDamage. */
+	double bleeding_ = 0;
 	double applying_ = 0;
 	double clock_ = 0;
 	Text* lettering_ = nullptr;

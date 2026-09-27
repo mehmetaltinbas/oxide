@@ -26,6 +26,14 @@ struct PlayerVitals {
 	static constexpr double kStarveDamage = 0.3;
 	static constexpr double kColdDamage = 0.45;
 	static constexpr double kRadDamage = 3.0;
+	/**
+	 * What a wound takes, a second.
+	 *
+	 * One, exactly, so what a bleed is going to cost you is the number of
+	 * seconds it has left to run and the screen can say it as a whole number of
+	 * health rather than as a bar you have to guess at.
+	 */
+	static constexpr double kBleedDamage = 1.0;
 	static constexpr double kComfortTemp = 10;
 	/** How close you must be to pick up, harvest, open or use something. */
 	static constexpr double kInteract = 39;

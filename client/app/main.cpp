@@ -204,6 +204,8 @@ int main(int argc, char** argv) {
 	bool arrowShot = false;
 	/** Which belt slot to start holding, for looking at a tool in a hand. */
 	int holdSlot = -1;
+	/** Seconds of bleeding to start with, for a look at the readout. */
+	double bleedFor = 0;
 	/** Seconds left of the note that says multiplayer is not here yet. */
 	double titleNotice = 0;
 	/** The island's own map, opened for a look at it. */
@@ -274,6 +276,8 @@ int main(int argc, char** argv) {
 			arrowShot = true;
 		} else if (SDL_strcmp(argv[i], "--icons") == 0) {
 			icons = true;
+		} else if (SDL_strcmp(argv[i], "--bleeding") == 0 && i + 1 < argc) {
+			bleedFor = SDL_atof(argv[++i]);
 		} else if (SDL_strcmp(argv[i], "--reload") == 0 && i + 1 < argc) {
 			reloadAt = SDL_atof(argv[++i]);
 		} else if (SDL_strcmp(argv[i], "--rocks") == 0) {
@@ -1199,6 +1203,7 @@ int main(int argc, char** argv) {
 			player.bowDraw = sim::kBowDrawSeconds * poseDraw;
 			player.aim = 0;
 		}
+		if (bleedFor > 0) player.bleeding = bleedFor;
 		if (reloadAt >= 0) {
 			// Held part way through a magazine change, for a screenshot.
 			const sim::Gun& show = sim::itemDef(inventory.held()).gun;
@@ -2151,7 +2156,7 @@ int main(int argc, char** argv) {
 			}
 		}
 		hud.setVitals(player.calories, player.hydration, player.temperature, player.radiation,
-					  player.bleeding > 0,
+					  player.bleeding,
 					  player.useTotal > 0 && player.useLeft > 0 ? player.useLeft / player.useTotal
 																: 0);
 		hud.setClock(clock);

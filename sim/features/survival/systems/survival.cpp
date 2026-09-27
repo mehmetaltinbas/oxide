@@ -66,7 +66,7 @@ void updateSurvival(const World& world, Player& player, const Inventory& invento
 	}
 	if (player.radiation > 45) damage += PlayerVitals::kRadDamage * ((player.radiation - 45) / 55);
 	if (player.bleeding > 0) {
-		damage += 1.6;
+		damage += PlayerVitals::kBleedDamage;
 		player.bleeding -= dt;
 	}
 	if (damage > 0) {

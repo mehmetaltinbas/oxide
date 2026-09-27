@@ -18,7 +18,7 @@ namespace client {
  * mid-swing it lies flat and hangs off the grip.
  */
 void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const MeleePose& pose,
-				  float bowDraw = 0);
+				  float bowDraw = 0, bool flip = false, bool magOut = false);
 
 /**
  * The same item as a drawn glyph, for the belt, the pack and the hand.
@@ -27,8 +27,15 @@ void drawHeldItem(Paint& paint, const BodyFrame& body, sim::ItemId item, const M
  * hand is drawn: there is one picture of a hatchet and it is used everywhere,
  * so the hatchet on your belt and the hatchet you are swinging cannot drift
  * into two different hatchets.
+ *
+ * `flip` turns it over along its own length: the same gun with its magazine on
+ * the other side, which is how it is held while it is being changed.
+ *
+ * `magOut` leaves the magazine off a gun that has one, for the moment between
+ * the spent one hitting the ground and the fresh one going in.
  */
-void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, float angle = 0);
+void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, float angle = 0,
+				  bool flip = false, bool magOut = false);
 
 /**
  * How one item sits in a fist.

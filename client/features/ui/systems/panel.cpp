@@ -53,6 +53,20 @@ constexpr int kCategoryCount = 8;
 constexpr int kPackCols = 6;
 
 /** One line of the interface's lettering. */
+/**
+ * A span of time as a player reads it: `45s`, or `1m24s` once it runs past a
+ * minute. Not a bar creeping along with nothing on it, and not a raw count of
+ * seconds either, which nobody converts in their head at four figures.
+ */
+void writeSpan(char* out, std::size_t size, double seconds) {
+	const int whole = static_cast<int>(std::ceil(std::max(0.0, seconds)));
+	if (whole >= 60) {
+		SDL_snprintf(out, size, "%dm%02ds", whole / 60, whole % 60);
+	} else {
+		SDL_snprintf(out, size, "%ds", whole);
+	}
+}
+
 void say(Paint& paint, float x, float y, float size, Color color, const char* line,
 		 Face face = Face::Body, Align align = Align::Left) {
 	if (Text* lettering = paint.text()) lettering->draw(line, x, y, size, color, face, align);
@@ -520,18 +534,25 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 			// How many of the order are still to come. An order for a hundred
 			// and fifty five that says nothing about how many are left is a
 			// bar creeping along for no reason you can see.
+			char line[40];
+			char span[16];
+			// How long the whole order still has to run, this one included.
+			writeSpan(span, sizeof(span),
+					  job.left + (job.count - 1) * job.recipe->seconds);
 			if (job.ordered > 1) {
-				char left[24];
-				SDL_snprintf(left, sizeof(left), "%d of %d left", job.count, job.ordered);
-				say(paint, cx + 52 * uiScale, cy + 18 * uiScale, 10 * uiScale, ui::kSubtle, left);
+				SDL_snprintf(line, sizeof(line), "%d of %d \xc2\xb7 %s", job.count, job.ordered,
+							 span);
+			} else {
+				SDL_snprintf(line, sizeof(line), "%s", span);
 			}
-			// How far through the whole order it is, along the bottom of the
-			// chip, rather than how far through the one under the hammer.
+			say(paint, cx + 52 * uiScale, cy + 18 * uiScale, 10 * uiScale, ui::kSubtle, line);
+			// The bar is the one under the hammer and nothing more: it fills,
+			// empties, and starts again on the next of them. Across a whole
+			// order of a hundred and fifty five it crept along a pixel at a
+			// time and told you nothing, which is what the span above is for.
 			const double unit = 1 - job.left / job.recipe->seconds;
-			const double done =
-				(job.ordered - job.count + unit) / std::max(1, job.ordered);
 			paint.fillRect(cx + 8 * uiScale, cy + 28 * uiScale,
-						   static_cast<float>((cw - 16 * uiScale) * done), 3 * uiScale,
+						   static_cast<float>((cw - 16 * uiScale) * unit), 3 * uiScale,
 						   ui::kAccent);
 			// Cancelling stays a button: throwing a job away should take a
 			// deliberate click rather than a slip of the hand.
