@@ -91,12 +91,13 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 	// is what moves it. It used to be drawn a second time on top of that,
 	// which put two syringes on the screen, one of them standing still.
 	if (applying && !look.swimming) {
-		// Out past the shoulder, not in across the chest: the head is drawn
-		// over the middle of the body, and anything brought in there is hidden
-		// under it.
-		pose.hand.x += (-15.0f - pose.hand.x) * applyIn;
-		pose.hand.y += (1.0f - pose.hand.y) * applyIn;
-		pose.angle += applyIn * 1.35f;
+		// Into the torso: a bandage goes round the body and a needle goes into
+		// it, not into the arm. Low on the chest and off to one side, because
+		// the head is drawn over the middle of it and anything brought in
+		// there is hidden underneath.
+		pose.hand.x += (-6.0f - pose.hand.x) * applyIn;
+		pose.hand.y += (4.5f - pose.hand.y) * applyIn;
+		pose.angle += applyIn * 1.9f;
 	}
 
 	// Reloading: the muzzle swings down and in and comes back up as it ends,
@@ -206,11 +207,10 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 			hands[0] = {1.5f, -17 + 4.5f + look.bowDraw * 9.0f};
 		}
 	}
-	// The other arm is held out to be worked on, out to the side rather than
-	// in at the chest: from above the head covers the chest, and an animation
-	// you cannot see is no animation.
+	// The other hand comes in over the chest as well: two hands at the body is
+	// what applying something to yourself looks like from above.
 	if (applying && !look.swimming) {
-		const Point to{-12.5f, -3.0f};
+		const Point to{-10.5f, 3.0f};
 		hands[0] = {hands[0].x + (to.x - hands[0].x) * applyIn,
 					hands[0].y + (to.y - hands[0].y) * applyIn};
 	}
@@ -226,12 +226,12 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 		// Over the fist while it is being applied. A syringe is a thin thing
 		// and the hand closing over it hid it completely; the geometry stays
 		// as it is, only the order of the two changes.
-		const bool overFist = pose.overHand || applying;
-		if (holding && look.held != sim::ItemId::Bow && !overFist) {
+		const bool overFist = pose.overHand;
+		if (holding && look.held != sim::ItemId::Bow && !applying && !overFist) {
 			drawHeldItem(paint, f, look.held, pose, look.bowDraw, changing, magOut);
 		}
 		blob(paint, f, hands[i].x, hands[i].y, 2.9f, 2.9f, skin, true);
-		if (holding && look.held != sim::ItemId::Bow && overFist) {
+		if (holding && look.held != sim::ItemId::Bow && !applying && overFist) {
 			drawHeldItem(paint, f, look.held, pose, look.bowDraw, changing, magOut);
 		}
 	}
@@ -293,6 +293,14 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 	blob(paint, f, 0, hy, 6.8f, 6.8f, skin, true);
 	blob(paint, f, 0, hy - 7, 1.5f, 1.9f, skin, true);
 	blob(paint, f, 0, hy + 1.7f, 6.6f, 6.6f, hair, true);
+
+	// What is being applied goes on last of all. The arms are drawn before the
+	// torso so a shoulder sits over its own arm, and a bandage held against
+	// the chest was drawn under the chest and disappeared.
+	if (applying && look.held != sim::ItemId::None && !look.swimming) {
+		drawHeldItem(paint, f, look.held, pose, look.bowDraw);
+	}
+
 	paint.useWorldScale(wasScale);
 }
 

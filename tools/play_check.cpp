@@ -516,6 +516,30 @@ int main() {
 		}
 	}
 
+	// Being hit does not cost you what you were in the middle of. It used to
+	// wipe the reload and the bandage, so the moment you most needed either
+	// was the moment you could not finish one.
+	{
+		sim::Player bitten{};
+		bitten.alive = true;
+		bitten.health = 100;
+		sim::Inventory kit;
+		kit.hotbar()[1] = sim::ItemStack{sim::ItemId::Rifle, 1};
+		kit.selectSlot(1);
+		kit.add(sim::ItemId::RifleAmmo, 40);
+		kit.add(sim::ItemId::Bandage, 1);
+		sim::reload(bitten, kit);
+		sim::consume(bitten, kit, sim::ItemId::Bandage);
+		const double reloadWas = bitten.reloadLeft;
+		const double useWas = bitten.useLeft;
+		sim::hurtPlayer(bitten, kit, 20);
+		std::printf("interrupt: after a bite, reload %.1f of %.1f, bandage %.1f of %.1f\n",
+					bitten.reloadLeft, reloadWas, bitten.useLeft, useWas);
+		if (bitten.reloadLeft <= 0 || bitten.useLeft <= 0) {
+			std::printf("  A HIT CANCELLED IT\n");
+		}
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.

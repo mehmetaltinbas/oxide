@@ -91,10 +91,10 @@ void hurtPlayer(Player& player, Inventory& inventory, double amount) {
 	if (!player.alive || player.invuln > 0) return;
 	const double armor = itemDef(inventory.worn().id).wear.armor;
 	player.health -= amount * (1 - armor);
-	// A hit costs you whatever you were in the middle of.
-	player.applying = ItemId::None;
-	player.useLeft = 0;
-	player.reloadLeft = 0;
+	// A hit does not cost you what you were in the middle of. It used to wipe
+	// the bandage, the syringe and the reload, which meant the moment you most
+	// needed any of them was the moment you could not finish one: a wolf on
+	// you cancelled the dressing every second it landed a bite.
 	player.invuln = 0.35;
 	player.hurtFlash = 0.3;
 	// Some blows open you up, and a wound that is not dressed keeps taking.

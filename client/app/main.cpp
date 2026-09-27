@@ -1329,7 +1329,10 @@ int main(int argc, char** argv) {
 		const SDL_MouseButtonFlags buttons =
 			panel.open() || map.open() || dead ? 0 : SDL_GetMouseState(nullptr, nullptr);
 		const sim::Gun& heldGun = sim::itemDef(inventory.held()).gun;
-		const bool gun = heldGun.damage > 0;
+		// isRanged, not damage: a rocket launcher does no damage of its own,
+		// so asking after its damage said it was not a gun and the left button
+		// went to the swing that is not there either. Nothing fired.
+		const bool gun = sim::isRanged(heldGun);
 		// The left button is the trigger of everything that has one; the right
 		// draws a bow.
 		const bool trigger = (buttons & SDL_BUTTON_LMASK) != 0;
