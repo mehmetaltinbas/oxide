@@ -865,6 +865,23 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 		From from = From::None;
 		int slot = 0;
 		if (slotAt(x, y, l, width, height, uiScale, from, slot)) {
+			// With no box open, a right click on something wearable puts it
+			// on. That is the only thing you ever want to do with a suit, and
+			// sending it to the belt so you can drag it to the wear slot is
+			// two moves for a decision you already made. Whatever was on comes
+			// off into the place the new one came from, so nothing is lost.
+			const sim::ItemStack stack = from == From::Belt  ? inventory.hotbar()[slot]
+										 : from == From::Pack ? inventory.pack()[slot]
+															  : sim::ItemStack{};
+			if (!container_ && from != From::Worn && stack.id != sim::ItemId::None &&
+				sim::itemDef(stack.id).category == sim::ItemCategory::Clothing) {
+				const sim::ItemStack was = inventory.worn();
+				inventory.worn() = sim::ItemStack{stack.id, 1};
+				sim::ItemStack& source =
+					from == From::Belt ? inventory.hotbar()[slot] : inventory.pack()[slot];
+				source = was;
+				return true;
+			}
 			sendAcross(inventory, from, slot);
 			return true;
 		}

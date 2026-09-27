@@ -169,6 +169,36 @@ void Terrain::drawOver(Paint& paint, const sim::World& world, double cameraX, do
 			const bool inside =
 				col >= 0 && row >= 0 && col < sim::kBiomeCols && row < sim::kBiomeRows;
 			const sim::Biome biome = inside ? world.tile(col, row) : sim::Biome::Water;
+			// A hairline wherever two grounds meet at all, so the island reads
+			// as drawn rather than as tiled. Thin: this is the pencil under
+			// the picture, not the panel border a road gets. Only the north
+			// and the west seam of each tile, so no seam is drawn twice.
+			{
+				const float x0 =
+					static_cast<float>((col * sim::kBiomeTile - cameraX) * zoom) + screenW * 0.5f;
+				const float y0 =
+					static_cast<float>((row * sim::kBiomeTile - cameraY) * zoom) + screenH * 0.5f;
+				const float w = static_cast<float>(sim::kBiomeTile * zoom);
+				const float hair = kInkFine * 0.8f * static_cast<float>(zoom);
+				const auto at = [&](int dc, int dr) {
+					const int c = col + dc;
+					const int r = row + dr;
+					if (c < 0 || r < 0 || c >= sim::kBiomeCols || r >= sim::kBiomeRows) {
+						return sim::Biome::Water;
+					}
+					return world.tile(c, r);
+				};
+				// A road draws its own, heavier, on its own side.
+				const Color faint{20, 17, 13, 90};
+				if (at(0, -1) != biome && at(0, -1) != sim::Biome::Road &&
+					biome != sim::Biome::Road) {
+					paint.line(x0, y0, x0 + w, y0, hair, faint);
+				}
+				if (at(-1, 0) != biome && at(-1, 0) != sim::Biome::Road &&
+					biome != sim::Biome::Road) {
+					paint.line(x0, y0, x0, y0 + w, hair, faint);
+				}
+			}
 			// A road is inked where it meets anything else, the way a panel
 			// separates one thing from another. Only on the road's own side:
 			// drawn from both sides every seam came out twice as heavy.
@@ -211,11 +241,17 @@ void Terrain::drawOver(Paint& paint, const sim::World& world, double cameraX, do
 				const double seed = sim::seeded(static_cast<std::uint64_t>(col * 73 + row * 149),
 												i);
 				const double lane = (0.18 + 0.3 * i + seed * 0.12);
-				const double phase = clock * speed + seed * 6.28318530718 + col * 0.7 + row * 0.4;
-				const double ox = wx - sim::kBiomeTile * 0.5 +
-								  sim::kBiomeTile * (0.2 + 0.3 * std::sin(phase));
+				// Marching, not swaying: a crest travels across the tile, off
+				// the end of it and round again, so the sea runs one way for
+				// ever the way water does. Swung on a sine it read as a field
+				// of things rocking on the spot.
+				const double travel = std::fmod(clock * speed * 34.0 + seed * sim::kBiomeTile +
+													col * 19.0 + row * 7.0,
+												static_cast<double>(sim::kBiomeTile));
+				const double bob = clock * speed * 2.2 + seed * 6.28318530718;
+				const double ox = wx - sim::kBiomeTile * 0.5 + travel;
 				const double oy = wy - sim::kBiomeTile * 0.5 + sim::kBiomeTile * lane +
-								  amp * std::sin(phase * 1.3);
+								  amp * std::sin(bob);
 				const float x0 = static_cast<float>((ox - cameraX) * zoom) + screenW * 0.5f;
 				const float y0 = static_cast<float>((oy - cameraY) * zoom) + screenH * 0.5f;
 				const float run = static_cast<float>(sim::kBiomeTile * length * zoom);
