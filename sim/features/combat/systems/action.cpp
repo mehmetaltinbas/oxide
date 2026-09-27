@@ -3,6 +3,7 @@
 #include "sim/features/items/constants/fist-fraction.constant.hpp"
 #include "sim/features/items/constants/item-defs.constant.hpp"
 #include "sim/features/items/types/gun.struct.hpp"
+#include "sim/features/items/utils/is-ranged.util.hpp"
 #include "sim/features/items/types/item-category.enum.hpp"
 #include "sim/features/items/types/item-def.struct.hpp"
 #include "sim/features/items/types/item-id.enum.hpp"
@@ -198,7 +199,7 @@ FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, 
 		player.reloadLeft = 0;
 		player.reloadTotal = 0;
 	}
-	if (gun.damage <= 0 || player.swimming || player.sprinting) {
+	if (!isRanged(gun) || player.swimming || player.sprinting) {
 		// Hands busy: swimming keeps you afloat and running keeps them moving.
 		player.bowDraw = 0;
 		return out;
@@ -271,7 +272,7 @@ FireResult fire(Player& player, Inventory& inventory, Projectiles& projectiles, 
 void reload(Player& player, const Inventory& inventory) {
 	const ItemId held = inventory.held();
 	const Gun& gun = itemDef(held).gun;
-	if (gun.damage <= 0 || gun.magazine <= 0) return;
+	if (!isRanged(gun) || gun.magazine <= 0) return;
 	// A rocket launcher is the one thing you cannot load at a run: it is a
 	// rocket held in both arms and shoved down a tube over your shoulder, not
 	// a magazine pushed into a well. Everything else loads on the move.
@@ -318,7 +319,7 @@ void tickReload(Player& player, Inventory& inventory, double dt) {
 int roundsCarried(const Player& player, const Inventory& inventory) {
 	const ItemId held = inventory.held();
 	const Gun& gun = itemDef(held).gun;
-	if (gun.damage <= 0) return 0;
+	if (!isRanged(gun)) return 0;
 	if (feedsFromPack(gun)) return inventory.count(gun.ammo);
 	return (player.loaded == held ? player.rounds : 0) + inventory.count(gun.ammo);
 }

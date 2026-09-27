@@ -73,6 +73,7 @@
 #include "client/features/render/utils/shape-points.util.hpp"
 #include "client/features/ui/types/item-actions.struct.hpp"
 #include "client/features/ui/types/tab.enum.hpp"
+#include "sim/features/items/utils/is-ranged.util.hpp"
 
 /**
  * The game as you play it: an island from a seed, someone standing on it, and
@@ -1230,6 +1231,10 @@ int main(int argc, char** argv) {
 		}
 		if (bleedFor > 0) player.bleeding = bleedFor;
 		if (applyAt >= 0) {
+			// In the hand as well: applying something is done with the thing
+			// held, and the hand is what the animation moves.
+			inventory.hotbar()[1] = sim::ItemStack{applyWhat, 1};
+			inventory.selectSlot(1);
 			player.applying = applyWhat;
 			player.useTotal = sim::itemDef(applyWhat).food.useSeconds;
 			player.useLeft = player.useTotal * (1 - applyAt);
@@ -2196,7 +2201,7 @@ int main(int argc, char** argv) {
 					  player.useTotal > 0 && player.useLeft > 0 ? player.useLeft / player.useTotal
 																: 0);
 		hud.setClock(clock);
-		hud.setAmmo(sim::itemDef(inventory.held()).gun.damage > 0
+		hud.setAmmo(sim::isRanged(sim::itemDef(inventory.held()).gun)
 						? sim::roundsCarried(player, inventory)
 						: -1,
 					player.loaded == inventory.held() ? player.rounds : 0,

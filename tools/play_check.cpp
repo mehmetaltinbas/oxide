@@ -486,6 +486,36 @@ int main() {
 					partway, full, riflePartway, rifleman.rounds);
 	}
 
+	// A rocket launcher loads and fires. Its own damage is nought, because the
+	// rocket carries the blast, and every "is this a gun" test in the codebase
+	// used to read that as "not a gun": it could not be loaded and would not
+	// go off. Both halves are checked, because passing one and failing the
+	// other is exactly what happened.
+	{
+		sim::Projectiles flying;
+		sim::Player soldier{};
+		soldier.x = 10368;
+		soldier.y = 10368;
+		soldier.alive = true;
+		sim::Inventory tube;
+		tube.hotbar()[1] = sim::ItemStack{sim::ItemId::RocketLauncher, 1};
+		tube.selectSlot(1);
+		tube.add(sim::ItemId::Rocket, 3);
+		sim::reload(soldier, tube);
+		for (int i = 0; i < 60 * 8; ++i) sim::tickReload(soldier, tube, dt);
+		const int loaded = soldier.rounds;
+		const sim::FireResult shot = sim::fire(soldier, tube, flying, true, false, dt);
+		int away = 0;
+		for (const sim::Bullet& b : flying.list()) {
+			if (b.rocket) ++away;
+		}
+		std::printf("rocket: loaded %d of 1, fired %s, %d in the air\n", loaded,
+					shot.fired ? "yes" : "NO", away);
+		if (loaded < 1 || !shot.fired || away < 1) {
+			std::printf("  ROCKET LAUNCHER IS NOT A GUN\n");
+		}
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.

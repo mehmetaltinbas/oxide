@@ -19,6 +19,7 @@
 #include "client/features/ui/types/belt-slot.struct.hpp"
 #include "client/features/ui/types/popup.struct.hpp"
 #include "client/features/ui/utils/belt-slot-box.util.hpp"
+#include "sim/features/items/utils/is-ranged.util.hpp"
 
 namespace client {
 
@@ -146,7 +147,7 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 		// actually in your hand: a rifle on the belt used to print the
 		// pistol's rounds.
 		const sim::Gun& gun = sim::itemDef(stack.id).gun;
-		if (gun.damage > 0 && active && carried_ >= 0 && lettering_) {
+		if (sim::isRanged(gun) && active && carried_ >= 0 && lettering_) {
 			char ammo[16];
 			if (gun.magazine > 0) {
 				SDL_snprintf(ammo, sizeof(ammo), "%d", loaded_);

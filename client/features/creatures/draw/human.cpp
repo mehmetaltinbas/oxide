@@ -78,6 +78,27 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 	const bool changing = look.reloading >= 0 && look.reloadFed;
 	const bool magOut = changing && look.reloading < kMagIn;
 
+	// Applying something to yourself: how far in the hand has got. Over
+	// quickly, held while it does its work, and back out at the end.
+	const bool applying = look.applyT >= 0 && look.applying != sim::ItemId::None;
+	const float applyIn =
+		!applying ? 0.0f
+		: look.applyT < 0.3f ? look.applyT / 0.3f
+		: look.applyT > 0.8f ? (1 - std::min(1.0f, look.applyT)) / 0.2f
+							 : 1.0f;
+
+	// The thing being applied is already in the hand, and the hand's own pose
+	// is what moves it. It used to be drawn a second time on top of that,
+	// which put two syringes on the screen, one of them standing still.
+	if (applying && !look.swimming) {
+		// Out past the shoulder, not in across the chest: the head is drawn
+		// over the middle of the body, and anything brought in there is hidden
+		// under it.
+		pose.hand.x += (-15.0f - pose.hand.x) * applyIn;
+		pose.hand.y += (1.0f - pose.hand.y) * applyIn;
+		pose.angle += applyIn * 1.35f;
+	}
+
 	// Reloading: the muzzle swings down and in and comes back up as it ends,
 	// which from above is the gun turning across the body and back.
 	if (look.reloading >= 0) {
@@ -185,19 +206,13 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 			hands[0] = {1.5f, -17 + 4.5f + look.bowDraw * 9.0f};
 		}
 	}
-	// Applying something: both hands come in to the chest and go back out, so
-	// the seconds it takes look like seconds of doing something.
-	const bool applying = look.applyT >= 0 && look.applying != sim::ItemId::None;
+	// The other arm is held out to be worked on, out to the side rather than
+	// in at the chest: from above the head covers the chest, and an animation
+	// you cannot see is no animation.
 	if (applying && !look.swimming) {
-		const float in = std::sin(std::min(1.0f, look.applyT) * 3.14159265f);
-		// The left arm is held out and the right hand comes across to work on
-		// it. Out to the side rather than in at the chest: from above the head
-		// covers the chest, and an animation you cannot see is no animation.
-		const Point to[2] = {{-12.5f, -3.0f}, {-6.0f, -1.0f}};
-		for (int i = 0; i < 2; ++i) {
-			hands[i] = {hands[i].x + (to[i].x - hands[i].x) * in,
-						hands[i].y + (to[i].y - hands[i].y) * in};
-		}
+		const Point to{-12.5f, -3.0f};
+		hands[0] = {hands[0].x + (to.x - hands[0].x) * applyIn,
+					hands[0].y + (to.y - hands[0].y) * applyIn};
 	}
 
 	const Point shoulders[2] = {{-10, -1}, {10, -1}};
@@ -208,50 +223,16 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 		// Unless it is carried upright: then what is over the fist is the head
 		// of the tool, and the hand is behind it.
 		const bool holding = i == 1 && look.held != sim::ItemId::None && !look.swimming;
-		if (holding && look.held != sim::ItemId::Bow && !pose.overHand) {
+		// Over the fist while it is being applied. A syringe is a thin thing
+		// and the hand closing over it hid it completely; the geometry stays
+		// as it is, only the order of the two changes.
+		const bool overFist = pose.overHand || applying;
+		if (holding && look.held != sim::ItemId::Bow && !overFist) {
 			drawHeldItem(paint, f, look.held, pose, look.bowDraw, changing, magOut);
 		}
 		blob(paint, f, hands[i].x, hands[i].y, 2.9f, 2.9f, skin, true);
-		if (holding && look.held != sim::ItemId::Bow && pose.overHand) {
+		if (holding && look.held != sim::ItemId::Bow && overFist) {
 			drawHeldItem(paint, f, look.held, pose, look.bowDraw, changing, magOut);
-		}
-	}
-
-	if (applying && !look.swimming) {
-		const float t = std::min(1.0f, look.applyT);
-		const float facing = std::atan2(f.sin, f.cos);
-		if (look.applying == sim::ItemId::Bandage) {
-			// The dressing going round the arm, and nothing else. It had the
-			// roll drawn in the other hand as well, and a white square out
-			// beside the body read as another piece of the person rather than
-			// as a thing being held.
-			//
-			// Widths in the body's own units, like every other part of it:
-			// Paint scales the pen by the view already, and multiplying by the
-			// frame's scale as well squared the zoom and laid a white bar the
-			// size of the player over the top of them.
-			const float wide = 2.0f + 2.4f * t;
-			// Laid along the arm itself rather than at fixed numbers, so it is
-			// on the limb wherever the limb has got to.
-			const auto along = [&](float u) {
-				return f.at(-10.0f + (hands[0].x + 10.0f) * u,
-							-1.0f + (hands[0].y + 1.0f) * u);
-			};
-			const Point a = along(0.45f);
-			const Point b = along(1.0f);
-			paint.line(a.x, a.y, b.x, b.y, wide + kInkWidth, kInk);
-			paint.line(a.x, a.y, b.x, b.y, wide, rgb(0xefeadd));
-		} else {
-			// The needle: brought over, pushed in, held while it empties, then
-			// pulled back out. A flat sine barely moved it and read as a
-			// syringe parked beside the arm for four seconds.
-			const float in = t < 0.3f ? t / 0.3f : t > 0.8f ? (1 - t) / 0.2f : 1.0f;
-			// Not so far in that the arm covers it: pushed home it still has
-			// to be a syringe you can see, or the motion says nothing.
-			const float reach = 10.5f - in * 5.5f;
-			const Point at = f.at(-10.0f - in * 1.5f, reach);
-			drawItemIcon(paint, look.applying, at.x, at.y, 15.0f * f.scale,
-						 facing - 1.57f + in * 0.35f);
 		}
 	}
 
