@@ -272,9 +272,10 @@ void reload(Player& player, const Inventory& inventory) {
 	const ItemId held = inventory.held();
 	const Gun& gun = itemDef(held).gun;
 	if (gun.damage <= 0 || gun.magazine <= 0) return;
-	// Not at a run. Changing a magazine takes both hands and your eyes, and a
-	// sprint is neither: you break stride to do it, the same as in Rust.
-	if (player.sprinting) return;
+	// A rocket launcher is the one thing you cannot load at a run: it is a
+	// rocket held in both arms and shoved down a tube over your shoulder, not
+	// a magazine pushed into a well. Everything else loads on the move.
+	if (player.sprinting && held == ItemId::RocketLauncher) return;
 	if (player.reloadLeft > 0) return;
 	if (player.loaded == held && player.rounds >= gun.magazine) return;
 	if (inventory.count(gun.ammo) <= 0) return;
@@ -285,10 +286,9 @@ void reload(Player& player, const Inventory& inventory) {
 
 void tickReload(Player& player, Inventory& inventory, double dt) {
 	if (player.reloadLeft <= 0) return;
-	// Breaking into a sprint drops it. Half a magazine change is not a thing
-	// you carry at a run, and letting the reload finish while sprinting away
-	// made the restriction above worth nothing.
-	if (player.sprinting) {
+	// Breaking into a sprint drops a rocket being loaded, for the same reason
+	// it cannot be started at a run. Every other reload carries on.
+	if (player.sprinting && player.loaded == ItemId::RocketLauncher) {
 		player.reloadLeft = 0;
 		player.reloadTotal = 0;
 		return;

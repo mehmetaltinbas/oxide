@@ -221,27 +221,37 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 		const float t = std::min(1.0f, look.applyT);
 		const float facing = std::atan2(f.sin, f.cos);
 		if (look.applying == sim::ItemId::Bandage) {
-			// The dressing going round the arm: a white band that grows as it
-			// is wound, and the roll in the other hand.
+			// The dressing going round the arm, and nothing else. It had the
+			// roll drawn in the other hand as well, and a white square out
+			// beside the body read as another piece of the person rather than
+			// as a thing being held.
 			//
 			// Widths in the body's own units, like every other part of it:
 			// Paint scales the pen by the view already, and multiplying by the
 			// frame's scale as well squared the zoom and laid a white bar the
 			// size of the player over the top of them.
-			const float wide = 2.2f + 3.4f * t;
-			const Point a = f.at(-13.5f, -5.5f);
-			const Point b = f.at(-9.0f, -0.5f);
+			const float wide = 2.0f + 2.4f * t;
+			// Laid along the arm itself rather than at fixed numbers, so it is
+			// on the limb wherever the limb has got to.
+			const auto along = [&](float u) {
+				return f.at(-10.0f + (hands[0].x + 10.0f) * u,
+							-1.0f + (hands[0].y + 1.0f) * u);
+			};
+			const Point a = along(0.45f);
+			const Point b = along(1.0f);
 			paint.line(a.x, a.y, b.x, b.y, wide + kInkWidth, kInk);
 			paint.line(a.x, a.y, b.x, b.y, wide, rgb(0xefeadd));
-			const Point roll = f.at(-9.0f, 5.5f);
-			drawItemIcon(paint, look.applying, roll.x, roll.y, 14.0f * f.scale, facing + 0.9f);
 		} else {
-			// The needle going in: it tips towards the arm over the first half
-			// of it and comes back out over the second.
-			const float press = std::sin(t * 3.14159265f);
-			const Point at = f.at(-8.0f - press * 2.0f, 5.0f - press * 2.5f);
+			// The needle: brought over, pushed in, held while it empties, then
+			// pulled back out. A flat sine barely moved it and read as a
+			// syringe parked beside the arm for four seconds.
+			const float in = t < 0.3f ? t / 0.3f : t > 0.8f ? (1 - t) / 0.2f : 1.0f;
+			// Not so far in that the arm covers it: pushed home it still has
+			// to be a syringe you can see, or the motion says nothing.
+			const float reach = 10.5f - in * 5.5f;
+			const Point at = f.at(-10.0f - in * 1.5f, reach);
 			drawItemIcon(paint, look.applying, at.x, at.y, 15.0f * f.scale,
-						 facing - 0.9f - press * 0.5f);
+						 facing - 1.57f + in * 0.35f);
 		}
 	}
 
