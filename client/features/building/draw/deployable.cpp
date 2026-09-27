@@ -48,9 +48,13 @@ void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, fl
 	double halfDeep = 0;
 	sim::BuildSystem::deployBounds(deployable.kind, deployable.turned, deployable.x, deployable.y,
 								   halfWide, halfDeep);
-	const float r = static_cast<float>(std::min(halfWide, halfDeep)) * scale;
-	const float along = static_cast<float>(std::max(halfWide, halfDeep)) * scale;
-	(void)along;
+	// `hw` and `hd` are the box it stands on, so a thing fills the squares it
+	// was put down on rather than a circle inside them: a two by one bench
+	// drawn inside its short half was half the bench it said it was. `r` is
+	// the short half, for the round things that have no long side.
+	const float hw = static_cast<float>(halfWide) * scale;
+	const float hd = static_cast<float>(halfDeep) * scale;
+	const float r = std::min(hw, hd);
 	// A flame is never still: it breathes on its own clock.
 	const float flicker = 0.75f + std::sin(clock * 11.0f) * 0.25f;
 	switch (deployable.kind) {
@@ -90,51 +94,53 @@ void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, fl
 		}
 		case sim::DeployKind::WoodenBox: {
 			// A crate from above: planks across the lid, and the rim round it.
-			box(paint, x, y, r * 0.9f, r * 0.9f, rgb(0x8a6034));
-			box(paint, x, y, r * 0.74f, r * 0.74f, rgb(0xa8763f));
+			box(paint, x, y, hw * 0.94f, hd * 0.94f, rgb(0x8a6034));
+			box(paint, x, y, hw * 0.76f, hd * 0.76f, rgb(0xa8763f));
 			for (int i = -1; i <= 1; ++i) {
-				const float py = y + i * r * 0.44f;
-				paint.line(x - r * 0.74f, py, x + r * 0.74f, py, kInkFine, rgb(0x5d4022));
+				const float py = y + i * hd * 0.46f;
+				paint.line(x - hw * 0.76f, py, x + hw * 0.76f, py, kInkFine, rgb(0x5d4022));
 			}
 			break;
 		}
 		case sim::DeployKind::LargeBox: {
 			// A chest from above: longer than it is deep, iron bands across
 			// the ends and a hasp on the near side.
-			box(paint, x, y, r * 1.45f, r * 0.82f, rgb(0x7a5a34));
-			box(paint, x, y, r * 1.3f, r * 0.68f, rgb(0xa8834f));
+			box(paint, x, y, hw * 0.96f, hd * 0.94f, rgb(0x7a5a34));
+			box(paint, x, y, hw * 0.86f, hd * 0.78f, rgb(0xa8834f));
 			for (int i = -1; i <= 1; i += 2) {
-				box(paint, x + i * r * 1.14f, y, r * 0.16f, r * 0.82f, rgb(0x4a4a52));
+				box(paint, x + i * hw * 0.78f, y, hw * 0.1f, hd * 0.94f, rgb(0x4a4a52));
 			}
 			for (int i = -1; i <= 1; ++i) {
-				const float py = y + i * r * 0.4f;
-				paint.line(x - r * 1.0f, py, x + r * 1.0f, py, kInkFine, rgb(0x5d4022));
+				const float py = y + i * hd * 0.44f;
+				paint.line(x - hw * 0.66f, py, x + hw * 0.66f, py, kInkFine, rgb(0x5d4022));
 			}
-			box(paint, x, y + r * 0.7f, r * 0.2f, r * 0.16f, rgb(0x6a6a74));
+			box(paint, x, y + hd * 0.74f, hw * 0.14f, hd * 0.18f, rgb(0x6a6a74));
 			break;
 		}
 		case sim::DeployKind::ToolCupboard: {
-			box(paint, x, y, r * 0.9f, r * 0.9f, rgb(0x6b5540));
-			box(paint, x, y - r * 0.15f, r * 0.55f, r * 0.4f, rgb(0x8a7a5a));
+			box(paint, x, y, hw * 0.94f, hd * 0.94f, rgb(0x6b5540));
+			box(paint, x, y - hd * 0.16f, hw * 0.58f, hd * 0.42f, rgb(0x8a7a5a));
 			break;
 		}
 		case sim::DeployKind::Workbench1:
 		case sim::DeployKind::Workbench2:
 		case sim::DeployKind::Workbench3: {
-			// A bench with its work laid out on it, and a mark for its tier.
-			box(paint, x, y, r * 0.98f, r * 0.7f, rgb(0x8a6034));
-			box(paint, x, y - r * 0.18f, r * 0.7f, r * 0.3f, rgb(0xb0b9c1));
+			// A bench top filling its own footprint, with the work laid out on
+			// it and a mark for its tier along the front edge.
+			box(paint, x, y, hw * 0.96f, hd * 0.92f, rgb(0x8a6034));
+			box(paint, x, y - hd * 0.22f, hw * 0.74f, hd * 0.34f, rgb(0xb0b9c1));
 			const int tier = sim::benchTier(deployable.kind);
 			for (int i = 0; i < tier; ++i) {
-				paint.fillCircle(x - r * 0.5f + i * r * 0.36f, y + r * 0.42f, r * 0.12f,
+				const float step = hw * 0.34f;
+				paint.fillCircle(x - step + i * step, y + hd * 0.5f, std::min(hw, hd) * 0.16f,
 								 rgb(0xc9a227));
 			}
 			break;
 		}
 		case sim::DeployKind::SleepingBag: {
 			// Flat on the ground, and walked over rather than into.
-			paint.inkedPoly({{x - r * 0.65f, y - r * 0.95f}, {x + r * 0.65f, y - r * 0.95f},
-							 {x + r * 0.65f, y + r * 0.95f}, {x - r * 0.65f, y + r * 0.95f}},
+			paint.inkedPoly({{x - hw * 0.96f, y - hd * 0.96f}, {x + hw * 0.96f, y - hd * 0.96f},
+							 {x + hw * 0.96f, y + hd * 0.96f}, {x - hw * 0.96f, y + hd * 0.96f}},
 							rgb(0xa05a5a), kInkFine);
 			oval(paint, x, y - r * 0.6f, r * 0.45f, r * 0.3f, rgb(0xc98a8a), false);
 			break;

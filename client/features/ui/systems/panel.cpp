@@ -114,7 +114,11 @@ int slotUnder(float px, float py, float ox, float oy, float size, float pitch, i
 }  // namespace
 
 void Panel::toggleInventory() {
-	if (open_ && tab_ == Tab::Inventory) {
+	// Tab shuts the screen, whatever is on it. It is the way out, and a way
+	// out that only works from one of four tabs is not one: opened onto a
+	// furnace, it used to take you to the pack and leave you to find Tab
+	// again.
+	if (open_) {
 		close();
 		return;
 	}

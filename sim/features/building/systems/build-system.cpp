@@ -625,6 +625,19 @@ double BuildSystem::warmthAt(double x, double y) const {
 	return warmth;
 }
 
+const Deployable* BuildSystem::fireAt(double x, double y) const {
+	const Deployable* best = nullptr;
+	double bestD = kFireWarmthRadius;
+	for (const Deployable& d : deployables_) {
+		if (!d.lit) continue;
+		const double dd = std::hypot(d.x - x, d.y - y);
+		if (dd >= bestD) continue;
+		best = &d;
+		bestD = dd;
+	}
+	return best;
+}
+
 void BuildSystem::updateDeployables(World& world, double dt) {
 	for (Deployable& thing : deployables_) ageWound(thing, dt);
 	// What has been broken spills out where it stood, box and fire alike.

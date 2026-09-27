@@ -13,8 +13,30 @@ namespace sim {
 /** What a body needs, and what it can take. */
 struct PlayerVitals {
 	static constexpr double kMaxHealth = 100;
-	static constexpr double kMaxCalories = 100;
-	static constexpr double kMaxHydration = 100;
+	/**
+	 * Two hundred, not a hundred.
+	 *
+	 * The top half is a reserve rather than a meter: nothing bad happens until
+	 * a meter reaches nought, so a hundred was a number you topped up and
+	 * forgot. Above a hundred of both you can spend the surplus on comfort at
+	 * a fire, which is what makes eating past full worth doing.
+	 */
+	static constexpr double kMaxCalories = 200;
+	static constexpr double kMaxHydration = 200;
+	/** Where the reserve starts: comfort spends what is above this. */
+	static constexpr double kWellFed = 100;
+	/**
+	 * What one person sitting at a fire is worth, as a fraction.
+	 *
+	 * A quarter each, up to four of you. A fire is better shared: the
+	 * healing, and the food and water it costs, both scale with how many of
+	 * you are round it, so a camp of four mends four times as fast and eats
+	 * four times as much doing it.
+	 */
+	static constexpr double kComfortPerHead = 0.25;
+	static constexpr int kComfortHeads = 4;
+	/** Health a second at full comfort, and what it costs of each meter. */
+	static constexpr double kComfortHeal = 1.0;
 	static constexpr double kMaxRadiation = 100;
 	/**
 	 * Needs drain on Rust's timescale: roughly sixteen minutes of food and
@@ -84,8 +106,13 @@ double biomeTemp(Biome biome);
  *
  * `darkness` is how far into the night it is, nought to one.
  */
+/**
+ * `comfort` is how warm and how shared the fire you are at is, nought to one:
+ * see PlayerVitals::kComfortPerHead. It only counts while both meters are
+ * above kWellFed, because what it spends is the surplus.
+ */
 void updateSurvival(const World& world, Player& player, const Inventory& inventory, double dt,
-					double darkness, double fireWarmth);
+					double darkness, double fireWarmth, double comfort = 0);
 
 /** A blow landing on a player, after whatever they are wearing takes its share. */
 void hurtPlayer(Player& player, Inventory& inventory, double amount);

@@ -238,6 +238,15 @@ public:
 	double warmthAt(double x, double y) const;
 
 	/**
+	 * The lit fire you are sitting at, or nothing.
+	 *
+	 * Comfort is worked out per fire rather than per person, because it is
+	 * shared: the caller counts how many are round this one and multiplies.
+	 * See PlayerVitals::kComfortPerHead.
+	 */
+	const Deployable* fireAt(double x, double y) const;
+
+	/**
 	 * What rots while nobody is here to keep it up.
 	 *
 	 * Rust's rule, kept simple: everything you own loses a slice of its full

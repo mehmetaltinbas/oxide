@@ -1286,8 +1286,22 @@ int main(int argc, char** argv) {
 		}
 		clock += dt;
 		const double dark = sim::darkness(clock);
+		// Comfort: a quarter for you, and a quarter for everyone else sitting
+		// at the same fire, up to four of you. Worked out from the fire rather
+		// than from the person, so the same fire gives everyone round it the
+		// same number.
+		double comfort = 0;
+		if (const sim::Deployable* fire = build.fireAt(player.x, player.y)) {
+			int heads = 1;
+			for (const auto& [id, other] : net.others()) {
+				if (!other.alive) continue;
+				if (build.fireAt(other.drawX, other.drawY) == fire) ++heads;
+			}
+			comfort = std::min(heads, sim::PlayerVitals::kComfortHeads) *
+					  sim::PlayerVitals::kComfortPerHead;
+		}
 		sim::updateSurvival(world, player, inventory, dt, sim::nightness(clock),
-							build.warmthAt(player.x, player.y));
+							build.warmthAt(player.x, player.y), comfort);
 		sim::updateUse(player, inventory, dt, player.sprinting);
 
 		if (!player.alive && !dead) {
@@ -2521,6 +2535,7 @@ int main(int argc, char** argv) {
 																: 0);
 		// Whichever gun holds rounds says so on its own slot, held or not.
 		hud.setMending(player.healOverTime);
+		hud.setComfort(player.comfort);
 		hud.setLoadedGun(player.loaded, player.rounds);
 		hud.setClock(clock);
 		hud.setAmmo(sim::isRanged(sim::itemDef(inventory.held()).gun)

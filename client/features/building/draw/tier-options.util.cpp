@@ -12,7 +12,10 @@ std::vector<WheelOption> tierOptions(const sim::Structure& piece,
 	// is given, and the ring is rebuilt every time it opens.
 	static char notes[sim::kBuildTierCount][32];
 	std::vector<WheelOption> out;
-	for (int i = 0; i < sim::kBuildTierCount; ++i) {
+	// Twig is where everything starts and nothing goes back to: it is not on
+	// the ring, because a ring with a slice you can never pick on it is a ring
+	// you have to read before you can use.
+	for (int i = static_cast<int>(sim::BuildTier::Wood); i < sim::kBuildTierCount; ++i) {
 		const sim::BuildTier tier = static_cast<sim::BuildTier>(i);
 		const sim::TierDef& def = sim::tierDef(tier);
 		SDL_snprintf(notes[i], sizeof(notes[i]), "%d %s", def.cost.count,

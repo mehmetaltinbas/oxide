@@ -890,6 +890,40 @@ int main() {
 		}
 	}
 
+	// A fire mends you out of your own surplus, and only out of the surplus.
+	// Three halves: it heals, it eats, and it does neither on an empty
+	// stomach.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::Inventory kit;
+		const auto sit = [&](double food, double comfort) {
+			sim::Player p{};
+			p.alive = true;
+			p.health = 50;
+			p.calories = food;
+			p.hydration = food;
+			p.temperature = 20;
+			p.x = 10368;
+			p.y = 10368;
+			for (int i = 0; i < 60; ++i) {
+				sim::updateSurvival(island, p, kit, dt, 0, 0, comfort);
+			}
+			return p;
+		};
+		const sim::Player alone = sit(180, sim::PlayerVitals::kComfortPerHead);
+		const sim::Player four = sit(180, 1.0);
+		const sim::Player hungry = sit(60, 1.0);
+		std::printf("comfort: a second at a fire heals %.2f alone and %.2f with four, and %.2f"
+					" on an empty stomach\n",
+					alone.health - 50, four.health - 50, hungry.health - 50);
+		std::printf("         four heads cost %.2f food in that second\n", 180 - four.calories);
+		if (four.health - 50 < alone.health - 50 || hungry.health - 50 > 0.7 ||
+			180 - four.calories < 0.9) {
+			std::printf("  COMFORT IS WRONG\n");
+		}
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.

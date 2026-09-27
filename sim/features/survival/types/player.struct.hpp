@@ -22,6 +22,13 @@ struct Player {
 	double hydration = 75;
 	double temperature = 20;
 	double radiation = 0;
+	/**
+	 * How comfortable you are, nought to one, as of the last tick.
+	 *
+	 * Worked out from the fire you are at and the company round it, and kept
+	 * here so the screen can say it without working it out a second time.
+	 */
+	double comfort = 0;
 	/** Seconds of bleeding left, and health still to come from a syringe. */
 	double bleeding = 0;
 	double healOverTime = 0;

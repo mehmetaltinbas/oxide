@@ -93,14 +93,15 @@ Terrain::~Terrain() {
 }
 
 void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screenW, int screenH) {
-	// Two dots half a tile apart, so the grid reads as a screen rather than as
-	// rows and columns.
+	// One dot every eight world units, on the eights.
 	//
-	// Eight world units between them, not nine. A building cell is sixty-four
-	// across: at nine it divided into seven and a bit, so one edge of a
-	// foundation landed on the dots and the other landed between them, and the
-	// two grids read as a mistake. At eight a cell is exactly eight dots and
-	// every edge of everything you put down sits on one.
+	// The dots are the unit the building system is measured in, so where they
+	// fall is a rule rather than a texture. A building cell is sixty-four
+	// across, which is eight of them, and a fine square is one of them: a
+	// foundation's corner therefore lands on a dot, and a dot is the middle of
+	// a fine square. Two dots per tile at a quarter and three quarters put
+	// them on the twos and the sixes and never on a cell edge, which is why
+	// one side of a foundation lined up and the other did not.
 	constexpr int kSpacing = 8;
 	constexpr int kOversample = 4;
 	if (!screen_) {
@@ -118,13 +119,17 @@ void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screen
 		SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
 		Paint paint(renderer_);
 		const float dot = 0.55f * kOversample;
-		paint.fillCircle(size * 0.25f, size * 0.25f, dot, Color{20, 17, 13, 190});
-		paint.fillCircle(size * 0.75f, size * 0.75f, dot, Color{20, 17, 13, 190});
+		paint.fillCircle(size * 0.5f, size * 0.5f, dot, Color{20, 17, 13, 190});
 		SDL_SetRenderTarget(renderer_, was);
 	}
 	// Pinned to the world rather than the screen, so the dots do not swim
 	// about as you walk.
 	const float tile = static_cast<float>(kSpacing * zoom);
+	// The dots land on the multiples of eight, which is what makes them the
+	// unit: a building cell is eight of them across, so a foundation's corner
+	// sits on a dot, and a fine square is the square around one. Shifted half
+	// a tile either way they fall between the cells instead, and one edge of a
+	// foundation lines up while the other does not.
 	const float offX = static_cast<float>(std::fmod(cameraX * zoom, tile));
 	const float offY = static_cast<float>(std::fmod(cameraY * zoom, tile));
 	const SDL_FRect dst{-offX - tile, -offY - tile, screenW + tile * 2, screenH + tile * 2};

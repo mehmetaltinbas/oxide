@@ -28,7 +28,7 @@ double biomeTemp(Biome biome) {
 }
 
 void updateSurvival(const World& world, Player& player, const Inventory& inventory, double dt,
-					double darkness, double fireWarmth) {
+					double darkness, double fireWarmth, double comfort) {
 	if (!player.alive) {
 		player.respawnTimer -= dt;
 		return;
@@ -78,14 +78,33 @@ void updateSurvival(const World& world, Player& player, const Inventory& invento
 		}
 	}
 
+	// Comfort: what a fire and the company round it are worth.
+	//
+	// Only on the surplus. Both meters have to be above kWellFed, and what it
+	// heals it takes straight back out of them on top of the ordinary drain,
+	// so sitting at a fire is spending food to buy health rather than getting
+	// health for nothing.
+	player.comfort = 0;
+	if (comfort > 0 && player.calories > PlayerVitals::kWellFed &&
+		player.hydration > PlayerVitals::kWellFed && damage == 0) {
+		player.comfort = std::min(1.0, comfort);
+		const double rate = player.comfort * PlayerVitals::kComfortHeal;
+		player.health = std::min(PlayerVitals::kMaxHealth, player.health + rate * dt);
+		player.calories = std::max(0.0, player.calories - rate * dt);
+		player.hydration = std::max(0.0, player.hydration - rate * dt);
+	}
+
 	if (player.healOverTime > 0) {
 		// One a second, so twenty health is twenty seconds and the number
 		// beside the bar counts down at the rate it reads.
 		const double tick = std::min(player.healOverTime, 1.0 * dt);
 		player.health = std::min(PlayerVitals::kMaxHealth, player.health + tick);
 		player.healOverTime -= tick;
-	} else if (player.calories > 40 && player.hydration > 40 && damage == 0) {
-		// Well fed and watered, you slowly knit back together.
+	} else if (player.comfort <= 0 && player.calories > 40 && player.hydration > 40 &&
+			   damage == 0) {
+		// Well fed and watered, you slowly knit back together. Not while a
+		// fire is doing it for you: the two would stack and a camp would mend
+		// faster than a syringe.
 		player.health = std::min(PlayerVitals::kMaxHealth, player.health + 0.6 * dt);
 	}
 }

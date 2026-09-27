@@ -480,7 +480,7 @@ void paintStone(Paint& paint, float ox, float oy, float r, sim::NodeKind kind, i
 		// Four sided where the crest is not the nearer end, so the two halves
 		// meet along the crest instead of leaving a wedge between them.
 		const Point& far = toA <= toB ? crestB : crestA;
-		paint.inkedPoly({root, a, b, far}, shade(body, amount), pen() * 0.55f);
+		paint.inkedPoly({root, a, b, far}, shade(body, amount), pen() * 0.50f);
 	}
 	// The crest itself, at the weight of the outline: it is the break in the
 	// rock, not a mark on it.

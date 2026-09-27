@@ -204,6 +204,18 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 	gauge(Vital::Food, calories_, 100, rgb(0xcf6a12), 1);
 	gauge(Vital::Water, hydration_, 100, rgb(0x4a9ee8), 2);
 
+	if (comfort_ > 0.01) {
+		// Over the health bar: a fire's worth, as the percentage it is, with a
+		// flame beside it so it reads as warmth rather than as a meter.
+		char line[24];
+		SDL_snprintf(line, sizeof(line), "%d%% comfort",
+					 static_cast<int>(std::lround(comfort_ * 100)));
+		if (lettering_) {
+			lettering_->drawInked(line, gaugeX, baseY - 8 * uiScale, 12 * uiScale,
+								  rgb(0xffa24a), Face::BodyBold, Align::Left, 1);
+		}
+	}
+
 	// The two things the health bar is owed or owes, beside it, in a fixed
 	// order: what is coming back first, what is going second. One on its own
 	// takes the first place, so a bandaged player and a bleeding one both read

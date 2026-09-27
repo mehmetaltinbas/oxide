@@ -72,6 +72,15 @@ public:
 	 */
 	void setMending(double health) { mending_ = health; }
 
+	/**
+	 * How comfortable you are, nought to one.
+	 *
+	 * Printed over the health bar rather than beside it, because it is not a
+	 * quantity of anything: it is the rate everything else is running at while
+	 * you sit at the fire.
+	 */
+	void setComfort(double comfort) { comfort_ = comfort; }
+
 	/** The clock, for anything that beats or blinks. */
 	void setClock(double seconds) { clock_ = seconds; }
 
@@ -96,6 +105,8 @@ private:
 	double bleeding_ = 0;
 	/** Health still owed by a syringe, at one a second. */
 	double mending_ = 0;
+	/** What a fire and the company round it are worth, nought to one. */
+	double comfort_ = 0;
 	double applying_ = 0;
 	double clock_ = 0;
 	Text* lettering_ = nullptr;

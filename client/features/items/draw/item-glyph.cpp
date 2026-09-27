@@ -392,23 +392,40 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			stroke(-0.26f, -0.24f, -0.06f, -0.2f, 0.018f, pale);
 			break;
 		}
-		case sim::ItemId::SulfurOre:
-			// Dark rock with yellow crystal grown all over the top of it: the
-			// crystal is the thing you are looking at, and the rock is what it
-			// is stuck to.
-			pile(rgb(0x4a3a28), rgb(0x261c12));
-			for (int i = 0; i < 6; ++i) {
-				const float cx = -0.22f + (i % 3) * 0.19f + (i / 3) * 0.08f;
-				const float cy = -0.2f + (i / 3) * 0.2f;
-				const float r = 0.055f + (i % 2) * 0.02f;
-				edged(pts({{cx, cy - r * 1.4f},
-						   {cx + r, cy - r * 0.2f},
-						   {cx + r * 0.5f, cy + r},
-						   {cx - r * 0.6f, cy + r * 0.8f},
-						   {cx - r, cy - r * 0.3f}}),
-					  (i % 2) ? rgb(0xf0e35e) : rgb(0xd4c63c), rgb(0x6f6414));
+		case sim::ItemId::SulfurOre: {
+			// One dark lump of rock with the crystal growing out of the top of
+			// it. Big crystals, few of them, and drawn over the silhouette so
+			// they break it: a scattering of small ones on a pile of pebbles
+			// read as grit rather than as ore.
+			const Color rock = rgb(0x3f3124);
+			const Color rockEdge = rgb(0x1d150e);
+			edged(pts({{-0.32f, 0.06f}, {-0.2f, -0.16f}, {0.06f, -0.22f}, {0.3f, -0.04f},
+					   {0.28f, 0.2f}, {0.02f, 0.3f}, {-0.26f, 0.24f}}),
+				  rock, rockEdge);
+			// The cleft across it, which is where the crystal came through.
+			stroke(-0.2f, 0.08f, 0.22f, 0.02f, 0.03f, rgb(0x2a1f16));
+			const float grow[4][3] = {
+				{-0.16f, -0.16f, 0.12f}, {0.06f, -0.22f, 0.15f}, {0.22f, -0.04f, 0.1f},
+				{-0.02f, -0.06f, 0.09f}};
+			for (int i = 0; i < 4; ++i) {
+				const float cx = grow[i][0];
+				const float cy = grow[i][1];
+				const float r = grow[i][2];
+				edged(pts({{cx, cy - r},
+						   {cx + r * 0.62f, cy - r * 0.15f},
+						   {cx + r * 0.34f, cy + r * 0.7f},
+						   {cx - r * 0.42f, cy + r * 0.6f},
+						   {cx - r * 0.6f, cy - r * 0.2f}}),
+					  (i % 2) ? rgb(0xf0e35e) : rgb(0xd0c132), rgb(0x6f6414));
+				// One lit facet down the left of each, so they read as glass.
+				fill(pts({{cx - r * 0.5f, cy - r * 0.1f},
+						  {cx - r * 0.06f, cy - r * 0.8f},
+						  {cx, cy - r * 0.1f},
+						  {cx - r * 0.3f, cy + r * 0.4f}}),
+					 rgb(0xf8f0a6));
 			}
 			break;
+		}
 		case sim::ItemId::Metal: {
 			// Splinters of dark metal, thrown together: smelted scrap comes
 			// out as shards, not as bar stock, and near-black with a hard
@@ -437,21 +454,27 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			break;
 		}
 		case sim::ItemId::Sulfur: {
-			// A cluster of crystal, faceted and all one yellow: no rock left
-			// on it, because this is what comes out of the furnace.
-			const Color edge = rgb(0x6f6414);
-			edged(pts({{-0.32f, 0.02f}, {-0.18f, -0.24f}, {0.1f, -0.28f}, {0.32f, -0.06f},
-					   {0.28f, 0.2f}, {0.02f, 0.3f}, {-0.26f, 0.24f}}),
-				  rgb(0xd6c73a), edge);
-			// The facets over it, each a flat plane catching the light.
-			edged(pts({{-0.2f, -0.12f}, {-0.04f, -0.22f}, {0.02f, -0.04f}, {-0.14f, 0.06f}}),
-				  rgb(0xf4ec7e), edge);
-			edged(pts({{0.04f, -0.2f}, {0.24f, -0.1f}, {0.2f, 0.08f}, {0.02f, 0.0f}}),
-				  rgb(0xe8da54), edge);
-			edged(pts({{-0.22f, 0.08f}, {-0.06f, 0.04f}, {0.0f, 0.22f}, {-0.16f, 0.24f}}),
-				  rgb(0xeee063), edge);
-			edged(pts({{0.04f, 0.06f}, {0.2f, 0.12f}, {0.14f, 0.26f}, {0.02f, 0.22f}}),
-				  rgb(0xf8f2a2), edge);
+			// A heap of powder, not a stone: smelting takes the crystal apart,
+			// and what comes out pours. A soft mound with a rounded top, one
+			// paler face where the light falls, and the grain stippled over it.
+			const Color body = rgb(0xd8c73c);
+			const Color deep = rgb(0x8a7c18);
+			edged(pts({{-0.34f, 0.24f}, {-0.26f, 0.02f}, {-0.1f, -0.14f}, {0.08f, -0.2f},
+					   {0.24f, -0.06f}, {0.34f, 0.16f}, {0.34f, 0.26f}}),
+				  body, deep);
+			fill(pts({{-0.22f, 0.06f}, {-0.06f, -0.12f}, {0.08f, -0.18f}, {0.06f, 0.02f},
+					  {-0.12f, 0.16f}}),
+				 rgb(0xf2e784));
+			// The grain: a scatter of fine dots, which is the whole of what
+			// makes a heap read as powder rather than as a painted lump.
+			const float grain[7][2] = {{-0.2f, 0.16f}, {-0.06f, 0.1f},  {0.1f, 0.14f},
+									   {0.2f, 0.06f},  {-0.14f, -0.02f}, {0.02f, -0.06f},
+									   {0.24f, 0.18f}};
+			for (const auto& g : grain) plainDisc(g[0], g[1], 0.018f, deep);
+			// And a few spilt beside it, so the heap has somewhere to have
+			// come from.
+			plainDisc(-0.3f, 0.3f, 0.026f, body);
+			plainDisc(0.3f, 0.3f, 0.022f, body);
 			break;
 		}
 		case sim::ItemId::Charcoal: pile(rgb(0x4a4a4a), rgb(0x2a2a2a)); break;
