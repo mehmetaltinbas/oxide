@@ -76,6 +76,10 @@
 #include "sim/features/items/utils/is-ranged.util.hpp"
 #include "sim/shared/utils/health.util.hpp"
 #include "sim/shared/utils/collide.util.hpp"
+#include "client/features/ui/systems/wheel.hpp"
+#include "client/features/building/draw/build-plan-options.util.hpp"
+#include "client/features/building/draw/tier-options.util.hpp"
+#include "client/design/tokens/interface.tokens.hpp"
 
 /**
  * The game as you play it: an island from a seed, someone standing on it, and
@@ -209,6 +213,8 @@ int main(int argc, char** argv) {
 	int holdSlot = -1;
 	/** Seconds of bleeding to start with, for a look at the readout. */
 	double bleedFor = 0;
+	/** The building plan's ring, held open for a screenshot. */
+	bool showWheel = false;
 	/** Something worn from the off, for a screenshot. */
 	sim::ItemId wearWhat = sim::ItemId::None;
 	/** Which crafting category to open, for a screenshot. */
@@ -289,6 +295,8 @@ int main(int argc, char** argv) {
 		} else if (SDL_strcmp(argv[i], "--dragqueue") == 0 && i + 2 < argc) {
 			dragFrom = SDL_atoi(argv[++i]);
 			dragOver = SDL_atoi(argv[++i]);
+		} else if (SDL_strcmp(argv[i], "--wheel") == 0) {
+			showWheel = true;
 		} else if (SDL_strcmp(argv[i], "--wear") == 0 && i + 1 < argc) {
 			const char* what = argv[++i];
 			wearWhat = SDL_strcmp(what, "rad") == 0     ? sim::ItemId::RadSuit
@@ -562,6 +570,12 @@ int main(int argc, char** argv) {
 		sim::Structure& doorway = build.placeEdge(gx + 1, gy + 2, sim::EdgeSide::North,
 												  sim::BuildKind::Doorway, 0, sim::BuildTier::Wood);
 		doorway.kind = sim::BuildKind::Door;
+		// And a roof on it, so the ceiling has somewhere to be looked at.
+		for (int oy = 0; oy < 2; ++oy) {
+			for (int ox = 0; ox < 2; ++ox) {
+				build.placeCeiling(gx + ox, gy + oy, 0, sim::BuildTier::Wood);
+			}
+		}
 		inventory.add(sim::ItemId::BuildingPlan, 1);
 		// Something of everything, to see how it all sits together.
 		const int fireId = build.deploy(sim::DeployKind::Campfire, gx, gy + 1, 0);
@@ -672,6 +686,11 @@ int main(int argc, char** argv) {
 	if (showMap) map.toggle();
 	// What the building plan would put down, cycled with B.
 	sim::BuildKind buildKind = sim::BuildKind::Foundation;
+	// Held open rather than clicked through: B for what to build, right click
+	// on a piece for what to make it of.
+	client::Wheel buildWheel;
+	client::Wheel upgradeWheel;
+	int upgradePiece = 0;
 	if (showPanel) {
 		inventory.add(sim::ItemId::Wood, 320);
 		inventory.add(sim::ItemId::Stone, 180);
@@ -764,6 +783,27 @@ int main(int argc, char** argv) {
 	double benchTime = 0;
 	double benchWorst = 0;
 	bool running = true;
+	// The cursor in pixels, which is what everything on screen is laid out in.
+	// SDL reports it in points, and the two differ on a dense display.
+	const auto cursorOnScreen = [&](float& px, float& py) {
+		SDL_GetMouseState(&px, &py);
+		int pw = 0;
+		int ph = 0;
+		int ww = 0;
+		int wh = 0;
+		SDL_GetWindowSizeInPixels(window, &pw, &ph);
+		SDL_GetWindowSize(window, &ww, &wh);
+		const float d = ww > 0 ? static_cast<float>(pw) / ww : 1.0f;
+		px *= d;
+		py *= d;
+		return d;
+	};
+	if (showWheel) {
+		int pw = 0;
+		int ph = 0;
+		SDL_GetWindowSizeInPixels(window, &pw, &ph);
+		buildWheel.show(client::buildPlanOptions(), pw * 0.5f, ph * 0.5f);
+	}
 	std::uint64_t last = SDL_GetPerformanceCounter();
 	std::vector<const sim::ResourceNode*> visible;
 	double fpsClock = 0;
@@ -963,9 +1003,25 @@ int main(int argc, char** argv) {
 												  player.y + SDL_sin(player.aim) * 34);
 							  });
 			}
-			if (event.type == SDL_EVENT_KEY_DOWN &&
-				(event.key.key == SDLK_B || event.key.key == SDLK_Q) && !event.key.repeat) {
-				// Foundation, wall, doorway, door, ceiling, and round again.
+			if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B &&
+				!event.key.repeat && inventory.held() == sim::ItemId::BuildingPlan) {
+				// Held down: the ring of things you can build, chosen by
+				// pushing towards one and letting go.
+				float mx = 0;
+				float my = 0;
+				cursorOnScreen(mx, my);
+				buildWheel.show(client::buildPlanOptions(), mx, my);
+			}
+			if (event.type == SDL_EVENT_KEY_UP && event.key.key == SDLK_B && buildWheel.open()) {
+				float mx = 0;
+				float my = 0;
+				const float d = cursorOnScreen(mx, my);
+				const int picked = buildWheel.release(mx, my, d);
+				if (picked >= 0) buildKind = static_cast<sim::BuildKind>(picked);
+			}
+			if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_Q && !event.key.repeat) {
+				// The quick way round, for anyone who would rather not hold a
+				// key: foundation, wall, doorway, door, ceiling, and again.
 				buildKind = static_cast<sim::BuildKind>(
 					(static_cast<int>(buildKind) + 1) % sim::kBuildKindCount);
 			}
@@ -1510,6 +1566,37 @@ int main(int argc, char** argv) {
 			player.attackTimer = 0.4;
 		}
 
+		if (inHand == sim::ItemId::Hammer && handsFree && (buttons & SDL_BUTTON_RMASK) != 0 &&
+			!upgradeWheel.open() && player.attackTimer <= 0) {
+			// Right click on your own piece: the ring of what it could be made
+			// of, held open while the button is down.
+			sim::Structure* piece = build.nearest(cursorX, cursorY, 30);
+			if (piece && piece->owner == 0) {
+				float mx = 0;
+				float my = 0;
+				cursorOnScreen(mx, my);
+				upgradePiece = piece->id;
+				upgradeWheel.show(client::tierOptions(*piece, inventory), mx, my);
+			}
+			player.attackTimer = 0.2;
+		}
+		if (upgradeWheel.open() && (buttons & SDL_BUTTON_RMASK) == 0) {
+			float mx = 0;
+			float my = 0;
+			const float d = cursorOnScreen(mx, my);
+			const int picked = upgradeWheel.release(mx, my, d);
+			if (picked >= 0) {
+				for (sim::Structure& piece : build.mutableList()) {
+					if (piece.id != upgradePiece) continue;
+					if (build.upgradeTo(piece, static_cast<sim::BuildTier>(picked), inventory)) {
+						audio.build();
+						specks.burst(cursorX, cursorY, 12, client::rgb(0x9aa8b4), 110, 0.5, 3);
+					}
+					break;
+				}
+			}
+		}
+
 		if (inHand == sim::ItemId::Hammer && handsFree && (buttons & SDL_BUTTON_LMASK) != 0 &&
 			player.attackTimer <= 0) {
 			// The hammer mends what is damaged and puts what is whole up a
@@ -1531,13 +1618,12 @@ int main(int argc, char** argv) {
 					specks.burst(cursorX, cursorY, 8, client::rgb(0xc9e08a), 90, 0.4, 2.2);
 				}
 			} else if (piece) {
-				sim::BuildTier up = sim::BuildTier::Twig;
-				if (!build.nextTier(*piece, up)) {
-				} else if (build.upgrade(*piece, inventory)) {
+				// Whole, and yours, and young: the hammer takes it back down.
+				// Upgrading moved to the wheel on the right button, so the
+				// left one is mend-or-unbuild and nothing else.
+				if (build.demolish(*piece, 0)) {
 					audio.build();
-					specks.burst(cursorX, cursorY, 12, client::rgb(0x9aa8b4), 110, 0.5, 3);
-				} else {
-					const sim::Cost& cost = sim::tierDef(up).cost;
+					specks.burst(cursorX, cursorY, 14, client::rgb(0xc9b08a), 120, 0.5, 3);
 				}
 			}
 			player.attackTimer = 0.35;
@@ -2368,7 +2454,60 @@ int main(int argc, char** argv) {
 		// Asked so the flag does not pile up. Nothing is said about it: a full
 		// queue is already eight chips and a count that reads 8/8.
 		(void)panel.takeQueueFull();
+		// What the hammer is over: what it is, what it is made of, how much of
+		// it is left, and whether it is still young enough to take down. Only
+		// with the hammer in hand, so it is something you ask for rather than
+		// something the screen keeps telling you.
+		if (inventory.held() == sim::ItemId::Hammer && !panel.open() && !map.open()) {
+			if (const sim::Structure* piece = build.nearest(cursorX, cursorY, 30)) {
+				const float scaleUi = static_cast<float>(density);
+				float mx = 0;
+				float my = 0;
+				cursorOnScreen(mx, my);
+				const char* what = piece->kind == sim::BuildKind::Foundation ? "Foundation"
+								   : piece->kind == sim::BuildKind::Ceiling  ? "Ceiling"
+								   : piece->kind == sim::BuildKind::Doorway  ? "Doorway"
+								   : piece->kind == sim::BuildKind::Door     ? "Door"
+																			: "Wall";
+				char made[64];
+				SDL_snprintf(made, sizeof(made), "%s   %d / %d", sim::tierDef(piece->tier).name,
+							 piece->hp, piece->maxHp);
+				const double left = sim::BuildSystem::kFreeDemolishSeconds - piece->age;
+				char note[64];
+				if (piece->owner != 0) {
+					SDL_snprintf(note, sizeof(note), "someone else's");
+				} else if (left > 0) {
+					SDL_snprintf(note, sizeof(note), "%dm%02ds to take it down",
+								 static_cast<int>(left) / 60, static_cast<int>(left) % 60);
+				} else {
+					SDL_snprintf(note, sizeof(note), "too old to take down");
+				}
+				const float w = 186 * scaleUi;
+				const float h = 62 * scaleUi;
+				const float cx = mx + 18 * scaleUi;
+				const float cy = my + 18 * scaleUi;
+				paint.fillRoundRect(cx, cy, w, h, client::ui::kRadiusMedium, client::ui::kSurface);
+				paint.outlineRoundRect(cx, cy, w, h, client::ui::kRadiusMedium, 1.5f * scaleUi,
+									   client::kInk);
+				lettering.draw(what, cx + 10 * scaleUi, cy + 8 * scaleUi, 14 * scaleUi, client::ui::kInk,
+							   client::Face::BodyBold);
+				lettering.draw(made, cx + 10 * scaleUi, cy + 26 * scaleUi, 11 * scaleUi, client::ui::kSubtle);
+				lettering.draw(note, cx + 10 * scaleUi, cy + 42 * scaleUi, 10 * scaleUi,
+							   piece->owner != 0 || left <= 0 ? client::ui::kWarn
+															  : client::ui::kFaint);
+			}
+		}
+
 		panel.draw(paint, inventory, crafting, width, height, static_cast<float>(density));
+
+		// The rings, over everything: they are held open under your hand.
+		{
+			float mx = 0;
+			float my = 0;
+			const float d = cursorOnScreen(mx, my);
+			buildWheel.draw(paint, mx, my, d);
+			upgradeWheel.draw(paint, mx, my, d);
+		}
 		if (typing) {
 			const std::string line = "say: " + typed + "_";
 			paint.fillRect(0, height - 150 * static_cast<float>(density),

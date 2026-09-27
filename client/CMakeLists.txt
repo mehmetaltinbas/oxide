@@ -27,11 +27,14 @@ add_executable(oxide_client
 
     # building: drawing what has been built, put down or was always there
     features/building/draw/structure.cpp
+    features/building/draw/build-plan-options.util.cpp
+    features/building/draw/tier-options.util.cpp
     features/building/draw/deployable.cpp
     features/building/draw/monument.cpp
 
     # ui: the interface drawn over the world
     features/ui/systems/hud.cpp
+    features/ui/systems/wheel.cpp
     features/ui/systems/panel.cpp
     features/ui/systems/map-screen.cpp
     features/ui/draw/vital-icon.cpp

@@ -72,6 +72,14 @@ struct Structure {
 	bool locked;
 	/** Seconds since anything last took health off it: see kHealthShownFor. */
 	double sinceHurt = 0;
+	/**
+	 * Seconds since it was put up.
+	 *
+	 * A piece you have just built can be taken back down with a hammer; an
+	 * older one has to be broken. Rust's rule, and the reason a misplaced
+	 * wall is a mistake rather than a rebuild: see kFreeDemolishSeconds.
+	 */
+	double age = 0;
 	/** Which way the builder was standing: the side a blow bites on. */
 	double softX;
 	double softY;
@@ -93,6 +101,8 @@ void edgeSegment(int gx, int gy, EdgeSide side, double& x0, double& y0, double& 
 class BuildSystem {
 public:
 	const std::vector<Structure>& list() const { return pieces_; }
+	/** For the one caller that has an id and needs the piece it names. */
+	std::vector<Structure>& mutableList() { return pieces_; }
 	/** The same, to be changed: what a blast and a hammer work on. */
 	std::vector<Structure>& list2() { return pieces_; }
 
@@ -119,6 +129,19 @@ public:
 	 */
 	Structure& placeEdge(int gx, int gy, EdgeSide side, BuildKind kind, int owner,
 						 BuildTier tier = BuildTier::Twig, double fromX = 0, double fromY = 0);
+
+	/**
+	 * How long after building you may still take a piece down by hand.
+	 *
+	 * Fifteen minutes. Long enough that a wall in the wrong place is a
+	 * mistake you fix, short enough that it is no use to a raider and no use
+	 * for moving a finished base about. Only your own, and nothing is given
+	 * back: the time you get is the mercy, not the materials.
+	 */
+	static constexpr double kFreeDemolishSeconds = 900;
+
+	/** Takes a piece back down. Says whether it was young enough and yours. */
+	bool demolish(Structure& piece, int owner);
 
 	/** The next tier up from what a piece is, if there is one. */
 	bool nextTier(const Structure& piece, BuildTier& out) const;
@@ -194,6 +217,8 @@ public:
 
 	/** Puts a piece up a tier, if the pack holds what that costs. */
 	bool upgrade(Structure& piece, Inventory& inventory);
+	/** Straight to a named tier, which is what the wheel asks for. Up only. */
+	bool upgradeTo(Structure& piece, BuildTier tier, Inventory& inventory);
 
 	/**
 	 * A blow or a bullet on a piece. Says whether that was the end of it.

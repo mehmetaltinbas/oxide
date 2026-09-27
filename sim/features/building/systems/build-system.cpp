@@ -219,6 +219,17 @@ Structure& BuildSystem::placeCeiling(int gx, int gy, int owner, BuildTier tier) 
 	return pieces_.back();
 }
 
+bool BuildSystem::demolish(Structure& piece, int owner) {
+	if (piece.owner != owner) return false;
+	if (piece.age > kFreeDemolishSeconds) return false;
+	const int id = piece.id;
+	pieces_.erase(std::remove_if(pieces_.begin(), pieces_.end(),
+								 [id](const Structure& s) { return s.id == id; }),
+				  pieces_.end());
+	reindex();
+	return true;
+}
+
 Structure& BuildSystem::placeFoundation(int gx, int gy, int owner, BuildTier tier) {
 	const int hp = static_cast<int>(std::lround(tierDef(tier).hp * kFoundationHpMul));
 	pieces_.push_back(Structure{nextId_++, BuildKind::Foundation, tier, gx, gy, EdgeSide::North, hp,
@@ -252,19 +263,28 @@ bool BuildSystem::nextTier(const Structure& piece, BuildTier& out) const {
 	return true;
 }
 
-bool BuildSystem::upgrade(Structure& piece, Inventory& inventory) {
-	BuildTier tier = BuildTier::Twig;
-	if (!nextTier(piece, tier)) return false;
+bool BuildSystem::upgradeTo(Structure& piece, BuildTier tier, Inventory& inventory) {
+	// Upwards only. Taking a wall back down to twig to get the stone out of it
+	// would make every base a bank, and there is nothing to refund from: what
+	// went into it is in it.
+	if (static_cast<int>(tier) <= static_cast<int>(piece.tier)) return false;
 	const TierDef& def = tierDef(tier);
 	if (inventory.count(def.cost.id) < def.cost.count) return false;
 	inventory.take(def.cost.id, def.cost.count);
 	piece.tier = tier;
-	const double mul = piece.kind == BuildKind::Foundation ? kFoundationHpMul
-					   : piece.kind == BuildKind::Door     ? kDoorHpMul
-														   : 1.0;
+	const double mul = piece.kind == BuildKind::Foundation || piece.kind == BuildKind::Ceiling
+						   ? kFoundationHpMul
+					   : piece.kind == BuildKind::Door ? kDoorHpMul
+													   : 1.0;
 	piece.maxHp = static_cast<int>(std::lround(def.hp * mul));
 	piece.hp = piece.maxHp;
 	return true;
+}
+
+bool BuildSystem::upgrade(Structure& piece, Inventory& inventory) {
+	BuildTier tier = BuildTier::Twig;
+	if (!nextTier(piece, tier)) return false;
+	return upgradeTo(piece, tier, inventory);
 }
 
 bool BuildSystem::damage(Structure& piece, double amount, double fromX, double fromY, bool melee,
@@ -588,6 +608,7 @@ void BuildSystem::update(double dt) {
 		if (scorches_[i].left <= 0) scorches_.erase(scorches_.begin() + static_cast<long>(i));
 	}
 	for (Structure& piece : pieces_) {
+		piece.age += dt;
 		ageWound(piece, dt);
 		if (piece.flash > 0) piece.flash -= dt;
 		// A door swung open or shut changes what is sealed.

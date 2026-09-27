@@ -792,6 +792,39 @@ int main() {
 		if (bare > 30 || suited < 120) std::printf("  THE PLANT IS NOT A SUIT PROBLEM\n");
 	}
 
+	// A piece you have just built comes down with a hammer, and one you built
+	// a quarter of an hour ago does not. Both halves: the window is the rule.
+	{
+		sim::BuildSystem build;
+		build.placeFoundation(60, 60, 0, sim::BuildTier::Wood);
+		sim::Structure& fresh = build.placeEdge(60, 60, sim::EdgeSide::North,
+												sim::BuildKind::Wall, 0, sim::BuildTier::Wood);
+		const int freshId = fresh.id;
+		bool tookDown = false;
+		for (sim::Structure& piece : build.mutableList()) {
+			if (piece.id != freshId) continue;
+			tookDown = build.demolish(piece, 0);
+			break;
+		}
+
+		build.placeFoundation(64, 64, 0, sim::BuildTier::Wood);
+		const int oldId = build.placeEdge(64, 64, sim::EdgeSide::North, sim::BuildKind::Wall, 0,
+										  sim::BuildTier::Wood)
+							  .id;
+		const double window = sim::BuildSystem::kFreeDemolishSeconds;
+		const int ticks = static_cast<int>((window + 1) / dt);
+		for (int i = 0; i < ticks; ++i) build.update(dt);
+		bool tookOld = true;
+		for (sim::Structure& piece : build.mutableList()) {
+			if (piece.id != oldId) continue;
+			tookOld = build.demolish(piece, 0);
+			break;
+		}
+		std::printf("hammer: a new wall comes down %s, one %.0f minutes old %s\n",
+					tookDown ? "yes" : "NO", window / 60, tookOld ? "TOO" : "does not");
+		if (!tookDown || tookOld) std::printf("  THE DEMOLISH WINDOW IS WRONG\n");
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.
