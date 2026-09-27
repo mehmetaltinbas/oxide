@@ -21,6 +21,9 @@ int benchTier(DeployKind kind) {
 int containerSlots(DeployKind kind) {
 	switch (kind) {
 		case DeployKind::WoodenBox: return 12;
+		// Three times the room, on a footprint twice the size: a large box is
+		// the reason a base has a loot room rather than a wall of crates.
+		case DeployKind::LargeBox: return 36;
 		case DeployKind::Furnace: return 6;
 		case DeployKind::Campfire: return 4;
 		// A cupboard holds the upkeep, which is not in yet, and a bag holds you.
@@ -81,6 +84,7 @@ bool deployableOf(ItemId id, DeployKind& out) {
 		case ItemId::Furnace: out = DeployKind::Furnace; return true;
 		case ItemId::ToolCupboard: out = DeployKind::ToolCupboard; return true;
 		case ItemId::WoodenBox: out = DeployKind::WoodenBox; return true;
+		case ItemId::LargeBox: out = DeployKind::LargeBox; return true;
 		case ItemId::SleepingBag: out = DeployKind::SleepingBag; return true;
 		case ItemId::Workbench1: out = DeployKind::Workbench1; return true;
 		case ItemId::Workbench2: out = DeployKind::Workbench2; return true;
@@ -95,6 +99,7 @@ ItemId itemOf(DeployKind kind) {
 		case DeployKind::Furnace: return ItemId::Furnace;
 		case DeployKind::ToolCupboard: return ItemId::ToolCupboard;
 		case DeployKind::WoodenBox: return ItemId::WoodenBox;
+		case DeployKind::LargeBox: return ItemId::LargeBox;
 		case DeployKind::SleepingBag: return ItemId::SleepingBag;
 		case DeployKind::Workbench1: return ItemId::Workbench1;
 		case DeployKind::Workbench2: return ItemId::Workbench2;

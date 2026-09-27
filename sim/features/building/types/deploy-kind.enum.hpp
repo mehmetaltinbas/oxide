@@ -10,6 +10,7 @@ enum class DeployKind : std::uint8_t {
 	Furnace,
 	ToolCupboard,
 	WoodenBox,
+	LargeBox,
 	SleepingBag,
 	Workbench1,
 	Workbench2,

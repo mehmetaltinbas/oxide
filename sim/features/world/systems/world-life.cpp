@@ -41,8 +41,24 @@ constexpr Loot kBarrelLoot[4] = {
  * yesterday worth walking past today, and what stops an ore field being farmed
  * on a five-minute loop.
  */
-constexpr double kRegrowthSeconds = 3600;
+/**
+ * How long a tree, a rock or an ore takes to come back.
+ *
+ * Ninety minutes: an hour and a half, which is a day and a half of this
+ * island's own clock. An hour was a day exactly, so a patch you cleared at
+ * noon was back by noon and clearing it meant nothing; two hours and the
+ * ground round a base is bare for a whole evening. Long enough that where you
+ * build matters, short enough that it recovers while you are off doing
+ * something else.
+ *
+ * Nothing comes back under a floor. The timer runs, finds the ground taken,
+ * and tries again in a minute and a half, so a node returns the moment the
+ * base over it is gone rather than being deleted with it.
+ */
+constexpr double kRegrowthSeconds = 5400;
 constexpr double kRegrowthSpread = 0.08;
+/** How long it waits before asking again when something is standing on it. */
+constexpr double kRegrowthRetry = 90;
 
 }  // namespace
 
@@ -145,7 +161,8 @@ int World::clearNaturalIn(double x0, double y0, double x1, double y1) {
 		// that took its place ever comes down.
 		live->hp = 0;
 		Rng rng(respawnSeed_ += 0x9e3779b9u);
-		live->respawn = 3600 + rng.range(-288, 288);
+		const double slack = kRegrowthSeconds * kRegrowthSpread;
+		live->respawn = kRegrowthSeconds + rng.range(-slack, slack);
 		++cleared;
 	}
 	return cleared;
@@ -169,7 +186,7 @@ void World::update(double dt) {
 		if (blocked_ && blocked_(blockedOwner_, node.x, node.y)) {
 			// Something is standing on it. Not its timer, a check to run again
 			// once whatever is there might have come down.
-			node.respawn = 90;
+			node.respawn = kRegrowthRetry;
 			continue;
 		}
 		node.respawn = 0;

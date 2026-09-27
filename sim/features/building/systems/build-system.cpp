@@ -19,6 +19,9 @@ namespace sim {
 
 namespace {
 
+/** How long a blown-out place stays unbuildable: see BuildSystem::Scorch. */
+constexpr double kRebuildBlock = 30;
+
 constexpr TierDef kTiers[kBuildTierCount] = {
 	{BuildTier::Twig, "Twig", 10, {ItemId::Wood, 10}},
 	{BuildTier::Wood, "Wood", 250, {ItemId::Wood, 50}},
@@ -112,7 +115,18 @@ const Structure* BuildSystem::edgeAt(int gx, int gy, EdgeSide side) const {
 	return it == byEdge_.end() ? nullptr : &pieces_[it->second];
 }
 
+bool BuildSystem::scorchedAt(int gx, int gy, EdgeSide side, bool foundation) const {
+	for (const Scorch& mark : scorches_) {
+		if (mark.gx != gx || mark.gy != gy) continue;
+		if (mark.foundation != foundation) continue;
+		if (!foundation && mark.side != side) continue;
+		return true;
+	}
+	return false;
+}
+
 const char* BuildSystem::refuseFoundation(const World& world, int gx, int gy, int) const {
+	if (scorchedAt(gx, gy, EdgeSide::North, true)) return "blown out";
 	const double cx = (gx + 0.5) * kBuildCell;
 	const double cy = (gy + 0.5) * kBuildCell;
 	if (cx < kBuildCell || cy < kBuildCell || cx > kWorldWidth - kBuildCell ||
@@ -131,6 +145,7 @@ const char* BuildSystem::refuseFoundation(const World& world, int gx, int gy, in
 
 const char* BuildSystem::refuseEdge(const World& world, int gx, int gy, EdgeSide side,
 									BuildKind kind, int owner) const {
+	if (scorchedAt(gx, gy, side, false)) return "blown out";
 	double x0 = 0;
 	double y0 = 0;
 	double x1 = 0;
@@ -213,7 +228,8 @@ bool BuildSystem::upgrade(Structure& piece, Inventory& inventory) {
 	return true;
 }
 
-bool BuildSystem::damage(Structure& piece, double amount, double fromX, double fromY, bool melee) {
+bool BuildSystem::damage(Structure& piece, double amount, double fromX, double fromY, bool melee,
+						 bool blast) {
 	if (piece.hp <= 0) return false;
 	if (melee && piece.kind != BuildKind::Foundation) {
 		// Struck from the hard side, a wall barely notices: that is what stops
@@ -231,6 +247,11 @@ bool BuildSystem::damage(Structure& piece, double amount, double fromX, double f
 	piece.flash = 0.12;
 	if (piece.hp > 0) return false;
 	piece.hp = 0;
+	// Blown out, the place it stood stays open for a while: see Scorch.
+	if (blast) {
+		scorches_.push_back(Scorch{piece.gx, piece.gy, piece.side,
+								   piece.kind == BuildKind::Foundation, kRebuildBlock});
+	}
 	// The piece is gone; what stood on it is left standing, as Rust leaves it.
 	const int id = piece.id;
 	pieces_.erase(std::remove_if(pieces_.begin(), pieces_.end(),
@@ -523,6 +544,10 @@ void BuildSystem::applyDecay(double hours) {
 }
 
 void BuildSystem::update(double dt) {
+	for (std::size_t i = scorches_.size(); i-- > 0;) {
+		scorches_[i].left -= dt;
+		if (scorches_[i].left <= 0) scorches_.erase(scorches_.begin() + static_cast<long>(i));
+	}
 	for (Structure& piece : pieces_) {
 		ageWound(piece, dt);
 		if (piece.flash > 0) piece.flash -= dt;

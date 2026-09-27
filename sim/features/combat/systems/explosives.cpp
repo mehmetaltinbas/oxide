@@ -96,7 +96,7 @@ void Explosives::detonate(World& world, BuildSystem& build, NpcSystem& npcs, Pla
 	if (stuckTo > 0) {
 		for (Structure& piece : build.list2()) {
 			if (piece.id != stuckTo) continue;
-			build.damage(piece, damage);
+			build.damage(piece, damage, 0, 0, false, true);
 			break;
 		}
 	}
@@ -120,7 +120,7 @@ void Explosives::detonate(World& world, BuildSystem& build, NpcSystem& npcs, Pla
 				centerOf(piece, cx, cy);
 				const double d = std::hypot(x - cx, y - cy);
 				const double dealt = damage * std::pow(1 - d / radius, kBlastFalloff);
-				if (dealt >= 1) build.damage(piece, dealt);
+				if (dealt >= 1) build.damage(piece, dealt, 0, 0, false, true);
 				break;
 			}
 		}

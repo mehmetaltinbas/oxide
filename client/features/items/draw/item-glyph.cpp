@@ -770,9 +770,22 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			plainDisc(0.13f, 0.06f, 0.035f, rgb(0xc9a227));
 			break;
 		case sim::ItemId::WoodenBox:
-			box(-0.28f, -0.2f, 0.56f, 0.44f, kWood);
-			detail(-0.28f, -0.2f, 0.28f, 0.24f, 0.04f);
-			detail(0.28f, -0.2f, -0.28f, 0.24f, 0.04f);
+			// A plain crate of planks: square-ish, with a lid across the top.
+			box(-0.26f, -0.22f, 0.52f, 0.44f, kWood);
+			box(-0.26f, -0.22f, 0.52f, 0.12f, rgb(0xa8763f));
+			stroke(-0.26f, 0.0f, 0.26f, 0.0f, 0.02f, kWoodDark);
+			stroke(-0.26f, 0.11f, 0.26f, 0.11f, 0.02f, kWoodDark);
+			break;
+		case sim::ItemId::LargeBox:
+			// A banded chest: wider than it is deep, iron at the corners and a
+			// hasp on the front. Twice the crate, and it looks it.
+			box(-0.36f, -0.18f, 0.72f, 0.38f, rgb(0xa8834f));
+			box(-0.36f, -0.18f, 0.72f, 0.1f, rgb(0xc09a60));
+			box(-0.36f, -0.18f, 0.06f, 0.38f, rgb(0x4a4a52));
+			box(0.3f, -0.18f, 0.06f, 0.38f, rgb(0x4a4a52));
+			box(-0.36f, -0.18f, 0.72f, 0.035f, rgb(0x4a4a52));
+			box(-0.05f, -0.06f, 0.1f, 0.12f, rgb(0x6a6a74));
+			stroke(-0.3f, 0.06f, 0.3f, 0.06f, 0.02f, kWoodDark);
 			break;
 		case sim::ItemId::SleepingBag:
 			edged(pts({{-0.3f, -0.16f}, {0.3f, -0.16f}, {0.3f, 0.18f}, {-0.3f, 0.18f}}),

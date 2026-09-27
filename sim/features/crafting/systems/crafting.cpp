@@ -31,6 +31,9 @@ const std::vector<Recipe>& table() {
 		{ItemId::Campfire, 1, {{ItemId::Wood, 100}}, 1, 0, 3},
 		{ItemId::SleepingBag, 1, {{ItemId::Cloth, 30}}, 1, 0, 4},
 		{ItemId::WoodenBox, 1, {{ItemId::Wood, 120}}, 1, 0, 4},
+		// Three times the room for two and a half times the wood, and it needs
+		// the bench: a large box is a decision you make once you have a base.
+		{ItemId::LargeBox, 1, {{ItemId::Wood, 300}, {ItemId::Metal, 20}}, 2, 1, 8},
 		{ItemId::ToolCupboard, 1, {{ItemId::Wood, 250}}, 1, 0, 6},
 		{ItemId::Furnace, 1,
 		 {{ItemId::Stone, 100}, {ItemId::Wood, 200}, {ItemId::LowGrade, 25}}, 3, 0, 6},

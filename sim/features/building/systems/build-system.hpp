@@ -182,8 +182,33 @@ public:
 	 * A melee blow from the hard side of a wall barely scratches it, which is
 	 * what stops anyone chopping their way out of a base from the inside.
 	 */
+	/**
+	 * A place a building was blown out of, which nobody may build on yet.
+	 *
+	 * Thirty seconds. A raid is decided in the moment the wall comes down, and
+	 * a defender who can drop a fresh one into the hole the same second has
+	 * not defended anything: they have made the charge free. The gap has to
+	 * stay a gap long enough to be walked through.
+	 *
+	 * Only a blast leaves one. Knocking down your own twig wall with a hammer
+	 * and putting a better one up is the normal way to build.
+	 */
+	struct Scorch {
+		int gx;
+		int gy;
+		EdgeSide side;
+		/** Whether it was the floor rather than something on an edge of it. */
+		bool foundation;
+		double left;
+	};
+
+	const std::vector<Scorch>& scorches() const { return scorches_; }
+
+	/** Whether that place was blown out recently enough to still be blocked. */
+	bool scorchedAt(int gx, int gy, EdgeSide side, bool foundation) const;
+
 	bool damage(Structure& piece, double amount, double fromX = 0, double fromY = 0,
-				bool melee = false);
+				bool melee = false, bool blast = false);
 
 	/** Pushes a point out of any wall it is inside. */
 	void resolve(double& x, double& y, double radius) const;
@@ -202,6 +227,7 @@ public:
 	void update(double dt);
 
 private:
+	std::vector<Scorch> scorches_;
 	std::vector<Structure> pieces_;
 	std::vector<Deployable> deployables_;
 	int nextId_ = 1;

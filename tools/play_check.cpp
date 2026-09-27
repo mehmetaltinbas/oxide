@@ -666,6 +666,94 @@ int main() {
 		if (gap < 0) std::printf("  A DROP LANDED INSIDE SOMETHING SOLID\n");
 	}
 
+	// Armour turns the same fraction of everything that hits you, whatever it
+	// was: a bear, a bullet and a blast all come through hurtPlayer, and the
+	// suit is applied there once rather than at each of them.
+	{
+		const double bite = 40;
+		double bare = 0;
+		double clad = 0;
+		double heavy = 0;
+		{
+			sim::Player p{};
+			p.alive = true;
+			p.health = 100;
+			sim::Inventory none;
+			sim::hurtPlayer(p, none, bite);
+			bare = 100 - p.health;
+		}
+		{
+			sim::Player p{};
+			p.alive = true;
+			p.health = 100;
+			sim::Inventory kit;
+			kit.worn() = sim::ItemStack{sim::ItemId::MetalSuit, 1};
+			sim::hurtPlayer(p, kit, bite);
+			clad = 100 - p.health;
+		}
+		{
+			sim::Player p{};
+			p.alive = true;
+			p.health = 100;
+			sim::Inventory kit;
+			kit.worn() = sim::ItemStack{sim::ItemId::HeavyMetalSuit, 1};
+			sim::hurtPlayer(p, kit, bite);
+			heavy = 100 - p.health;
+		}
+		const double metalArmour = sim::itemDef(sim::ItemId::MetalSuit).wear.armor;
+		const double heavyArmour = sim::itemDef(sim::ItemId::HeavyMetalSuit).wear.armor;
+		std::printf("armour: a %.0f blow takes %.0f bare, %.0f in metal (%.0f%%), %.0f in plate"
+					" (%.0f%%)\n",
+					bite, bare, clad, metalArmour * 100, heavy, heavyArmour * 100);
+		if (std::abs(clad - bite * (1 - metalArmour)) > 0.01 ||
+			std::abs(heavy - bite * (1 - heavyArmour)) > 0.01 || heavy >= clad || clad >= bare) {
+			std::printf("  ARMOUR DOES NOT TURN WHAT IT SAYS\n");
+		}
+	}
+
+	// An empty stomach is slower than an empty canteen, and both are slow.
+	{
+		const double food = sim::PlayerVitals::kStarveDamage;
+		const double water = sim::PlayerVitals::kThirstDamage;
+		std::printf("needs: starving %.2f/s (%.0fs to die), parched %.2f/s (%.0fs), both %.0fs\n",
+					food, 100 / food, water, 100 / water, 100 / (food + water));
+		if (water <= food) std::printf("  THIRST SHOULD BITE HARDER THAN HUNGER\n");
+	}
+
+	// A wall blown out leaves a hole you cannot plug at once, and a wall taken
+	// down by hand does not. Both halves, because the point of the rule is the
+	// difference between them.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem build;
+		build.placeFoundation(40, 40, 0, sim::BuildTier::Wood);
+		sim::Structure& blown = build.placeEdge(40, 40, sim::EdgeSide::North,
+												sim::BuildKind::Wall, 0, sim::BuildTier::Wood);
+		build.damage(blown, 9999, 0, 0, false, true);
+		const bool blockedNow =
+			build.refuseEdge(island, 40, 40, sim::EdgeSide::North, sim::BuildKind::Wall, 0) !=
+			nullptr;
+		for (int i = 0; i < 31 * 60; ++i) build.update(dt);
+		const bool blockedLater =
+			build.refuseEdge(island, 40, 40, sim::EdgeSide::North, sim::BuildKind::Wall, 0) !=
+			nullptr;
+
+		build.placeFoundation(44, 44, 0, sim::BuildTier::Wood);
+		sim::Structure& chopped = build.placeEdge(44, 44, sim::EdgeSide::North,
+												  sim::BuildKind::Wall, 0, sim::BuildTier::Wood);
+		build.damage(chopped, 9999, 0, 0, true, false);
+		const bool choppedBlocked =
+			build.refuseEdge(island, 44, 44, sim::EdgeSide::North, sim::BuildKind::Wall, 0) !=
+			nullptr;
+		std::printf("scorch: blown %s at once, %s after thirty seconds; chopped %s\n",
+					blockedNow ? "blocked" : "OPEN", blockedLater ? "STILL BLOCKED" : "open",
+					choppedBlocked ? "BLOCKED" : "open");
+		if (!blockedNow || blockedLater || choppedBlocked) {
+			std::printf("  SCORCH RULE IS WRONG\n");
+		}
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.

@@ -77,9 +77,28 @@ void drawDeployable(Paint& paint, const sim::Deployable& deployable, float x, fl
 			break;
 		}
 		case sim::DeployKind::WoodenBox: {
-			box(paint, x, y, r * 0.95f, r * 0.8f, rgb(0x8a6034));
-			paint.line(x - r * 0.95f, y, x + r * 0.95f, y, kInkFine, rgb(0x5d4022));
-			paint.line(x, y - r * 0.8f, x, y + r * 0.8f, kInkFine, rgb(0x5d4022));
+			// A crate from above: planks across the lid, and the rim round it.
+			box(paint, x, y, r * 0.9f, r * 0.9f, rgb(0x8a6034));
+			box(paint, x, y, r * 0.74f, r * 0.74f, rgb(0xa8763f));
+			for (int i = -1; i <= 1; ++i) {
+				const float py = y + i * r * 0.44f;
+				paint.line(x - r * 0.74f, py, x + r * 0.74f, py, kInkFine, rgb(0x5d4022));
+			}
+			break;
+		}
+		case sim::DeployKind::LargeBox: {
+			// A chest from above: longer than it is deep, iron bands across
+			// the ends and a hasp on the near side.
+			box(paint, x, y, r * 1.45f, r * 0.82f, rgb(0x7a5a34));
+			box(paint, x, y, r * 1.3f, r * 0.68f, rgb(0xa8834f));
+			for (int i = -1; i <= 1; i += 2) {
+				box(paint, x + i * r * 1.14f, y, r * 0.16f, r * 0.82f, rgb(0x4a4a52));
+			}
+			for (int i = -1; i <= 1; ++i) {
+				const float py = y + i * r * 0.4f;
+				paint.line(x - r * 1.0f, py, x + r * 1.0f, py, kInkFine, rgb(0x5d4022));
+			}
+			box(paint, x, y + r * 0.7f, r * 0.2f, r * 0.16f, rgb(0x6a6a74));
 			break;
 		}
 		case sim::DeployKind::ToolCupboard: {

@@ -133,6 +133,21 @@ void MapScreen::draw(Paint& paint, const sim::World& world, const sim::BuildSyst
 			 def.name, Align::Centre);
 	}
 
+	// Where you last died, under everything else: a cross, in the red the
+	// health bar is, with your own name for the square beside it. What you
+	// were carrying is lying there, and it rots.
+	if (died_) {
+		const float dx = x + static_cast<float>(deathX_) * scale;
+		const float dy = y + static_cast<float>(deathY_) * scale;
+		const float arm = 7 * uiScale;
+		const Color bone = rgb(0xd8483a);
+		for (int i = -1; i <= 1; i += 2) {
+			const float s = static_cast<float>(i);
+			paint.line(dx - arm, dy - arm * s, dx + arm, dy + arm * s, 4.5f * uiScale, kInk);
+			paint.line(dx - arm, dy - arm * s, dx + arm, dy + arm * s, 2.5f * uiScale, bone);
+		}
+	}
+
 	// You: an arrowhead with its point where you are looking, rather than a
 	// dot with a whisker off it. A shape that has a front tells you which way
 	// you face at a glance, which is the whole of what the marker is for.

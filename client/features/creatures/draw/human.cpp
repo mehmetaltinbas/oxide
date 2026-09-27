@@ -263,7 +263,10 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 	blob(paint, f, -6.6f, hy - 0.4f, 1.6f, 2.3f, skin, true);
 	blob(paint, f, 6.6f, hy - 0.4f, 1.6f, 2.3f, skin, true);
 	blob(paint, f, 0, hy, 6.8f, 6.8f, skin, true);
-	blob(paint, f, 0, hy - 7, 1.5f, 1.9f, skin, true);
+	// The nose, and only on a bare face: it is the one thing that says which
+	// way a head is turned from above, and a nose poking out of a sealed hood
+	// says the hood is not sealed.
+	if (look.helmet.a == 0) blob(paint, f, 0, hy - 7, 1.5f, 1.9f, skin, true);
 	if (look.helmet.a > 0) {
 		// The hood or the helm, over the whole skull, with a visor across the
 		// front of it: from above that band is the only thing that says there

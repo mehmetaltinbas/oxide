@@ -23,7 +23,16 @@ struct PlayerVitals {
 	 */
 	static constexpr double kCalorieDrain = 0.1;
 	static constexpr double kHydrationDrain = 0.15;
-	static constexpr double kStarveDamage = 0.3;
+	/**
+	 * What an empty meter takes, a second.
+	 *
+	 * Nothing at all until it hits nought, and then a slow decline rather than
+	 * a countdown: an empty stomach is a problem you have twenty minutes to
+	 * solve, and an empty canteen is a problem you have eight. Thirst bites
+	 * twice as hard as hunger, the way it does.
+	 */
+	static constexpr double kStarveDamage = 0.1;
+	static constexpr double kThirstDamage = 0.2;
 	static constexpr double kColdDamage = 0.45;
 	static constexpr double kRadDamage = 3.0;
 	/**

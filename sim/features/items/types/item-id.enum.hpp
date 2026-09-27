@@ -36,6 +36,7 @@ enum class ItemId : std::uint8_t {
 	Furnace,
 	ToolCupboard,
 	WoodenBox,
+	LargeBox,
 	SleepingBag,
 	// Raiding.
 	Satchel,
@@ -73,6 +74,6 @@ enum class ItemId : std::uint8_t {
 	Torch,
 };
 
-inline constexpr int kItemCount = 56;
+inline constexpr int kItemCount = 57;
 
 }  // namespace sim

@@ -1187,6 +1187,9 @@ int main(int argc, char** argv) {
 		sim::updateUse(player, inventory, dt, player.sprinting);
 
 		if (!player.alive && !dead) {
+			// The map remembers where, because everything you were carrying is
+			// about to be lying there on a thirty minute clock.
+			map.markDeath(player.x, player.y);
 			// Everything you were carrying falls where you did.
 			for (sim::ItemStack& stack : inventory.hotbar()) {
 				if (stack.id != sim::ItemId::None) {
@@ -2152,6 +2155,36 @@ int main(int argc, char** argv) {
 															: client::rgb(0xff9a6a);
 				paint.line(bx - ux * tail, by - uy * tail, bx, by, core,
 						   client::Color{hot.r, hot.g, hot.b, fade});
+			}
+		}
+
+		// Where a wall was blown out: a scorch on the ground that nobody may
+		// build on until it fades, so the hole stays a hole long enough to be
+		// walked through. It fades as its own timer runs down, which is the
+		// only notice it gives, and the only one it needs.
+		for (const sim::BuildSystem::Scorch& mark : build.scorches()) {
+			const double cx = (mark.gx + 0.5) * sim::kBuildCell;
+			const double cy = (mark.gy + 0.5) * sim::kBuildCell;
+			const float sx = static_cast<float>((cx - camX) * scale) + width * 0.5f;
+			const float sy = static_cast<float>((cy - camY) * scale) + height * 0.5f;
+			const float half = static_cast<float>(sim::kBuildCell * scale) * 0.5f;
+			const std::uint8_t fade =
+				static_cast<std::uint8_t>(150 * std::clamp(mark.left / 30.0, 0.0, 1.0));
+			if (mark.foundation) {
+				paint.fillRect(sx - half, sy - half, half * 2, half * 2,
+							   client::Color{28, 22, 18, fade});
+			} else {
+				// On an edge: a bar along the side the wall stood on. A cell
+				// owns its north and its west edge; the other two belong to
+				// its neighbours.
+				const float thick = half * 0.22f;
+				if (mark.side == sim::EdgeSide::North) {
+					paint.fillRect(sx - half, sy - half, half * 2, thick,
+								   client::Color{28, 22, 18, fade});
+				} else {
+					paint.fillRect(sx - half, sy - half, thick, half * 2,
+								   client::Color{28, 22, 18, fade});
+				}
 			}
 		}
 

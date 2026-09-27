@@ -58,7 +58,7 @@ void updateSurvival(const World& world, Player& player, const Inventory& invento
 
 	double damage = 0;
 	if (player.calories <= 0) damage += PlayerVitals::kStarveDamage;
-	if (player.hydration <= 0) damage += PlayerVitals::kStarveDamage * 1.4;
+	if (player.hydration <= 0) damage += PlayerVitals::kThirstDamage;
 	if (player.temperature < PlayerVitals::kComfortTemp - 12) {
 		// Scales with how cold it actually is, so a chilly night is survivable
 		// and a snowstorm without clothing is not.

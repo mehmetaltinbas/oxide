@@ -36,6 +36,18 @@ public:
 	/** A mate to mark, called once for each before the map is drawn. */
 	void addMate(double x, double y) { mates_.push_back({x, y}); }
 
+	/**
+	 * Where you last died, so you can go back for what you dropped.
+	 *
+	 * The one thing a map has to remember: everything you were carrying is
+	 * lying there and it rots in thirty minutes. Kept until you die again.
+	 */
+	void markDeath(double x, double y) {
+		deathX_ = x;
+		deathY_ = y;
+		died_ = true;
+	}
+
 	/** The square a point is in, as "F7". */
 	static void squareOf(double x, double y, char* out, int size);
 
@@ -43,6 +55,9 @@ private:
 	SDL_Renderer* renderer_ = nullptr;
 	SDL_Texture* island_ = nullptr;
 	bool open_ = false;
+	bool died_ = false;
+	double deathX_ = 0;
+	double deathY_ = 0;
 
 	SDL_Texture* island(const sim::World& world);
 
