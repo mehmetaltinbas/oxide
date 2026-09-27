@@ -31,6 +31,15 @@ struct HumanLook {
 	 * two cannot disagree about whether the suit has a hood.
 	 */
 	Color helmet{0, 0, 0, 0};
+	/**
+	 * What is over the hands and the feet, or nothing when they are bare.
+	 *
+	 * Set with the helmet, by the same decision: a suit is sealed or it is
+	 * not, and bare hands sticking out of a radiation suit are the same lie as
+	 * a bare head.
+	 */
+	Color gloves{0, 0, 0, 0};
+	Color boots{0, 0, 0, 0};
 	Color shirt{0x6a, 0x7f, 0x9a, 255};
 	Color legs{0x4a, 0x3a, 0x2c, 255};
 	/** Set while hurt: everything of them is drawn in it. */

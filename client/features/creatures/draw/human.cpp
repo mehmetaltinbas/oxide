@@ -121,8 +121,9 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 
 	// Feet, under everything, one ahead of the other.
 	if (!look.swimming) {
-		blob(paint, stance, -4.6f, -step + 1, 3, 4.6f, shade(legs), true);
-		blob(paint, stance, 4.6f, step + 1, 3, 4.6f, shade(legs), true);
+		const Color shoe = look.boots.a > 0 ? shade(tint(look.boots)) : shade(legs);
+		blob(paint, stance, -4.6f, -step + 1, 3, 4.6f, shoe, true);
+		blob(paint, stance, 4.6f, step + 1, 3, 4.6f, shoe, true);
 	}
 
 	// Arms, before the torso, so the shoulder sits over the top of the arm. A
@@ -200,7 +201,8 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 		if (holding && look.held != sim::ItemId::Bow && !overFist) {
 			drawHeldItem(paint, f, look.held, pose, look.bowDraw, changing, magOut);
 		}
-		blob(paint, f, hands[i].x, hands[i].y, 2.9f, 2.9f, skin, true);
+		blob(paint, f, hands[i].x, hands[i].y, 2.9f, 2.9f,
+			 look.gloves.a > 0 ? tint(look.gloves) : skin, true);
 		if (holding && look.held != sim::ItemId::Bow && overFist) {
 			drawHeldItem(paint, f, look.held, pose, look.bowDraw, changing, magOut);
 		}

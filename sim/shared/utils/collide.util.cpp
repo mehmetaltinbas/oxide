@@ -27,9 +27,7 @@ void keepOutOfSolids(const World& world, const BuildSystem& build, double& x, do
 		if (!blocksMovement(*node)) continue;
 		const double dx = x - node->x;
 		const double dy = y - node->y;
-		// Six tenths of the drawn radius: a trunk is thinner than its canopy
-		// and a barrel is narrower than the picture of one.
-		const double min = radius + node->radius * 0.6;
+		const double min = radius + solidRadius(*node);
 		const double d2 = dx * dx + dy * dy;
 		if (d2 >= min * min) continue;
 		if (d2 < 0.0001) {
@@ -53,6 +51,19 @@ void keepOutOfSolids(const World& world, const BuildSystem& build, double& x, do
 		x = crate.x + dx / d * min;
 		y = crate.y + dy / d * min;
 	}
+}
+
+double solidRadius(const ResourceNode& node) {
+	// Six tenths of the drawn radius: a trunk is thinner than its canopy and a
+	// barrel is narrower than the picture of one.
+	return node.radius * 0.6;
+}
+
+void settleDropsAgainst(World& world, const BuildSystem& build) {
+	world.setDropSettler(&build, [](const void* owner, const World& w, double& x, double& y,
+									double radius) {
+		keepOutOfSolids(w, *static_cast<const BuildSystem*>(owner), x, y, radius);
+	});
 }
 
 }  // namespace sim

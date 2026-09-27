@@ -718,15 +718,10 @@ void drawItemIcon(Paint& paint, sim::ItemId item, float x, float y, float size, 
 			edged(pts({{-0.3f, -0.14f}, {-0.12f, -0.26f}, {0.12f, -0.26f}, {0.3f, -0.14f},
 					   {0.2f, -0.02f}, {0.2f, 0.28f}, {-0.2f, 0.28f}, {-0.2f, -0.02f}}),
 				  rgb(0x7a6a58), rgb(0x4a4038));
-			edged(pts({{0, -0.16f}, {0.2f, 0.04f}, {0, 0.24f}, {-0.2f, 0.04f}}), rgb(0xd8d2c4),
-				  rgb(0x8f8a7e));
-			// The sign is bare metal, with the bolts that hold it on. It had a
-			// red diamond inside it, which at belt size was a red square in the
-			// middle of the suit and read as a fault in the picture.
-			plainDisc(0, -0.08f, 0.022f, rgb(0x8f8a7e));
-			plainDisc(0, 0.16f, 0.022f, rgb(0x8f8a7e));
-			plainDisc(-0.12f, 0.04f, 0.022f, rgb(0x8f8a7e));
-			plainDisc(0.12f, 0.04f, 0.022f, rgb(0x8f8a7e));
+			// Plain. The road sign strapped to the chest was a diamond with a
+			// red middle, and at belt size a diamond is a square: whatever was
+			// inside it read as a fault in the picture rather than as a sign.
+			// The plate is what the suit is, and the plate is enough.
 			break;
 		case sim::ItemId::HeavyMetalSuit:
 			// Full plate: a chest piece with a mask over it and rivets down it.

@@ -111,6 +111,18 @@ public:
 	 */
 	void setRegrowthBlocked(const void* owner, bool (*blocked)(const void*, double, double));
 
+	/**
+	 * Teaches the world what is solid, so nothing it drops lands inside one.
+	 *
+	 * The world knows its own trees and rocks but not what has been built on
+	 * it, and a stack that lands inside a wall is a stack nobody can reach.
+	 * Rather than asking every caller of `dropStack` to remember, the world is
+	 * told once and settles every drop itself: see
+	 * docs/systems/dropped-items.md. `sim::settleDropsAgainst` installs it.
+	 */
+	void setDropSettler(const void* owner,
+						void (*settle)(const void*, const World&, double&, double&, double));
+
 	/** Knocks out every live node in a box: what a foundation does to its cell. */
 	int clearNaturalIn(double x0, double y0, double x1, double y1);
 
@@ -154,6 +166,8 @@ private:
 	std::uint32_t respawnSeed_ = 1;
 	const void* blockedOwner_ = nullptr;
 	bool (*blocked_)(const void*, double, double) = nullptr;
+	const void* settleOwner_ = nullptr;
+	void (*settle_)(const void*, const World&, double&, double&, double) = nullptr;
 	/** Node indices by bucket, for looking up what is near a point. */
 	std::vector<std::vector<int>> buckets_;
 };

@@ -108,7 +108,18 @@ bool World::hurtNode(ResourceNode& node, double damage) {
 
 void World::dropStack(ItemStack stack, double x, double y) {
 	if (stack.id == ItemId::None || stack.count <= 0) return;
+	// Every drop is pushed clear of anything solid, here rather than at each
+	// of the dozen places that drop something: a stack inside a wall or under
+	// a boulder is a stack nobody can pick up, and the callers that get it
+	// right are not the ones that matter. See docs/systems/dropped-items.md.
+	if (settle_) settle_(settleOwner_, *this, x, y, kDropClearance);
 	drops_.push_back(Dropped{nextDropId_++, stack, x, y, 0});
+}
+
+void World::setDropSettler(const void* owner,
+						   void (*settle)(const void*, const World&, double&, double&, double)) {
+	settleOwner_ = owner;
+	settle_ = settle;
 }
 
 void World::removeDrop(int id) {

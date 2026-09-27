@@ -75,6 +75,7 @@
 #include "client/features/ui/types/tab.enum.hpp"
 #include "sim/features/items/utils/is-ranged.util.hpp"
 #include "sim/shared/utils/health.util.hpp"
+#include "sim/shared/utils/collide.util.hpp"
 
 /**
  * The game as you play it: an island from a seed, someone standing on it, and
@@ -456,6 +457,10 @@ int main(int argc, char** argv) {
 		player.x = startX;
 		player.y = startY;
 	}
+
+	// Nothing dropped lands inside a wall or under a boulder: the world is
+	// told once what is solid and settles every drop itself.
+	sim::settleDropsAgainst(world, build);
 
 	// Nothing grows back up through a floor: the world asks the building
 	// system before it puts anything back.
@@ -1748,6 +1753,8 @@ int main(int argc, char** argv) {
 					look.shirt = client::rgb(0xe8c73c);
 					look.legs = client::rgb(0xc0a220);
 					look.helmet = client::rgb(0xe8c73c);
+					look.gloves = client::rgb(0xc0a220);
+					look.boots = client::rgb(0xc0a220);
 					break;
 				case sim::ItemId::MetalSuit:
 					// Road signs over hide: a grey plate on a brown body.
@@ -1759,6 +1766,8 @@ int main(int argc, char** argv) {
 					look.shirt = client::rgb(0xa9b6c0);
 					look.legs = client::rgb(0x76828c);
 					look.helmet = client::rgb(0x9aa7b2);
+					look.gloves = client::rgb(0x8d9aa4);
+					look.boots = client::rgb(0x8d9aa4);
 					break;
 				default:
 					look.shirt = look.skin;
@@ -1770,6 +1779,8 @@ int main(int argc, char** argv) {
 			if (inventory.worn().id != sim::ItemId::RadSuit &&
 				inventory.worn().id != sim::ItemId::HeavyMetalSuit) {
 				look.helmet = client::Color{0, 0, 0, 0};
+				look.gloves = client::Color{0, 0, 0, 0};
+				look.boots = client::Color{0, 0, 0, 0};
 			}
 			look.held = inventory.held();
 			look.bowDraw = static_cast<float>(player.bowDraw / sim::kBowDrawSeconds);

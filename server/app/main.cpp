@@ -19,6 +19,7 @@
 #include "sim/features/survival/utils/step-player.util.hpp"
 #include "sim/features/combat/systems/projectiles.hpp"
 #include "sim/features/world/systems/world.hpp"
+#include "sim/shared/utils/collide.util.hpp"
 
 /**
  * The authority.
@@ -78,6 +79,14 @@ struct Room {
 	int players = 0;
 	/** How long it has stood empty, so an abandoned one is given up. */
 	double idle = 0;
+
+	/**
+	 * Everything the world drops lands clear of what is built on it.
+	 *
+	 * Wired when the room is made rather than remembered at each drop: see
+	 * docs/systems/dropped-items.md.
+	 */
+	Room() { sim::settleDropsAgainst(world, build); }
 };
 
 void send(ENetPeer* peer, int channel, const Writer& writer, bool reliable) {

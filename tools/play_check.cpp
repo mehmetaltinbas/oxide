@@ -33,6 +33,7 @@
 #include "sim/features/world/types/node-kind.enum.hpp"
 #include "sim/features/world/types/resource-node.struct.hpp"
 #include "sim/shared/utils/health.util.hpp"
+#include "sim/shared/utils/collide.util.hpp"
 
 int main() {
 	sim::World world;
@@ -635,6 +636,34 @@ int main() {
 					treeAtOnce ? "yes" : "NO", sim::kHealthShownFor / 60,
 					treeLater ? "STILL" : "gone");
 		if (!treeAtOnce || treeLater) std::printf("  NODE TIMEOUT IS WRONG\n");
+	}
+
+	// Nothing lands inside a wall. Dropped dead on top of a barrel, the stack
+	// comes to rest outside it, and it does so because the world was wired to
+	// the building system rather than because this caller remembered.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem empty;
+		sim::settleDropsAgainst(island, empty);
+		const sim::ResourceNode* barrel = nullptr;
+		for (const sim::ResourceNode& node : island.nodes()) {
+			if (node.kind != sim::NodeKind::Barrel) continue;
+			barrel = &node;
+			break;
+		}
+		double gap = -1;
+		if (barrel) {
+			const double bx = barrel->x;
+			const double by = barrel->y;
+			const double radius = sim::solidRadius(*barrel);
+			island.dropStack(sim::ItemStack{sim::ItemId::Wood, 10}, bx, by);
+			const sim::Dropped& put = island.drops().back();
+			gap = std::hypot(put.x - bx, put.y - by) - radius;
+		}
+		std::printf("settle: a stack dropped on a barrel came to rest %.0f clear of its solid"
+					" part\n", gap);
+		if (gap < 0) std::printf("  A DROP LANDED INSIDE SOMETHING SOLID\n");
 	}
 
 	// A wolf comes at you and an elk runs from you. Both directions, because

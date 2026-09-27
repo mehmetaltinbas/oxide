@@ -12,4 +12,14 @@ namespace sim {
  */
 inline constexpr double kDropLifetime = 1800;
 
+/**
+ * How much room a stack on the ground needs around it.
+ *
+ * Small: a dropped stack is a thing lying flat, not a person, and pushing it
+ * a body's width out of a wall would have loot sliding across the floor of
+ * every base. Enough that it never sits inside the line of a wall, which is
+ * the whole of what makes it unreachable.
+ */
+inline constexpr double kDropClearance = 7.0;
+
 }  // namespace sim

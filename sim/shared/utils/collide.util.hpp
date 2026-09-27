@@ -29,4 +29,23 @@ void keepOutOfSolids(const World& world, const BuildSystem& build, double& x, do
  */
 bool blocksMovement(const ResourceNode& node);
 
+/**
+ * How much of a node is actually solid.
+ *
+ * Less than it is drawn: a trunk is thinner than its canopy and a barrel is
+ * narrower than the picture of one. Anything that needs to know where the
+ * solid part of a thing ends asks here, so the collision and whatever is
+ * checking it cannot disagree about where that is.
+ */
+double solidRadius(const ResourceNode& node);
+
+/**
+ * Wires a world to a build system, so everything it drops lands clear.
+ *
+ * Called once, at startup, by whoever owns both. After that no caller of
+ * `World::dropStack` has to think about it, and a new way of dropping
+ * something gets the behaviour for free. See docs/systems/dropped-items.md.
+ */
+void settleDropsAgainst(World& world, const BuildSystem& build);
+
 }  // namespace sim
