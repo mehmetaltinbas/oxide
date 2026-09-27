@@ -185,6 +185,21 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 			hands[0] = {1.5f, -17 + 4.5f + look.bowDraw * 9.0f};
 		}
 	}
+	// Applying something: both hands come in to the chest and go back out, so
+	// the seconds it takes look like seconds of doing something.
+	const bool applying = look.applyT >= 0 && look.applying != sim::ItemId::None;
+	if (applying && !look.swimming) {
+		const float in = std::sin(std::min(1.0f, look.applyT) * 3.14159265f);
+		// The left arm is held out and the right hand comes across to work on
+		// it. Out to the side rather than in at the chest: from above the head
+		// covers the chest, and an animation you cannot see is no animation.
+		const Point to[2] = {{-12.5f, -3.0f}, {-6.0f, -1.0f}};
+		for (int i = 0; i < 2; ++i) {
+			hands[i] = {hands[i].x + (to[i].x - hands[i].x) * in,
+						hands[i].y + (to[i].y - hands[i].y) * in};
+		}
+	}
+
 	const Point shoulders[2] = {{-10, -1}, {10, -1}};
 	const Color sleeve = shade(shirt);
 	for (int i = 0; i < 2; ++i) {
@@ -199,6 +214,34 @@ void drawHuman(Paint& paint, const HumanLook& look) {
 		blob(paint, f, hands[i].x, hands[i].y, 2.9f, 2.9f, skin, true);
 		if (holding && look.held != sim::ItemId::Bow && pose.overHand) {
 			drawHeldItem(paint, f, look.held, pose, look.bowDraw, changing, magOut);
+		}
+	}
+
+	if (applying && !look.swimming) {
+		const float t = std::min(1.0f, look.applyT);
+		const float facing = std::atan2(f.sin, f.cos);
+		if (look.applying == sim::ItemId::Bandage) {
+			// The dressing going round the arm: a white band that grows as it
+			// is wound, and the roll in the other hand.
+			//
+			// Widths in the body's own units, like every other part of it:
+			// Paint scales the pen by the view already, and multiplying by the
+			// frame's scale as well squared the zoom and laid a white bar the
+			// size of the player over the top of them.
+			const float wide = 2.2f + 3.4f * t;
+			const Point a = f.at(-13.5f, -5.5f);
+			const Point b = f.at(-9.0f, -0.5f);
+			paint.line(a.x, a.y, b.x, b.y, wide + kInkWidth, kInk);
+			paint.line(a.x, a.y, b.x, b.y, wide, rgb(0xefeadd));
+			const Point roll = f.at(-9.0f, 5.5f);
+			drawItemIcon(paint, look.applying, roll.x, roll.y, 14.0f * f.scale, facing + 0.9f);
+		} else {
+			// The needle going in: it tips towards the arm over the first half
+			// of it and comes back out over the second.
+			const float press = std::sin(t * 3.14159265f);
+			const Point at = f.at(-8.0f - press * 2.0f, 5.0f - press * 2.5f);
+			drawItemIcon(paint, look.applying, at.x, at.y, 15.0f * f.scale,
+						 facing - 0.9f - press * 0.5f);
 		}
 	}
 

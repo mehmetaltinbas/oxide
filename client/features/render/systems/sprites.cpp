@@ -214,7 +214,10 @@ std::vector<Point> frond(float ox, float oy, float angle, float len, float wide,
  * rings narrowing as they rise are what say cone rather than bush.
  */
 void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snowy) {
-	const float size = 0.92f + v(variant, 1) * 0.18f;
+	// A shade bigger than it was, and the rings below are narrower and set
+	// further apart up the screen: a conifer is a tall slim thing and a stack
+	// of wide rings read as a bush.
+	const float size = 1.0f + v(variant, 1) * 0.18f;
 	const float lean = (v(variant, 3) - 0.5f) * r * 0.16f;
 
 	// The trunk, thicker than a grassland tree's, standing clear below the
@@ -231,10 +234,10 @@ void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snow
 	// Skirt first and crown last, so the top sits in front of what is under it,
 	// and each ring narrower than the one below: that is the cone.
 	const Ring rings[4] = {
-		{oy - r * 0.72f * size, r * 1.42f * size, kPineDark, 13},
-		{oy - r * 1.14f * size, r * 1.16f * size, kPineDark, 11},
-		{oy - r * 1.54f * size, r * 0.9f * size, kPineMid, 10},
-		{oy - r * 1.9f * size, r * 0.6f * size, kPineLight, 8},
+		{oy - r * 0.85f * size, r * 1.28f * size, kPineDark, 13},
+		{oy - r * 1.35f * size, r * 1.05f * size, kPineDark, 11},
+		{oy - r * 1.8f * size, r * 0.81f * size, kPineMid, 10},
+		{oy - r * 2.2f * size, r * 0.55f * size, kPineLight, 8},
 	};
 
 	// The shade inside the canopy. Without it the gaps between the rings show
@@ -265,8 +268,12 @@ void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snow
 		// Up in the snow it settles on top of the sprays: the same prickly
 		// shape, smaller and sat a little high, so the teeth still show through
 		// underneath it.
-		if (snowy && t >= 1) {
-			paint.inkedPoly(prickle(cx, ring.y - ring.reach * 0.1f, ring.reach * 0.6f,
+		if (snowy) {
+			// Every ring of it, and most of the way out: up in the snow a
+			// conifer is a white tree with green showing through it, not a
+			// green one with a cap on. The shape is the ring's own, sat a
+			// little high, so the teeth underneath still show.
+			paint.inkedPoly(prickle(cx, ring.y - ring.reach * 0.13f, ring.reach * 0.78f,
 									ring.teeth, variant, 150 + t * 29),
 							kSnow, fine());
 		}
@@ -276,7 +283,7 @@ void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snow
 		// And what has gathered in the crown, which is what you see first from
 		// a distance. Not a circle: a drawn circle of white reads as a ball
 		// stuck on the tree.
-		paint.inkedPoly(blob(ox + lean * 1.4f, rings[3].y, r * 0.24f * size, variant, 170, kCanopySquash),
+		paint.inkedPoly(blob(ox + lean * 1.4f, rings[3].y, r * 0.3f * size, variant, 170, kCanopySquash),
 						kSnow, pen() * 0.5f);
 	}
 }
@@ -290,7 +297,7 @@ void paintPine(Paint& paint, float ox, float oy, float r, int variant, bool snow
  * of pointed fronds, which is what had it reading as a nettle with a trunk.
  */
 void paintBroadleaf(Paint& paint, float ox, float oy, float r, int variant) {
-	const float size = 0.94f + v(variant, 1) * 0.16f;
+	const float size = 1.02f + v(variant, 1) * 0.16f;
 	const float lean = (v(variant, 2) - 0.5f) * r * 0.22f;
 
 	// The trunk, standing clear below the canopy: paler and thinner than a
@@ -309,9 +316,9 @@ void paintBroadleaf(Paint& paint, float ox, float oy, float r, int variant) {
 	// Kept close together: spread up the screen they stack into a cone, and a
 	// broadleaf seen from above is one round mass, not a pine's tiers.
 	const Tier tiers[3] = {
-		{oy - r * 0.66f * size, r * 1.46f * size, kBroadleafDark, 11},
-		{oy - r * 1.0f * size, r * 1.24f * size, kBroadleafMid, 9},
-		{oy - r * 1.3f * size, r * 0.94f * size, kBroadleafLight, 7},
+		{oy - r * 0.78f * size, r * 1.31f * size, kBroadleafDark, 11},
+		{oy - r * 1.18f * size, r * 1.12f * size, kBroadleafMid, 9},
+		{oy - r * 1.53f * size, r * 0.85f * size, kBroadleafLight, 7},
 	};
 
 	// The shade under the canopy, so the gaps between clumps show dark leaf

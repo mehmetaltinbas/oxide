@@ -41,13 +41,13 @@ constexpr Color kInk = rgb(0x14110d);
  * wall, a crate. The single most important number in the look of the game. Turn
  * this first, then bring the three below along with it.
  */
-constexpr float kInkWidth = 1.5f;
+constexpr float kInkWidth = 1.0f;
 /**
  * A mark that says what a thing is made of, drawn INSIDE an outline: the
  * fishbone of a pine's branches, the grain up a trunk, the crease in a hide.
  * Should be just under the pen, so it reads as the same nib pressed lighter.
  */
-constexpr float kInkMark = 1.5f;
+constexpr float kInkMark = 1.0f;
 /**
  * The finest mark there is: a vein down a nettle leaf, the underside of a leaf
  * clump, the rim on a barrel lid. Anything at this weight is texture, not shape.

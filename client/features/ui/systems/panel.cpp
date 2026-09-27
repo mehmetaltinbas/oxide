@@ -260,6 +260,37 @@ int Panel::queueRowUnder(const Layout& l, float uiScale, int rows, float x, floa
 	return -1;
 }
 
+void Panel::showQueueDrag(SDL_Window* window, const sim::Crafting& crafting, int from, int over,
+						  int width, int height, float uiScale) {
+	const int rows = static_cast<int>(crafting.jobs().size());
+	if (from < 0 || from >= rows) return;
+	const Layout l = layoutOf(width, height, uiScale);
+	float cx = 0;
+	float cy = 0;
+	float cw = 0;
+	float ch = 0;
+	queueChip(l, uiScale, from, cx, cy, cw, ch);
+	dragJob_ = crafting.jobs()[static_cast<std::size_t>(from)].id;
+	dragJobRow_ = from;
+	dragJobY_ = ch * 0.5f;
+	queueChip(l, uiScale, over, cx, cy, cw, ch);
+	// The layout is in pixels and the cursor is in points: draw() multiplies
+	// the one by the scale to get the other, so this divides.
+	SDL_WarpMouseInWindow(window, (cx + cw * 0.5f) / uiScale, (cy + ch * 0.5f) / uiScale);
+}
+
+int Panel::queueDropRow(const Layout& l, float uiScale, int rows, float x, float y) const {
+	const int under = queueRowUnder(l, uiScale, rows, x, y);
+	if (under >= 0) return under;
+	// Let go above or below the list: the top or the bottom of it.
+	float cx = 0;
+	float cy = 0;
+	float cw = 0;
+	float ch = 0;
+	queueChip(l, uiScale, 0, cx, cy, cw, ch);
+	return y < cy ? 0 : rows - 1;
+}
+
 void Panel::queueButton(const Layout& l, float uiScale, int row, float& bx, float& by,
 						float& bw) const {
 	float cx = 0;
@@ -507,14 +538,37 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 	if (crafting.jobs().empty()) {
 		say(paint, queueX, listY + 4 * uiScale, 12 * uiScale, ui::kFaint, "nothing queued");
 	} else {
+		const int rows = static_cast<int>(crafting.jobs().size());
+		// Where the carried chip would land if it were let go now. The rest of
+		// the queue shifts around that as you move, so you see the order you
+		// are about to get rather than guessing at it and dropping blind.
+		const int target = dragJob_ >= 0 ? queueDropRow(l, uiScale, rows, mouseX, mouseY) : -1;
+		if (target >= 0) {
+			float cx = 0;
+			float cy = 0;
+			float cw = 0;
+			float ch = 0;
+			queueChip(l, uiScale, target, cx, cy, cw, ch);
+			paint.outlineRoundRect(cx, cy, cw, ch, ui::kRadiusMedium, 1.5f * uiScale,
+								   ui::kAccentInk);
+		}
 		for (std::size_t i = 0; i < crafting.jobs().size(); ++i) {
 			const sim::CraftJob& job = crafting.jobs()[i];
 			float cx = 0;
 			float cy = 0;
 			float cw = 0;
 			float ch = 0;
-			queueChip(l, uiScale, static_cast<int>(i), cx, cy, cw, ch);
 			const bool held = dragJob_ == job.id;
+			// Everything the carried chip is passing steps out of its way.
+			int row = static_cast<int>(i);
+			if (target >= 0 && !held) {
+				if (dragJobRow_ < target && row > dragJobRow_ && row <= target) {
+					--row;
+				} else if (dragJobRow_ > target && row >= target && row < dragJobRow_) {
+					++row;
+				}
+			}
+			queueChip(l, uiScale, row, cx, cy, cw, ch);
 			// The one being carried follows the mouse and rides above the rest.
 			if (held) cy = mouseY - dragJobY_;
 			const bool hovered = ui::inside(mouseX, mouseY, cx, cy, cw, ch);
@@ -559,7 +613,7 @@ void Panel::drawCraft(Paint& paint, const sim::Inventory& inventory, const sim::
 			float bx = 0;
 			float by = 0;
 			float bw = 0;
-			queueButton(l, uiScale, static_cast<int>(i), bx, by, bw);
+			queueButton(l, uiScale, row, bx, by, bw);
 			if (held) by = cy + (ch - bw) * 0.5f;
 			const bool onX = ui::inside(mouseX, mouseY, bx, by, bw, bw);
 			paint.fillRoundRect(bx, by, bw, bw, ui::kRadiusSmall,
@@ -1177,16 +1231,8 @@ void Panel::release(sim::Inventory& inventory, sim::Crafting& crafting, float x,
 		// Dropped wherever it was let go: the queue closes up round it.
 		const Layout l = layoutOf(width, height, uiScale);
 		const int rows = static_cast<int>(crafting.jobs().size());
-		int to = queueRowUnder(l, uiScale, rows, x, y);
-		if (to < 0) {
-			// Let go above or below the list: the top or the bottom of it.
-			float cx = 0;
-			float cy = 0;
-			float cw = 0;
-			float ch = 0;
-			queueChip(l, uiScale, 0, cx, cy, cw, ch);
-			to = y < cy ? 0 : rows - 1;
-		}
+		const int to0 = queueDropRow(l, uiScale, rows, x, y);
+		int to = to0;
 		// Moved one place at a time, because that is what reorder does and it
 		// keeps the job at the front holding on to the seconds it has run.
 		while (to > dragJobRow_) {

@@ -96,6 +96,15 @@ public:
 				 int height, float uiScale, const std::function<void(sim::ItemStack)>& dropped);
 	const sim::ItemStack& dragging() const { return drag_; }
 
+	/**
+	 * Picks a queued job up and holds the mouse over another row, as a real
+	 * drag would. For the screenshot flag that looks at the drop preview: the
+	 * preview only exists while a drag is in the air, so there is no other way
+	 * to see it standing still.
+	 */
+	void showQueueDrag(SDL_Window* window, const sim::Crafting& crafting, int from, int over,
+					   int width, int height, float uiScale);
+
 	/** A transfer in progress, which finishes on its own. */
 	void update(double dt, sim::Inventory& inventory);
 
@@ -151,6 +160,13 @@ private:
 	void queueChip(const Layout& l, float uiScale, int row, float& cx, float& cy, float& cw,
 				   float& ch) const;
 	int queueRowUnder(const Layout& l, float uiScale, int rows, float x, float y) const;
+	/**
+	 * Where a chip being dragged would land if it were let go here.
+	 *
+	 * The same answer for the preview as for the drop, from one routine, so
+	 * the gap that opens under your hand is where the job actually goes.
+	 */
+	int queueDropRow(const Layout& l, float uiScale, int rows, float x, float y) const;
 	/** Where the nth of `count` buttons sits. */
 	void actionBox(const Layout& l, float uiScale, int index, int count, float& bx, float& by,
 				   float& bw, float& bh) const;

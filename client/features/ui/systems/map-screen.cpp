@@ -133,13 +133,26 @@ void MapScreen::draw(Paint& paint, const sim::World& world, const sim::BuildSyst
 			 def.name, Align::Centre);
 	}
 
-	// You, and which way you are facing.
+	// You: an arrowhead with its point where you are looking, rather than a
+	// dot with a whisker off it. A shape that has a front tells you which way
+	// you face at a glance, which is the whole of what the marker is for.
 	const float px = x + static_cast<float>(player.x) * scale;
 	const float py = y + static_cast<float>(player.y) * scale;
-	paint.inkedCircle(px, py, 5 * uiScale, rgb(0x7cc8ff), kInkFine);
-	paint.line(px, py, px + std::cos(static_cast<float>(player.aim)) * 12 * uiScale,
-			   py + std::sin(static_cast<float>(player.aim)) * 12 * uiScale, 2 * uiScale,
-			   rgb(0x7cc8ff));
+	{
+		const float a = static_cast<float>(player.aim);
+		const float ca = std::cos(a);
+		const float sa = std::sin(a);
+		// Along the way you look, and across it.
+		const auto at = [&](float along, float across) {
+			return Point{px + ca * along - sa * across, py + sa * along + ca * across};
+		};
+		const float len = 11 * uiScale;
+		const float half = 6.5f * uiScale;
+		// Notched at the back, so the head reads as an arrow and not a wedge.
+		paint.inkedPoly({at(len, 0), at(-len * 0.7f, half), at(-len * 0.35f, 0),
+						 at(-len * 0.7f, -half)},
+						rgb(0x7cc8ff), kInkFine * 2);
+	}
 
 	// Your team, and nobody else: finding the rest is still the game.
 	for (const Mate& mate : mates_) {

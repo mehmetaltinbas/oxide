@@ -29,11 +29,12 @@ struct PlayerVitals {
 	/**
 	 * What a wound takes, a second.
 	 *
-	 * One, exactly, so what a bleed is going to cost you is the number of
-	 * seconds it has left to run and the screen can say it as a whole number of
-	 * health rather than as a bar you have to guess at.
+	 * One health every two seconds: slow enough that a bleed is a thing you
+	 * decide about rather than a thing you must answer at once, and a clean
+	 * fraction, so what it is still going to cost comes out as a whole number
+	 * of health on the screen rather than as a bar you have to guess at.
 	 */
-	static constexpr double kBleedDamage = 1.0;
+	static constexpr double kBleedDamage = 0.5;
 	static constexpr double kComfortTemp = 10;
 	/** How close you must be to pick up, harvest, open or use something. */
 	static constexpr double kInteract = 39;

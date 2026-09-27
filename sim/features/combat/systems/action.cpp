@@ -272,6 +272,9 @@ void reload(Player& player, const Inventory& inventory) {
 	const ItemId held = inventory.held();
 	const Gun& gun = itemDef(held).gun;
 	if (gun.damage <= 0 || gun.magazine <= 0) return;
+	// Not at a run. Changing a magazine takes both hands and your eyes, and a
+	// sprint is neither: you break stride to do it, the same as in Rust.
+	if (player.sprinting) return;
 	if (player.reloadLeft > 0) return;
 	if (player.loaded == held && player.rounds >= gun.magazine) return;
 	if (inventory.count(gun.ammo) <= 0) return;
@@ -282,6 +285,14 @@ void reload(Player& player, const Inventory& inventory) {
 
 void tickReload(Player& player, Inventory& inventory, double dt) {
 	if (player.reloadLeft <= 0) return;
+	// Breaking into a sprint drops it. Half a magazine change is not a thing
+	// you carry at a run, and letting the reload finish while sprinting away
+	// made the restriction above worth nothing.
+	if (player.sprinting) {
+		player.reloadLeft = 0;
+		player.reloadTotal = 0;
+		return;
+	}
 	player.reloadLeft -= dt;
 	if (player.reloadLeft > 0) return;
 	player.reloadLeft = 0;
