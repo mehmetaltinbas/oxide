@@ -2123,19 +2123,22 @@ int main(int argc, char** argv) {
 			const auto& sealed = build.enclosedCells();
 			for (const sim::Structure& piece : build.list()) {
 				if (piece.kind != sim::BuildKind::Ceiling) continue;
-				if (piece.gx == myGx && piece.gy == myGy) continue;
-				// The whole room lifts, not the one square you stand on. A
-				// roof that opens a hole under your feet and closes a pace
-				// later is worse than no roof: you are inside a room, so you
-				// can see the room.
-				if (myRegion != 0) {
+				// The whole room goes faint, not the one square you stand on,
+				// and faint rather than gone: you can see what is under it and
+				// you can still see that it is there.
+				bool inside = piece.gx == myGx && piece.gy == myGy;
+				if (!inside && myRegion != 0) {
 					const auto it = sealed.find((static_cast<std::uint64_t>(
 													 static_cast<std::uint32_t>(piece.gx))
 												 << 32) |
 												static_cast<std::uint32_t>(piece.gy));
-					if (it != sealed.end() && it->second == myRegion) continue;
+					inside = it != sealed.end() && it->second == myRegion;
 				}
-				client::drawBuilt(paint, piece, camX, camY, scale, width, height);
+				if (inside) {
+					client::drawBuiltFaint(paint, piece, camX, camY, scale, width, height);
+				} else {
+					client::drawBuilt(paint, piece, camX, camY, scale, width, height);
+				}
 			}
 		}
 

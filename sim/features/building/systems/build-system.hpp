@@ -25,6 +25,7 @@ enum class BuildKind : std::uint8_t { Foundation, Wall, Doorway, Door, Ceiling }
 
 inline constexpr int kBuildKindCount = 5;
 
+
 /** Whether a piece belongs to a whole cell rather than to one of its edges. */
 inline bool onCell(BuildKind kind) {
 	return kind == BuildKind::Foundation || kind == BuildKind::Ceiling;
@@ -34,6 +35,16 @@ inline bool onCell(BuildKind kind) {
 enum class BuildTier : std::uint8_t { Twig, Wood, Stone, Metal };
 
 inline constexpr int kBuildTierCount = 4;
+
+/**
+ * Whether a tier can be broken by anything short of explosives.
+ *
+ * Only twig. A twig wall is something you throw up to claim ground, and a
+ * hatchet takes it apart. From wood upwards the only way through is a rocket
+ * or a charge: a base you could shoot down with a rifle is not a base, and
+ * raiding is meant to cost you something you had to make.
+ */
+inline bool breaksByHand(BuildTier tier) { return tier == BuildTier::Twig; }
 
 struct TierDef {
 	BuildTier tier;

@@ -27,7 +27,7 @@ constexpr TierDef kTiers[kBuildTierCount] = {
 	{BuildTier::Twig, "Twig", 10, {ItemId::Wood, 10}, 1.0},
 	{BuildTier::Wood, "Wood", 250, {ItemId::Wood, 50}, 0.45},
 	{BuildTier::Stone, "Stone", 500, {ItemId::Stone, 150}, 0.06},
-	{BuildTier::Metal, "Sheet Metal", 1000, {ItemId::Metal, 200}, 0.03},
+	{BuildTier::Metal, "Metal", 1000, {ItemId::Metal, 200}, 0.03},
 };
 
 std::uint64_t cellKey(int gx, int gy) {
@@ -291,7 +291,8 @@ bool BuildSystem::upgrade(Structure& piece, Inventory& inventory) {
 bool BuildSystem::damage(Structure& piece, double amount, double fromX, double fromY, bool melee,
 						 bool blast) {
 	if (piece.hp <= 0) return false;
-	// What a tier gives up to a tool. Twig comes apart; stone does not.
+	// Anything short of a blast only marks twig: see breaksByHand.
+	if (!blast && !breaksByHand(piece.tier)) return false;
 	if (melee) amount *= tierDef(piece.tier).meleeMul;
 	if (melee && piece.kind != BuildKind::Foundation) {
 		// Struck from the hard side, a wall barely notices: that is what stops
@@ -425,22 +426,40 @@ Structure* BuildSystem::nearestDoor(double x, double y, double within) {
 }
 
 Structure* BuildSystem::nearest(double x, double y, double within) {
+	// Edges first, and only then the floor and the roof.
+	//
+	// A cell piece was measured from the middle of its cell, so standing in a
+	// base the floor under you was nearer the cursor than the wall you were
+	// pointing at, and a hammer aimed at the north wall kept finding the
+	// ground. What you are aiming at is the thing with an edge; the cell is
+	// what you get when you are aiming at nothing.
 	Structure* best = nullptr;
 	double bestD = within;
 	for (Structure& piece : pieces_) {
+		if (onCell(piece.kind)) continue;
+		double x0 = 0;
+		double y0 = 0;
+		double x1 = 0;
+		double y1 = 0;
+		edgeSegment(piece.gx, piece.gy, piece.side, x0, y0, x1, y1);
 		double px = 0;
 		double py = 0;
-		if (piece.kind == BuildKind::Foundation) {
-			px = (piece.gx + 0.5) * kBuildCell;
-			py = (piece.gy + 0.5) * kBuildCell;
-		} else {
-			double x0 = 0;
-			double y0 = 0;
-			double x1 = 0;
-			double y1 = 0;
-			edgeSegment(piece.gx, piece.gy, piece.side, x0, y0, x1, y1);
-			closestOnSegment(x, y, x0, y0, x1, y1, px, py);
-		}
+		closestOnSegment(x, y, x0, y0, x1, y1, px, py);
+		const double d = std::hypot(px - x, py - y);
+		if (d > bestD) continue;
+		best = &piece;
+		bestD = d;
+	}
+	if (best) return best;
+
+	for (Structure& piece : pieces_) {
+		if (!onCell(piece.kind)) continue;
+		// To the cell itself rather than to its middle: standing on a floor
+		// you are on it, whichever corner of it you happen to be in.
+		const double x0 = piece.gx * static_cast<double>(kBuildCell);
+		const double y0 = piece.gy * static_cast<double>(kBuildCell);
+		const double px = std::clamp(x, x0, x0 + kBuildCell);
+		const double py = std::clamp(y, y0, y0 + kBuildCell);
 		const double d = std::hypot(x - px, y - py);
 		if (d > bestD) continue;
 		best = &piece;
@@ -497,8 +516,11 @@ void BuildSystem::snapDeploy(DeployKind kind, bool turned, double& x, double& y)
 	// of squares across, and in the middle of one when it is odd. Snapping
 	// both the same way put odd things half a square off their own floor.
 	const DeployFootprint f = deployFootprint(kind, turned);
+	// A fine square is centred on a building-grid line, so a thing an odd
+	// number of squares across has its middle on one of those lines and an
+	// even one has its middle half a square off. See kDeployOrigin.
 	const auto lay = [](double v, int span) {
-		const double off = (span % 2 == 0) ? 0.0 : kDeployCell * 0.5;
+		const double off = (span % 2 == 0) ? kDeployCell * 0.5 : 0.0;
 		return std::floor((v - off) / kDeployCell + 0.5) * kDeployCell + off;
 	};
 	x = lay(x, f.wide);

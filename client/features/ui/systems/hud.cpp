@@ -223,12 +223,14 @@ void Hud::draw(Paint& paint, const sim::Inventory& inventory, int health, int wi
 	if (mending_ > 0.5) {
 		// What a syringe still owes you, under the bleed and in green: the
 		// same reading, the other way round.
-		drawVitalIcon(paint, Vital::Health, gaugeX + 208 * uiScale, baseY + 34 * uiScale,
+		// On the health row, to the right of the bleed: both are about the one
+		// bar, and a green number on the food row read as food.
+		drawVitalIcon(paint, Vital::Health, gaugeX + 268 * uiScale, baseY + 15 * uiScale,
 					  icon * 0.85f, rgb(0x5fb85f));
 		char owed[16];
 		SDL_snprintf(owed, sizeof(owed), "+%d", static_cast<int>(std::ceil(mending_)));
 		if (lettering_) {
-			lettering_->drawInked(owed, gaugeX + 224 * uiScale, baseY + 26 * uiScale,
+			lettering_->drawInked(owed, gaugeX + 284 * uiScale, baseY + 7 * uiScale,
 								  13 * uiScale, rgb(0x5fb85f), Face::BodyBold, Align::Left, 1);
 		}
 	}

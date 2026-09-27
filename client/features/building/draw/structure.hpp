@@ -23,6 +23,16 @@ BuildTarget targetAt(double worldX, double worldY, sim::BuildKind kind);
  * `x` and `y` are where the world's origin lands on the screen, so a piece
  * draws itself from its own place on the grid.
  */
+/**
+ * The same, drawn faint.
+ *
+ * A roof over the room you are standing in: you can see what is under it and
+ * you can still see that it is there. Gone entirely, a base you were inside
+ * looked unfinished.
+ */
+void drawBuiltFaint(Paint& paint, const sim::Structure& piece, double cameraX, double cameraY,
+					double scale, int width, int height);
+
 void drawBuilt(Paint& paint, const sim::Structure& piece, double cameraX, double cameraY,
 			   double scale, int width, int height);
 

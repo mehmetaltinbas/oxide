@@ -19,6 +19,18 @@ inline constexpr int kDeployGrid = 12;
 inline constexpr double kDeployCell = static_cast<double>(kBuildCell) / kDeployGrid;
 
 /**
+ * Where the fine grid sits against the building grid.
+ *
+ * A fine square is **centred** on a building-grid line, not started at one. A
+ * foundation therefore runs from the middle of one fine square to the middle
+ * of another, which is how it reads against the squares drawn under it: half
+ * a square over the edge at each end and eleven whole ones between. Started
+ * at the line instead, a foundation's corner cut a fine square in half and
+ * the two grids looked like a mistake.
+ */
+inline constexpr double kDeployOrigin = -kDeployCell * 0.5;
+
+/**
  * How much floor a thing takes up, in fine squares, unturned.
  *
  * Measured the way it is drawn: `wide` runs across the screen and `deep` runs

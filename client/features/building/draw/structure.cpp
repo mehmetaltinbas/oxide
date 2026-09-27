@@ -196,6 +196,16 @@ void drawBuilt(Paint& paint, const sim::Structure& piece, double cameraX, double
 			  tierEdge(piece.tier), false);
 }
 
+void drawBuiltFaint(Paint& paint, const sim::Structure& piece, double cameraX, double cameraY,
+					double scale, int width, int height) {
+	const View view{cameraX, cameraY, scale, width, height};
+	const Color fill = tierColor(piece.tier);
+	const Color edge = tierEdge(piece.tier);
+	constexpr std::uint8_t kThrough = 86;
+	drawPiece(paint, piece, view, Color{fill.r, fill.g, fill.b, kThrough},
+			  Color{edge.r, edge.g, edge.b, kThrough}, false);
+}
+
 void drawGhost(Paint& paint, const BuildTarget& target, sim::BuildTier tier, bool allowed,
 			   double cameraX, double cameraY, double scale, int width, int height) {
 	const View view{cameraX, cameraY, scale, width, height};

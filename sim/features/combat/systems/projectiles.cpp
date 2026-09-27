@@ -156,7 +156,8 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
 			hit.blastDamage = bullet.blastDamage;
 			hit.blastRadius = bullet.blastRadius;
 			hit.builtId = wall->id;
-			// A rocket is spent on the blast, not on the wall it touched.
+			// A rocket is spent on the blast, not on the wall it touched, and
+			// a round does nothing to anything above twig: see breaksByHand.
 			hit.brokeBuilt = bullet.rocket ? false : build.damage(*wall, bullet.damage);
 			hits.push_back(hit);
 			bullet.left = 0;
@@ -187,11 +188,11 @@ std::vector<BulletHit> Projectiles::update(World& world, NpcSystem& npcs, BuildS
 			hit.blastDamage = bullet.blastDamage;
 			hit.blastRadius = bullet.blastRadius;
 			hit.nodeKind = hitNode->kind;
-			// A barrel is broken open by gunfire; a tree only stops the round.
-			if (nodeDef(hitNode->kind).loot) {
-				if (ResourceNode* live = world.nodeById(hitNode->id)) {
-					hit.brokeNode = world.hurtNode(*live, bullet.damage);
-				}
+			// Everything takes the round, not only a barrel. A tree that
+			// stopped an arrow and did not so much as shed a log read as
+			// scenery rather than as a thing standing in the world.
+			if (ResourceNode* live = world.nodeById(hitNode->id)) {
+				hit.brokeNode = world.hurtNode(*live, bullet.damage);
 			}
 			hits.push_back(hit);
 			bullet.left = 0;
