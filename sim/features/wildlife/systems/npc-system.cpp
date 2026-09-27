@@ -18,6 +18,7 @@
 #include "sim/features/wildlife/types/npc.struct.hpp"
 #include "sim/features/wildlife/utils/npc-traits.util.hpp"
 #include "sim/features/world/types/biome.enum.hpp"
+#include "sim/shared/utils/health.util.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -152,7 +153,7 @@ void NpcSystem::hurt(World& world, Npc& npc, double amount, double fromX, double
 	// Anything hit turns on whoever hit it, however far off they were.
 	if (npc.hp <= 0) return;
 	npc.hp -= static_cast<int>(amount);
-	npc.sinceHurt = 0;
+	tookDamage(npc);
 	if (npc.hp <= 0) {
 		npc.hp = 0;
 		drop(world, npc);
@@ -268,7 +269,7 @@ NpcEvents NpcSystem::update(World& world, const BuildSystem& build, Projectiles&
 
 	// Every one of them, awake or not: an animal that went to sleep wounded
 	// should stop showing its health on the same clock as one you can see.
-	for (Npc& npc : npcs_) npc.sinceHurt += dt;
+	for (Npc& npc : npcs_) ageWound(npc, dt);
 
 	// Who has an eye on whom.
 	//

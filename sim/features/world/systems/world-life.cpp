@@ -13,6 +13,7 @@
 #include "sim/features/world/types/biome.enum.hpp"
 #include "sim/features/world/types/dropped.struct.hpp"
 #include "sim/features/world/types/resource-node.struct.hpp"
+#include "sim/shared/utils/health.util.hpp"
 
 namespace sim {
 
@@ -80,6 +81,7 @@ ResourceNode* World::nodeById(int id) {
 bool World::hurtNode(ResourceNode& node, double damage) {
 	if (node.hp <= 0) return false;
 	node.hp -= static_cast<int>(damage);
+	tookDamage(node);
 	node.shake = 0.16;
 	if (node.hp > 0) return false;
 	node.hp = 0;
@@ -148,6 +150,7 @@ void World::update(double dt) {
 		fillCrate(crate, static_cast<std::uint32_t>(crate.id * 7919 + respawnSeed_++));
 	}
 	for (ResourceNode& node : nodes_) {
+		ageWound(node, dt);
 		if (node.shake > 0) node.shake -= dt;
 		if (node.respawn <= 0) continue;
 		node.respawn -= dt;

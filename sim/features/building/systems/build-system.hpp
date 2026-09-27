@@ -56,6 +56,8 @@ struct Structure {
 	bool open;
 	/** A locked door opens for its owner and for nobody else. */
 	bool locked;
+	/** Seconds since anything last took health off it: see kHealthShownFor. */
+	double sinceHurt = 0;
 	/** Which way the builder was standing: the side a blow bites on. */
 	double softX;
 	double softY;

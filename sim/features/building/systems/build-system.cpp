@@ -10,6 +10,7 @@
 #include "sim/features/monuments/types/monument.struct.hpp"
 #include "sim/features/world/types/biome.enum.hpp"
 #include "sim/features/world/types/resource-node.struct.hpp"
+#include "sim/shared/utils/health.util.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -226,6 +227,7 @@ bool BuildSystem::damage(Structure& piece, double amount, double fromX, double f
 		}
 	}
 	piece.hp -= static_cast<int>(amount);
+	tookDamage(piece);
 	piece.flash = 0.12;
 	if (piece.hp > 0) return false;
 	piece.hp = 0;
@@ -453,6 +455,7 @@ double BuildSystem::warmthAt(double x, double y) const {
 }
 
 void BuildSystem::updateDeployables(World& world, double dt) {
+	for (Deployable& thing : deployables_) ageWound(thing, dt);
 	// What has been broken spills out where it stood, box and fire alike.
 	std::vector<int> broken;
 	for (const Deployable& d : deployables_) {
@@ -511,6 +514,7 @@ void BuildSystem::applyDecay(double hours) {
 	const double loss = kDecayPerHour * hours;
 	for (Structure& piece : pieces_) {
 		piece.hp -= static_cast<int>(piece.maxHp * loss);
+		tookDamage(piece);
 	}
 	pieces_.erase(std::remove_if(pieces_.begin(), pieces_.end(),
 								 [](const Structure& piece) { return piece.hp <= 0; }),
@@ -520,6 +524,7 @@ void BuildSystem::applyDecay(double hours) {
 
 void BuildSystem::update(double dt) {
 	for (Structure& piece : pieces_) {
+		ageWound(piece, dt);
 		if (piece.flash > 0) piece.flash -= dt;
 		// A door swung open or shut changes what is sealed.
 		if (piece.kind == BuildKind::Door && piece.open != wasOpen_[piece.id]) {

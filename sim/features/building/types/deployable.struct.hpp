@@ -18,6 +18,8 @@ struct Deployable {
 	double fuel;
 	double progress;
 	double flash;
+	/** Seconds since anything last took health off it: see kHealthShownFor. */
+	double sinceHurt = 0;
 	Container container;
 };
 

@@ -19,6 +19,8 @@ struct ResourceNode {
 	double respawn;
 	/** Seconds of shaking left from the last blow that landed on it. */
 	double shake;
+	/** Seconds since anything last took health off it: see kHealthShownFor. */
+	double sinceHurt;
 	/** Its own number, so its drawn shape never changes between frames. */
 	std::uint32_t seed;
 };

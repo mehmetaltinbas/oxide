@@ -13,6 +13,7 @@
 #include "sim/features/wildlife/constants/npc-defs.constant.hpp"
 #include "sim/features/wildlife/types/npc.struct.hpp"
 #include "sim/features/world/types/resource-node.struct.hpp"
+#include "sim/shared/utils/health.util.hpp"
 
 namespace sim {
 
@@ -145,6 +146,7 @@ void Explosives::detonate(World& world, BuildSystem& build, NpcSystem& npcs, Pla
 			const double d = std::hypot(x - thing.x, y - thing.y);
 			if (d > radius) continue;
 			thing.hp -= static_cast<int>(damage * std::pow(1 - d / radius, kBlastFalloff));
+			tookDamage(thing);
 			thing.flash = 0.2;
 		}
 		std::vector<int> gone;

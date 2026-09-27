@@ -74,7 +74,12 @@ constexpr ItemDef kItems[] = {
 	// Places twig foundations, walls and doorways.
 	{ItemId::BuildingPlan, "Building Plan", "Places twig foundations, walls and doorways.", ItemCategory::Tool, 1, kNone, kNoGun, kNoFood, kNoWear, kNoBoom},
 	// Cheap reach, better than fists.
-	{ItemId::Spear, "Wooden Spear", "Cheap reach. Better than fists.", ItemCategory::Weapon, 1, {38, 1, 0.85, 78}, kNoGun, kNoFood, kNoWear, kNoBoom},
+	// Reach is the whole of what a spear is for: it is slower and weaker than
+	// a hatchet, and worth carrying only because it lands before the thing in
+	// front of you does. At 78 a bear's bite came in at 53 and the margin was
+	// thin enough that the spear felt like a short stick; 104 is half again as
+	// far as anything on the island can reach.
+	{ItemId::Spear, "Wooden Spear", "Cheap reach. Better than fists.", ItemCategory::Weapon, 1, {38, 1, 0.85, 104}, kNoGun, kNoFood, kNoWear, kNoBoom},
 	// Quiet, cheap to feed, punishing to aim.
 	{ItemId::Bow, "Hunting Bow", "Quiet, cheap to feed, punishing to aim.", ItemCategory::Weapon, 1, kNone,
 	 {48, 0.85, 760, 620, 0.03, ItemId::Arrow, 0, 0, 1, 26}},

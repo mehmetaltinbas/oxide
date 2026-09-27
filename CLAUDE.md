@@ -77,6 +77,10 @@ and there are flags for every state worth looking at: see
   field on a definition, and carries the reason it is that number.
 - **No raw visual values.** Colour, ink weight, spacing and radius come from
   `client/design/tokens/world.tokens.hpp` and `client/design/tokens/interface.tokens.hpp`.
+- **A health bar obeys one rule.** Anything that can be hurt carries
+  `sinceHurt`, calls `tookDamage` wherever health drops and `ageWound` every
+  tick, and the drawing asks `showsHealth`. See
+  [docs/systems/health-display.md](docs/systems/health-display.md).
 - **One routine per rule.** When two copies of a rule exist, one of them is
   wrong and nobody finds out until they watch it happen. Collision is the
   standing example: see [docs/systems/collision.md](docs/systems/collision.md).

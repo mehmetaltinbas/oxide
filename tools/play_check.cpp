@@ -32,7 +32,7 @@
 #include "sim/features/wildlife/utils/npc-traits.util.hpp"
 #include "sim/features/world/types/node-kind.enum.hpp"
 #include "sim/features/world/types/resource-node.struct.hpp"
-#include "sim/features/wildlife/constants/wildlife-tuning.constant.hpp"
+#include "sim/shared/utils/health.util.hpp"
 
 int main() {
 	sim::World world;
@@ -566,15 +566,59 @@ int main() {
 		wild.mutableList().push_back(elk);
 		wild.hurt(island, wild.mutableList()[0], 30, elk.x - 10, elk.y);
 		const int after = wild.list()[0].hp;
-		const bool shownAtOnce = wild.list()[0].sinceHurt < sim::kHealthShownFor;
+		const sim::NpcDef& elkDef = sim::npcDef(sim::NpcKind::Elk);
+		const bool shownAtOnce =
+			sim::showsHealth(wild.list()[0].hp, elkDef.hp, wild.list()[0].sinceHurt);
 		for (int i = 0; i < 61 * 60; ++i) wild.update(island, empty, none, dt, away);
-		const bool shownLater = wild.list()[0].sinceHurt < sim::kHealthShownFor;
+		const bool shownLater =
+			sim::showsHealth(wild.list()[0].hp, elkDef.hp, wild.list()[0].sinceHurt);
 		std::printf("wound: elk on %d, bar at once %s, a minute later %s, still on %d\n",
 					after, shownAtOnce ? "yes" : "NO", shownLater ? "STILL" : "gone",
 					wild.list()[0].hp);
 		if (!shownAtOnce || shownLater || wild.list()[0].hp != after) {
 			std::printf("  WOUND TIMEOUT IS WRONG\n");
 		}
+	}
+
+	// A spear lands before the thing in front of you does. That is the only
+	// reason to carry one, so it is asserted rather than assumed, against the
+	// longest bite on the island as well as the commonest.
+	{
+		const double reach = sim::itemDef(sim::ItemId::Spear).melee.reach;
+		// What NpcSystem::nearest measures: the gap to the animal's edge.
+		const auto biteAt = [](sim::NpcKind kind) {
+			const sim::NpcDef& def = sim::npcDef(kind);
+			return def.attackRange + sim::PlayerRules::kRadius;
+		};
+		const double bear = biteAt(sim::NpcKind::Bear);
+		const double wolf = biteAt(sim::NpcKind::Wolf);
+		std::printf("spear: reach %.0f, bear bites at %.0f, wolf at %.0f\n", reach, bear, wolf);
+		if (reach <= bear || reach <= wolf) std::printf("  SPEAR IS OUTREACHED\n");
+	}
+
+	// The same rule on the things that stand still. All four kinds of bar are
+	// checked, because the rule used to live in four places and three of them
+	// were missed.
+	{
+		sim::World island;
+		island.generate(12345);
+		int treeId = 0;
+		for (const sim::ResourceNode& node : island.nodes()) {
+			if (node.kind != sim::NodeKind::Tree) continue;
+			treeId = node.id;
+			break;
+		}
+		bool treeAtOnce = false;
+		bool treeLater = true;
+		if (sim::ResourceNode* tree = island.nodeById(treeId)) {
+			island.hurtNode(*tree, 20);
+			treeAtOnce = sim::showsHealth(*tree);
+			for (int i = 0; i < 61 * 60; ++i) island.update(dt);
+			treeLater = sim::showsHealth(*island.nodeById(treeId));
+		}
+		std::printf("wound: tree bar at once %s, a minute later %s\n",
+					treeAtOnce ? "yes" : "NO", treeLater ? "STILL" : "gone");
+		if (!treeAtOnce || treeLater) std::printf("  NODE TIMEOUT IS WRONG\n");
 	}
 
 	// A wolf comes at you and an elk runs from you. Both directions, because

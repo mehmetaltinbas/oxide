@@ -17,7 +17,7 @@
 #include "client/features/render/types/align.enum.hpp"
 #include "client/features/render/types/face.enum.hpp"
 #include "client/features/render/types/point.struct.hpp"
-#include "sim/features/wildlife/constants/wildlife-tuning.constant.hpp"
+#include "sim/shared/utils/health.util.hpp"
 
 namespace client {
 
@@ -369,11 +369,10 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 void drawAnimalTag(Paint& paint, const sim::Npc& npc, float x, float y, float scale) {
 	const sim::NpcDef& def = sim::npcDef(npc.kind);
 	const float r = static_cast<float>(def.radius) * scale;
-	// Hurt, and hurt recently enough to still be saying so. A bar over
-	// everything you have ever shot at is a map of your own past rather than
-	// anything about now: see sim::kHealthShownFor. The health itself does not
-	// change when the bar goes.
-	const bool hurt = npc.hp < def.hp && npc.sinceHurt < sim::kHealthShownFor;
+	// One routine decides this for every wounded thing on the island: see
+	// docs/systems/health-display.md. An animal carries its full health on its
+	// definition rather than on itself, so it asks the three-number form.
+	const bool hurt = sim::showsHealth(npc.hp, def.hp, npc.sinceHurt);
 	if (hurt) {
 		// White in black, so it reads on snow and on grass alike.
 		const float w = r * 2.4f;

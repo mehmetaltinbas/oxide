@@ -28,6 +28,7 @@ not a hypothetical here, it is where the collision bug came from.
 | What a resource node is worth | `sim/features/world/constants/node-defs.constant.cpp`, one row per kind |
 | What a recipe costs | `sim/features/crafting/systems/crafting.cpp`, one row per recipe |
 | What is solid, and standing against it | `sim/shared/utils/collide.util.hpp` |
+| Whether a health bar is on screen | `sim/shared/utils/health.util.hpp` |
 | Colour, ink weight, spacing of a mark | `client/design/tokens/world.tokens.hpp` |
 | Colour, radius, spacing of the interface | `client/design/tokens/interface.tokens.hpp` |
 | How one item is drawn, anywhere | `client/features/items/draw/item-glyph.cpp`, one glyph per item |

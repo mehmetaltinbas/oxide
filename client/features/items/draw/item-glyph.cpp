@@ -116,7 +116,10 @@ const HeldPose& heldPoseOf(sim::ItemId item) {
 		// The spear's shaft runs corner to corner in its glyph; turned to
 		// point ahead.
 		case sim::ItemId::Spear: {
-			static constexpr HeldPose p{44, -0.12f, 0.16f, -0.69f};
+			// Drawn as long as it reaches: the shaft grew with the reach, or
+			// the spear would be landing blows a shaft's length past its own
+			// point and the picture would be lying about the rule.
+			static constexpr HeldPose p{56, -0.12f, 0.16f, -0.69f};
 			return p;
 		}
 		// Guns point along +x in their glyphs.

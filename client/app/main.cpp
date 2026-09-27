@@ -74,6 +74,7 @@
 #include "client/features/ui/types/item-actions.struct.hpp"
 #include "client/features/ui/types/tab.enum.hpp"
 #include "sim/features/items/utils/is-ranged.util.hpp"
+#include "sim/shared/utils/health.util.hpp"
 
 /**
  * The game as you play it: an island from a seed, someone standing on it, and
@@ -1849,7 +1850,7 @@ int main(int argc, char** argv) {
 					: 0.0f;
 			sprites.draw(*node, sx + shakeAt, sy, static_cast<float>(scale), snowy, broadleaf,
 						 alpha);
-			if (node->hp < node->maxHp && node->hp > 0) {
+			if (sim::showsHealth(*node)) {
 				// White in black, which reads on snow and on grass alike.
 				// Measured in world units, so the bar grows and shrinks with
 				// the thing it belongs to. Half the old height: five points
@@ -1929,7 +1930,7 @@ int main(int argc, char** argv) {
 			const float sy = static_cast<float>((thing.y - camY) * scale) + height * 0.5f;
 			client::drawDeployable(paint, thing, sx, sy, static_cast<float>(scale),
 								   static_cast<float>(clock));
-			if (thing.hp < thing.maxHp) {
+			if (sim::showsHealth(thing)) {
 				const float w = 36 * static_cast<float>(scale);
 				const float h = 2.5f * static_cast<float>(scale);
 				const float edge = static_cast<float>(scale);
@@ -1965,7 +1966,7 @@ int main(int argc, char** argv) {
 		for (const sim::Structure& piece : build.list()) {
 			if (piece.kind == sim::BuildKind::Foundation) continue;
 			client::drawBuilt(paint, piece, camX, camY, scale, width, height);
-			if (piece.hp < piece.maxHp) {
+			if (sim::showsHealth(piece)) {
 				double cx = 0;
 				double cy = 0;
 				if (piece.kind == sim::BuildKind::Foundation) {
