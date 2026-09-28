@@ -494,8 +494,10 @@ void paintStone(Paint& paint, float ox, float oy, float r, sim::NodeKind kind, i
 	// left yellow chips floating in the grass beside the node.
 	if (kind == sim::NodeKind::Metal || kind == sim::NodeKind::Sulfur) {
 		const bool metal = kind == sim::NodeKind::Metal;
-		const Color seam = metal ? rgb(0x8f6a3a) : rgb(0xa89a2a);
-		const Color bright = metal ? rgb(0xd8a860) : rgb(0xeee063);
+		// Darker than the rock and then brighter inside it, so a vein reads
+		// against its own colour rather than against grey.
+		const Color seam = metal ? rgb(0x77391f) : rgb(0x8a7c18);
+		const Color bright = metal ? rgb(0xe89a5a) : rgb(0xf8f0a0);
 		for (int i = static_cast<int>(variant) % 2; i < points; i += 2) {
 			const Point& a = hull[i];
 			// Short of the corner at both ends: a vein thins out before it

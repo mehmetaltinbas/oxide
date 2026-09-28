@@ -856,7 +856,8 @@ int main() {
 		sim::World island;
 		island.generate(12345);
 		sim::BuildSystem build;
-		const double base = 120.0 * sim::kBuildCell;
+		// The middle of the island, which is land whatever the cell size is.
+		const double base = sim::kWorldWidth * 0.5;
 		island.clearNaturalIn(base - 400, base - 400, base + 400, base + 400);
 
 		double wide = 0;
@@ -872,7 +873,8 @@ int main() {
 		double ay = base;
 		sim::BuildSystem::snapDeploy(sim::DeployKind::WoodenBox, false, ax, ay);
 		build.deploy(sim::DeployKind::WoodenBox, ax, ay, false, 0);
-		double bx = base + sim::kDeployCell * 4.2;
+		// Three fine squares along, which clears a two-square box by one.
+		double bx = base + sim::kDeployCell * 5;
 		double by = base;
 		sim::BuildSystem::snapDeploy(sim::DeployKind::WoodenBox, false, bx, by);
 		const bool room =

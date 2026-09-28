@@ -161,13 +161,12 @@ inline Color nodeColor(sim::NodeKind kind) {
 	switch (kind) {
 		case sim::NodeKind::Tree: return rgb(0x3aa24a);
 		case sim::NodeKind::Stone: return rgb(0x9aa6b2);
-		// Both ore nodes are rock, and rock is grey. A whole boulder in the
-		// colour of what is inside it read as a lump of sulfur lying in the
-		// grass: the veins carry the colour, and the stone stays stone. The
-		// two are tinted a little towards their own ore so they are still
-		// told apart across a field.
-		case sim::NodeKind::Metal: return rgb(0x9b9184);
-		case sim::NodeKind::Sulfur: return rgb(0xa3a086);
+		// Told apart by colour across a whole field, which is what matters
+		// more than geology: metal is the rust orange of an iron seam and
+		// sulfur is yellow. Muted from a flat yellow so the veins drawn over
+		// them still read, but unmistakably their own ore.
+		case sim::NodeKind::Metal: return rgb(0xb5714a);
+		case sim::NodeKind::Sulfur: return rgb(0xd6c952);
 		case sim::NodeKind::Nettle: return rgb(0x8cc94a);
 		case sim::NodeKind::Barrel: return rgb(0x7a6a44);
 	}

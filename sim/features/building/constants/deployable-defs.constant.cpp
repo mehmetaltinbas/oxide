@@ -20,10 +20,11 @@ int benchTier(DeployKind kind) {
 
 int containerSlots(DeployKind kind) {
 	switch (kind) {
-		case DeployKind::WoodenBox: return 12;
-		// Three times the room, on a footprint twice the size: a large box is
-		// the reason a base has a loot room rather than a wall of crates.
-		case DeployKind::LargeBox: return 36;
+		// Three rows of six.
+		case DeployKind::WoodenBox: return 18;
+		// Seven rows of six: a large box is the reason a base has a loot room
+		// rather than a wall of crates.
+		case DeployKind::LargeBox: return 42;
 		case DeployKind::Furnace: return 6;
 		case DeployKind::Campfire: return 4;
 		// A cupboard holds the upkeep, which is not in yet, and a bag holds you.

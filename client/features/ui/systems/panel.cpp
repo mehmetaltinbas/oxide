@@ -31,6 +31,14 @@
 
 namespace client {
 
+/**
+ * How wide a container is drawn.
+ *
+ * Six, the same as the pack, so a box and your own pockets read as the same
+ * kind of grid and a stack moved between them does not change shape.
+ */
+constexpr int kContainerCols = 6;
+
 namespace {
 
 /** How the recipes are grouped, and what each group is called. */
@@ -775,8 +783,8 @@ void Panel::drawContainer(Paint& paint, const sim::Inventory& inventory, const L
 	say(paint, inX, gridY - 20 * uiScale, 11 * uiScale, ui::kSubtle, title_.c_str());
 	if (!container_) return;
 	for (std::size_t i = 0; i < container_->slots.size(); ++i) {
-		const float sx = inX + (i % 4) * l.pitch;
-		const float sy = gridY + (i / 4) * l.pitch;
+		const float sx = inX + (i % kContainerCols) * l.pitch;
+		const float sy = gridY + (i / kContainerCols) * l.pitch;
 		filled(paint, container_->slots[i], sx, sy, l.slot, uiScale,
 			   ui::inside(mouseX, mouseY, sx, sy, l.slot, l.slot), false);
 	}
@@ -1001,7 +1009,7 @@ bool Panel::click(sim::Inventory& inventory, sim::Crafting& crafting, float x, f
 		}
 		const float inX = left + kPackCols * l.pitch + 24 * uiScale;
 		const int inAt = slotUnder(x, y, inX, gridY, l.slot, l.pitch,
-								   static_cast<int>(container_->slots.size()), 4);
+								   static_cast<int>(container_->slots.size()), kContainerCols);
 		if (inAt >= 0 && move_.left <= 0) {
 			const sim::ItemStack& stack = container_->slots[inAt];
 			if (stack.id != sim::ItemId::None) start(false, false, inAt, stack.count);
@@ -1163,7 +1171,7 @@ bool Panel::slotAt(const sim::Inventory& inventory, float x, float y, const Layo
 	if (tab_ == Tab::Container && container_) {
 		const float inX = left + kPackCols * l.pitch + 24 * uiScale;
 		const int at = slotUnder(x, y, inX, gridY, l.slot, l.pitch,
-								 static_cast<int>(container_->slots.size()), 4);
+								 static_cast<int>(container_->slots.size()), kContainerCols);
 		if (at >= 0) {
 			from = From::Container;
 			slot = at;
@@ -1390,7 +1398,7 @@ void Panel::release(sim::Inventory& inventory, sim::Crafting& crafting, float x,
 	if (tab_ == Tab::Container && container_) {
 		const float inX = left + kPackCols * l.pitch + 24 * uiScale;
 		const int at = slotUnder(x, y, inX, gridY, l.slot, l.pitch,
-								 static_cast<int>(container_->slots.size()), 4);
+								 static_cast<int>(container_->slots.size()), kContainerCols);
 		if (at >= 0) {
 			land(container_->slots[at]);
 			return;
