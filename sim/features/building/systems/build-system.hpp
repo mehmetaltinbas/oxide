@@ -89,13 +89,13 @@ inline constexpr double kDoorHpMul = 0.8;
 /**
  * How thick a wall is, in world units.
  *
- * Two fine squares: the gap between three dots in a line. A wall takes up
- * room, and how much is a rule rather than a look, because the same number
- * has to decide where you can walk, where a wall is drawn and what may be put
- * down beside it. It used to be nine here and seven in the drawing, so a wall
- * stopped you a little before it looked like it should.
+ * One fine square: the gap between two dots. A wall takes up room, and how
+ * much is a rule rather than a look, because the same number has to decide
+ * where you can walk, where a wall is drawn and what may be put down beside
+ * it. It used to be nine here and seven in the drawing, so a wall stopped you
+ * a little before it looked like it should.
  */
-inline constexpr double kWallThickness = 2 * kDeployCell;
+inline constexpr double kWallThickness = kDeployCell;
 /** Half of it, which is what everything actually measures against. */
 inline constexpr double kWallHalf = kWallThickness * 0.5;
 

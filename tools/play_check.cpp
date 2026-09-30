@@ -990,12 +990,13 @@ int main() {
 
 		// A box with its edge in the wall, and the same box clear of it.
 		double inX = (gx + 0.5) * sim::kBuildCell;
-		double inY = gy * sim::kBuildCell + sim::kDeployCell;
+		// Straddling the wall's own line, which is in it however thick it is.
+		double inY = gy * sim::kBuildCell;
 		sim::BuildSystem::snapDeploy(sim::DeployKind::WoodenBox, false, inX, inY);
 		const bool inWall =
 			build.refuseDeploy(island, inX, inY, sim::DeployKind::WoodenBox, false, 0) != nullptr;
 		double offX = (gx + 0.5) * sim::kBuildCell;
-		double offY = gy * sim::kBuildCell + sim::kDeployCell * 4;
+		double offY = gy * sim::kBuildCell + sim::kDeployCell * 3;
 		sim::BuildSystem::snapDeploy(sim::DeployKind::WoodenBox, false, offX, offY);
 		const bool clear =
 			build.refuseDeploy(island, offX, offY, sim::DeployKind::WoodenBox, false, 0) == nullptr;
