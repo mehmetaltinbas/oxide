@@ -7,6 +7,7 @@
 #include "sim/shared/utils/rng.util.hpp"
 #include "sim/features/world/types/biome.enum.hpp"
 #include "client/design/types/color.struct.hpp"
+#include "sim/features/building/constants/deploy-footprint.constant.hpp"
 
 namespace client {
 
@@ -109,6 +110,10 @@ void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screen
 	// what the halftone is for, and it is why there is a second dot at the
 	// middle of every tile rather than one at its corner.
 	constexpr int kSpacing = 8;
+	// The dots ARE the building grid, so this is not a free number: one dot
+	// step has to be one fine square, or a foundation stops landing on them.
+	static_assert(kSpacing * sim::kDeployGrid == sim::kBuildCell,
+				  "a dot step must be exactly one fine square");
 	constexpr int kOversample = 4;
 	if (!screen_) {
 		const int size = kSpacing * kOversample;
