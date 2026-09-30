@@ -965,6 +965,49 @@ int main() {
 		if (gap <= 90) std::printf("  YOU CAN RUN A RABBIT DOWN\n");
 	}
 
+	// A wall is as thick as it is drawn, and nothing goes in one. Two halves:
+	// the box a wall stops you at is the box that refuses a deployable, so a
+	// thing you cannot walk through is a thing you cannot build in.
+	{
+		sim::World island;
+		island.generate(12345);
+		sim::BuildSystem build;
+		const double base = sim::kWorldWidth * 0.5;
+		island.clearNaturalIn(base - 400, base - 400, base + 400, base + 400);
+		const int gx = static_cast<int>(base / sim::kBuildCell);
+		const int gy = static_cast<int>(base / sim::kBuildCell);
+		build.placeFoundation(gx, gy, 0, sim::BuildTier::Wood);
+		build.placeEdge(gx, gy, sim::EdgeSide::North, sim::BuildKind::Wall, 0,
+						sim::BuildTier::Wood);
+
+		// Walking at the wall from inside the cell.
+		double px = (gx + 0.5) * sim::kBuildCell;
+		// A little inside the cell, so there is a direction to be pushed in:
+		// dead on the line the push has nowhere to point.
+		double py = gy * sim::kBuildCell + 2;
+		build.resolve(px, py, sim::PlayerRules::kRadius);
+		const double stoppedAt = py - gy * sim::kBuildCell;
+
+		// A box with its edge in the wall, and the same box clear of it.
+		double inX = (gx + 0.5) * sim::kBuildCell;
+		double inY = gy * sim::kBuildCell + sim::kDeployCell;
+		sim::BuildSystem::snapDeploy(sim::DeployKind::WoodenBox, false, inX, inY);
+		const bool inWall =
+			build.refuseDeploy(island, inX, inY, sim::DeployKind::WoodenBox, false, 0) != nullptr;
+		double offX = (gx + 0.5) * sim::kBuildCell;
+		double offY = gy * sim::kBuildCell + sim::kDeployCell * 4;
+		sim::BuildSystem::snapDeploy(sim::DeployKind::WoodenBox, false, offX, offY);
+		const bool clear =
+			build.refuseDeploy(island, offX, offY, sim::DeployKind::WoodenBox, false, 0) == nullptr;
+
+		std::printf("wall: %.0f thick, stops you %.0f off its line, box in it %s, box clear %s\n",
+					sim::kWallThickness, stoppedAt, inWall ? "refused" : "ALLOWED",
+					clear ? "fits" : "NO");
+		if (!inWall || !clear || stoppedAt < sim::kWallHalf) {
+			std::printf("  THE WALL DOES NOT TAKE UP ITS OWN ROOM\n");
+		}
+	}
+
 	// A wolf comes at you and an elk runs from you. Both directions, because
 	// "skittish" once meant both "bolts from a bear" and "bolts from you", and
 	// the wolf read the second one.

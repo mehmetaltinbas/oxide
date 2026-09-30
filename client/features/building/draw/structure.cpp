@@ -32,7 +32,9 @@ Color tierEdge(sim::BuildTier tier) {
 }
 
 /** A wall is drawn as a bar along its edge, this wide. */
-constexpr float kWallHalf = 7;
+// Not a number of its own: a wall is drawn exactly as thick as it is, or it
+// stops you somewhere other than where you can see it. See kWallThickness.
+constexpr float kWallHalf = static_cast<float>(sim::kWallHalf);
 
 struct View {
 	double cameraX;

@@ -101,8 +101,8 @@ constexpr float kGroundInkScale = 0.6f;
  *
  * Positive moves the dots LEFT and UP. Negative moves them right and down.
  */
-constexpr float kScreenNudgeX = 0.0f;
-constexpr float kScreenNudgeY = 0.0f;
+constexpr float kScreenNudgeX = -0.45;
+constexpr float kScreenNudgeY = 0.025f;
 
 // ------------------------------------------------------------ item pictures
 //

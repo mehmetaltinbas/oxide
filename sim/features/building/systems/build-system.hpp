@@ -10,6 +10,7 @@
 #include "sim/features/items/types/cost.struct.hpp"
 #include "sim/features/items/types/melee.struct.hpp"
 #include "sim/features/world/systems/world.hpp"
+#include "sim/features/building/constants/deploy-footprint.constant.hpp"
 
 namespace sim {
 
@@ -85,7 +86,18 @@ inline constexpr double kHardSideMeleeMul = 0.1;
 inline constexpr double kFoundationHpMul = 1.6;
 inline constexpr double kDoorHpMul = 0.8;
 /** How thick a wall stands, for walking into one. */
-inline constexpr double kWallThickness = 9;
+/**
+ * How thick a wall is, in world units.
+ *
+ * Two fine squares: the gap between three dots in a line. A wall takes up
+ * room, and how much is a rule rather than a look, because the same number
+ * has to decide where you can walk, where a wall is drawn and what may be put
+ * down beside it. It used to be nine here and seven in the drawing, so a wall
+ * stopped you a little before it looked like it should.
+ */
+inline constexpr double kWallThickness = 2 * kDeployCell;
+/** Half of it, which is what everything actually measures against. */
+inline constexpr double kWallHalf = kWallThickness * 0.5;
 
 struct Structure {
 	int id;

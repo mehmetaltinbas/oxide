@@ -377,7 +377,7 @@ void BuildSystem::resolve(double& x, double& y, double radius) const {
 				double hy = 0;
 				closestOnSegment(x, y, x0, y0, x1, y1, hx, hy);
 				const double d = std::hypot(x - hx, y - hy);
-				const double min = radius + kWallThickness;
+				const double min = radius + kWallHalf;
 				if (d >= min || d <= 0.0001) continue;
 				const double push = (min - d) / d;
 				x += (x - hx) * push;
@@ -581,6 +581,28 @@ const char* BuildSystem::refuseDeploy(const World& world, double x, double y, De
 			std::abs(d.y - cy) < halfDeep + otherDeep) {
 			return "Something is already here";
 		}
+	}
+	// Nothing goes in a wall. A wall takes up room, the same room it stops you
+	// walking through, so a box half inside one is a box you cannot reach and
+	// a wall you cannot repair. Checked against the box, not against the
+	// middle of the thing: a furnace's corner counts.
+	for (const Structure& piece : pieces_) {
+		if (onCell(piece.kind)) continue;
+		double x0 = 0;
+		double y0 = 0;
+		double x1 = 0;
+		double y1 = 0;
+		edgeSegment(piece.gx, piece.gy, piece.side, x0, y0, x1, y1);
+		// The nearest point of the wall's line to the box, and then whether
+		// that point is inside the box grown by half the wall.
+		const double px = std::clamp((x0 + x1) * 0.5, cx - halfWide, cx + halfWide);
+		const double py = std::clamp((y0 + y1) * 0.5, cy - halfDeep, cy + halfDeep);
+		double hx = 0;
+		double hy = 0;
+		closestOnSegment(px, py, x0, y0, x1, y1, hx, hy);
+		const double nx = std::clamp(hx, cx - halfWide, cx + halfWide);
+		const double ny = std::clamp(hy, cy - halfDeep, cy + halfDeep);
+		if (std::hypot(hx - nx, hy - ny) < kWallHalf) return "There is a wall there";
 	}
 	if (world.biomeAt(cx, cy) == Biome::Water) return "Not in the water";
 	if (kind == DeployKind::SleepingBag) {
