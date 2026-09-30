@@ -86,3 +86,21 @@ surface too, not a window into the world.
 Floating text over the world is world-scaled like everything else, even though
 it is lettering, because it is attached to a place rather than to a corner of
 the screen.
+
+## The trap: never multiply a width by the scale yourself
+
+`Paint::line` multiplies every stroke by the view's own scale, and it is the
+only place that does. So a width is given in **world units** and nothing else:
+
+```cpp
+paint.outlineRoundRect(x, y, w, h, 0, 1.0f, kInk);   // one world unit
+```
+
+Passing `1.0f * scale` looks like it asks for the same thing and does not: the
+scale is applied twice and the line comes out squared. At zoom four that is a
+sixty-four pixel border round a box forty units wide, which is how the
+placement box was drawn for a while.
+
+The exception is the interface, which is not in the world. After
+`paint.useWorldScale(1)` a width is in pixels and is multiplied by the display
+density instead, the way the panel and the hammer's card do it.

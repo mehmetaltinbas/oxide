@@ -102,6 +102,7 @@ time. The flags that exist for looking at things:
 | `--category <n>` | which crafting category the craft screen opens on |
 | `--wear rad\|heavy\|metal\|hide` | something worn from the off |
 | `--wheel` | the building plan's ring, held open |
+| `--ghost` | something to put down in hand, for the placement box |
 | `--swing <t>`, `--draw <t>` | a blow or a bow frozen part way through |
 | `--monument <n>` | dropped at the nth looting place |
 | `--night`, `--panel`, `--craft`, `--title`, `--map` | the state you want to see |

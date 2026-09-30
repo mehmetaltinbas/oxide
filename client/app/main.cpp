@@ -216,6 +216,8 @@ int main(int argc, char** argv) {
 	int holdSlot = -1;
 	/** Seconds of bleeding to start with, for a look at the readout. */
 	double bleedFor = 0;
+	/** A thing to put down, held, with the cursor over the floor beside you. */
+	bool showGhost = false;
 	/** The building plan's ring, held open for a screenshot. */
 	bool showWheel = false;
 	/** Something worn from the off, for a screenshot. */
@@ -298,6 +300,8 @@ int main(int argc, char** argv) {
 		} else if (SDL_strcmp(argv[i], "--dragqueue") == 0 && i + 2 < argc) {
 			dragFrom = SDL_atoi(argv[++i]);
 			dragOver = SDL_atoi(argv[++i]);
+		} else if (SDL_strcmp(argv[i], "--ghost") == 0) {
+			showGhost = true;
 		} else if (SDL_strcmp(argv[i], "--wheel") == 0) {
 			showWheel = true;
 		} else if (SDL_strcmp(argv[i], "--wear") == 0 && i + 1 < argc) {
@@ -842,6 +846,16 @@ int main(int argc, char** argv) {
 		py *= d;
 		return d;
 	};
+	if (showGhost) {
+		// Something to put down in hand, and the cursor parked a little way
+		// off, so the placement box can be looked at standing still.
+		inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::LargeBox, 1};
+		inventory.selectSlot(1);
+		int pw = 0;
+		int ph = 0;
+		SDL_GetWindowSizeInPixels(window, &pw, &ph);
+		SDL_WarpMouseInWindow(window, pw * 0.28f, ph * 0.26f);
+	}
 	if (showWheel) {
 		int pw = 0;
 		int ph = 0;
@@ -2267,16 +2281,19 @@ int main(int argc, char** argv) {
 			const client::Color tint = deployRefusal ? client::Color{224, 80, 60, 90}
 													 : client::Color{124, 200, 255, 90};
 			paint.fillRect(gx, gy, w, h, tint);
-			paint.outlineRoundRect(gx, gy, w, h, 2 * static_cast<float>(scale),
-								   1.5f * static_cast<float>(scale), client::kInk);
+			// One world unit, in world units: Paint multiplies every stroke by
+			// the view's own scale, so a width already multiplied by it comes
+			// out squared. At zoom four that was a sixty-four pixel border
+			// round a box forty units wide.
+			paint.outlineRoundRect(gx, gy, w, h, 0, 1.0f, client::kInk);
 			const float step = static_cast<float>(sim::kDeployCell * scale);
+			// Half a unit for the squares inside it: they are a reading aid
+			// under the border, not a second border.
 			for (float lx = gx + step; lx < gx + w - 0.5f; lx += step) {
-				paint.line(lx, gy, lx, gy + h, static_cast<float>(scale),
-						   client::Color{20, 17, 13, 70});
+				paint.line(lx, gy, lx, gy + h, 0.5f, client::Color{20, 17, 13, 70});
 			}
 			for (float ly = gy + step; ly < gy + h - 0.5f; ly += step) {
-				paint.line(gx, ly, gx + w, ly, static_cast<float>(scale),
-						   client::Color{20, 17, 13, 70});
+				paint.line(gx, ly, gx + w, ly, 0.5f, client::Color{20, 17, 13, 70});
 			}
 		}
 
