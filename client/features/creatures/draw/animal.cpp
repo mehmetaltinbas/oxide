@@ -283,33 +283,42 @@ void drawAnimal(Paint& paint, const sim::Npc& npc, float x, float y, float scale
 	}
 
 	if (claws && striking) {
-		// A foreleg out and across, with three claws on the end of it: which
-		// side it swings from is the animal's own, so a pack does not swipe in
-		// unison. The paw is furthest out just as the blow lands.
-		const float side = (npc.seed % 2 == 0) ? 1.0f : -1.0f;
-		const float out = 0.5f + lunge * 0.85f;
-		// The paw stays on its own side of the animal rather than crossing the
-		// centre line: swung across the face it read as a moustache.
-		// Well outside the body: a wolf's head reaches r * 1.6 forward and is
-		// r * 0.7 wide, so anything nearer than this lands on its own face.
-		const float pawAlong = r * (0.7f + out * 0.8f);
-		const float pawAcross = side * r * (1.25f - out * 0.22f);
-		const Point shoulder = f.at(r * 0.4f, side * r * b.bodyWide * 0.75f);
-		const Point paw = f.at(pawAlong, pawAcross);
-		paint.line(shoulder.x, shoulder.y, paw.x, paw.y, r * 0.22f + kInkWidth * scale, kInk);
-		paint.line(shoulder.x, shoulder.y, paw.x, paw.y, r * 0.22f, dark);
-		oval(paint, f, pawAlong, pawAcross, r * 0.21f, r * 0.18f, dark, true);
-		const Color claw = hurt ? rgb(0xffb0b0) : rgb(0xe8e2d0);
-		for (int i = -1; i <= 1; ++i) {
-			// Three of them, fanned forward off the front of the paw.
-			const float spread = i * 0.34f;
-			paint.inkedPoly({f.at(pawAlong + r * 0.12f, pawAcross + r * (spread - 0.09f)),
-							 f.at(pawAlong + r * 0.52f, pawAcross + r * (spread * 1.5f)),
-							 f.at(pawAlong + r * 0.12f, pawAcross + r * (spread + 0.09f))},
-							claw, kInkFine);
+		// The bite, not a swipe.
+		//
+		// A paw thrown out across the front of the animal read as a cartoon
+		// slap: it is the one part of the body you cannot see from above, and
+		// drawn where it would have to be it sat over the animal's own face.
+		// What you can see is the head, so the head is what the blow is: the
+		// jaws open, the muzzle comes forward past the nose, and the whole
+		// animal shortens behind it as it throws its weight in.
+		const float snapAt = f.scale > 0 ? 1.0f : 1.0f;
+		(void)snapAt;
+		const float open = std::sin(lunge * 3.14159265f);
+		const float reach = r * (b.headAt + 0.28f + lunge * 0.42f);
+		// The jaws: two wedges hinged at the muzzle, swung apart by `open`.
+		const float gape = 0.24f + open * 0.62f;
+		const float jaw = r * (b.headSize * 0.9f + lunge * 0.2f);
+		const Color mouth = hurt ? rgb(0xffb0b0) : rgb(0x2a1a14);
+		paint.inkedPoly({f.at(reach - jaw * 0.2f, 0),
+						 f.at(reach + jaw, -jaw * gape),
+						 f.at(reach + jaw * 1.12f, 0),
+						 f.at(reach + jaw, jaw * gape)},
+						mouth, kInkWidth);
+		// The teeth, three to a side, which is what says jaws rather than beak.
+		const Color tooth = hurt ? rgb(0xffd8d8) : rgb(0xf0ece0);
+		for (int side = -1; side <= 1; side += 2) {
+			const float sd = static_cast<float>(side);
+			for (int i = 0; i < 3; ++i) {
+				const float t = 0.34f + i * 0.26f;
+				const float tx = reach + jaw * t;
+				const float ty = sd * jaw * gape * t * 0.92f;
+				paint.inkedPoly({f.at(tx - jaw * 0.09f, ty),
+								 f.at(tx + jaw * 0.09f, ty),
+								 f.at(tx, ty - sd * jaw * 0.22f)},
+								tooth, kInkFine);
+			}
 		}
 	}
-
 	paint.useWorldScale(wasScale);
 }
 

@@ -109,7 +109,7 @@ void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screen
 	// fight the drawing over them, while a diagonal reads as tone. That is
 	// what the halftone is for, and it is why there is a second dot at the
 	// middle of every tile rather than one at its corner.
-	constexpr int kSpacing = 8;
+	constexpr int kSpacing = 10;
 	// The dots ARE the building grid, so this is not a free number: one dot
 	// step has to be one fine square, or a foundation stops landing on them.
 	static_assert(kSpacing * sim::kDeployGrid == sim::kBuildCell,
@@ -147,7 +147,7 @@ void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screen
 	// of each tile lands on one. Shifted half a tile either way they fall
 	// between the cells instead, and one edge of a foundation lines up while
 	// the other does not.
-	const float offX = static_cast<float>(std::fmod(cameraX * zoom, tile));
+	const float offX = static_cast<float>(std::fmod(cameraX * zoom, tile * 0.1f));
 	const float offY = static_cast<float>(std::fmod(cameraY * zoom, tile));
 	const SDL_FRect dst{-offX - tile, -offY - tile, screenW + tile * 2, screenH + tile * 2};
 	// The tile is baked four times larger than it is drawn, so its dots stay

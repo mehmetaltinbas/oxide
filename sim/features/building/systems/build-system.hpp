@@ -46,6 +46,16 @@ inline constexpr int kBuildTierCount = 4;
  */
 inline bool breaksByHand(BuildTier tier) { return tier == BuildTier::Twig; }
 
+/**
+ * Who owns what was on the island before anybody arrived.
+ *
+ * A monument's walls are ordinary building pieces, so that their doors open,
+ * their roofs lift and their walls stop you through the rules a base already
+ * has. What they are not is anybody's: you cannot hammer them, upgrade them,
+ * or bring them down with a hundred rockets.
+ */
+inline constexpr int kIslandOwner = -1;
+
 struct TierDef {
 	BuildTier tier;
 	const char* name;
@@ -160,6 +170,13 @@ public:
 	 * back: the time you get is the mercy, not the materials.
 	 */
 	static constexpr double kFreeDemolishSeconds = 900;
+
+	/**
+	 * Puts up a monument's building. Owned by the island, so nothing can be
+	 * done to it: see kIslandOwner.
+	 */
+	void raiseMonumentRoom(int gx, int gy, int wide, int deep, bool roofed, int doorSide,
+						   int doorAt);
 
 	/** Takes a piece back down. Says whether it was young enough and yours. */
 	bool demolish(Structure& piece, int owner);

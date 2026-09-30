@@ -19,7 +19,9 @@ add_library(oxide_sim STATIC
 
     # monuments: the hand-placed landmarks and their loot
     features/monuments/constants/monument-defs.constant.cpp
+    features/monuments/constants/monument-rooms.constant.cpp
     features/monuments/systems/monument-placement.cpp
+    features/monuments/utils/raise-monuments.util.cpp
 
     # items: what a thing is, and the bags it sits in
     features/items/constants/item-defs.constant.cpp

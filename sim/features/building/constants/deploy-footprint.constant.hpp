@@ -19,7 +19,7 @@ namespace sim {
  * A deployable used to take a whole cell, so a campfire and a furnace were
  * the same size and two of anything could not share a room's corner.
  */
-inline constexpr int kDeployGrid = 10;
+inline constexpr int kDeployGrid = 8;
 
 /** One of those fine squares, in world units. */
 inline constexpr double kDeployCell = static_cast<double>(kBuildCell) / kDeployGrid;

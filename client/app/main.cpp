@@ -82,6 +82,7 @@
 #include "client/design/tokens/interface.tokens.hpp"
 #include "sim/features/building/constants/deploy-footprint.constant.hpp"
 #include "sim/features/items/utils/is-belt-item.util.hpp"
+#include "sim/features/monuments/utils/raise-monuments.util.hpp"
 
 /**
  * The game as you play it: an island from a seed, someone standing on it, and
@@ -471,6 +472,9 @@ int main(int argc, char** argv) {
 	// Nothing dropped lands inside a wall or under a boulder: the world is
 	// told once what is solid and settles every drop itself.
 	sim::settleDropsAgainst(world, build);
+
+	// The monuments' own buildings, before anybody walks about.
+	sim::raiseMonuments(world, build);
 
 
 	// Nothing grows back up through a floor: the world asks the building

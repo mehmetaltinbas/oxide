@@ -20,6 +20,7 @@
 #include "sim/features/combat/systems/projectiles.hpp"
 #include "sim/features/world/systems/world.hpp"
 #include "sim/shared/utils/collide.util.hpp"
+#include "sim/features/monuments/utils/raise-monuments.util.hpp"
 
 /**
  * The authority.
@@ -87,6 +88,8 @@ struct Room {
 	 * docs/systems/dropped-items.md.
 	 */
 	Room() { sim::settleDropsAgainst(world, build); }
+	/** Called once the island exists, which is after the constructor. */
+	void raise() { sim::raiseMonuments(world, build); }
 };
 
 void send(ENetPeer* peer, int channel, const Writer& writer, bool reliable) {
@@ -146,6 +149,7 @@ int main(int argc, char** argv) {
 		room.name = name;
 		room.seed = withSeed;
 		room.world.generate(withSeed);
+		room.raise();
 		room.npcs.populate(room.world, withSeed);
 		room.npcs.garrison(room.world, withSeed);
 		std::printf("Island %u \"%s\" from seed %u: %zu things on it\n", id, name.c_str(),

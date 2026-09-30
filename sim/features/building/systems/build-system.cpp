@@ -220,6 +220,33 @@ Structure& BuildSystem::placeCeiling(int gx, int gy, int owner, BuildTier tier) 
 	return pieces_.back();
 }
 
+void BuildSystem::raiseMonumentRoom(int gx, int gy, int wide, int deep, bool roofed,
+								   int doorSide, int doorAt) {
+	// The floor, and the roof over it if it has one.
+	for (int dy = 0; dy < deep; ++dy) {
+		for (int dx = 0; dx < wide; ++dx) {
+			placeFoundation(gx + dx, gy + dy, kIslandOwner, BuildTier::Metal);
+			if (roofed) placeCeiling(gx + dx, gy + dy, kIslandOwner, BuildTier::Metal);
+		}
+	}
+	// The wall round it. A cell owns its north and its west edge, so the south
+	// and east walls belong to the cells just outside the room.
+	const auto wall = [&](int wx, int wy, EdgeSide side, bool door) {
+		if (edgeAt(wx, wy, side)) return;
+		Structure& piece = placeEdge(wx, wy, side, door ? BuildKind::Doorway : BuildKind::Wall,
+									 kIslandOwner, BuildTier::Metal);
+		piece.open = door;
+	};
+	for (int dx = 0; dx < wide; ++dx) {
+		wall(gx + dx, gy, EdgeSide::North, doorSide == 0 && dx == doorAt);
+		wall(gx + dx, gy + deep, EdgeSide::North, doorSide == 1 && dx == doorAt);
+	}
+	for (int dy = 0; dy < deep; ++dy) {
+		wall(gx, gy + dy, EdgeSide::West, doorSide == 2 && dy == doorAt);
+		wall(gx + wide, gy + dy, EdgeSide::West, doorSide == 3 && dy == doorAt);
+	}
+}
+
 bool BuildSystem::demolish(Structure& piece, int owner) {
 	if (piece.owner != owner) return false;
 	if (piece.age > kFreeDemolishSeconds) return false;
@@ -291,6 +318,10 @@ bool BuildSystem::upgrade(Structure& piece, Inventory& inventory) {
 bool BuildSystem::damage(Structure& piece, double amount, double fromX, double fromY, bool melee,
 						 bool blast) {
 	if (piece.hp <= 0) return false;
+	// The island's own building is not a thing you get through: a monument
+	// that could be opened with enough charges would be opened once and never
+	// be a monument again.
+	if (piece.owner == kIslandOwner) return false;
 	// Anything short of a blast only marks twig: see breaksByHand.
 	if (!blast && !breaksByHand(piece.tier)) return false;
 	if (melee) amount *= tierDef(piece.tier).meleeMul;
