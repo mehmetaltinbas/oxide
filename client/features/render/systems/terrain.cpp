@@ -147,8 +147,10 @@ void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screen
 	// of each tile lands on one. Shifted half a tile either way they fall
 	// between the cells instead, and one edge of a foundation lines up while
 	// the other does not.
-	const float offX = static_cast<float>(std::fmod(cameraX * zoom, tile * 0.1f));
-	const float offY = static_cast<float>(std::fmod(cameraY * zoom, tile));
+	const float offX =
+		static_cast<float>(std::fmod(cameraX * zoom, tile)) + kScreenNudgeX * static_cast<float>(zoom);
+	const float offY =
+		static_cast<float>(std::fmod(cameraY * zoom, tile)) + kScreenNudgeY * static_cast<float>(zoom);
 	const SDL_FRect dst{-offX - tile, -offY - tile, screenW + tile * 2, screenH + tile * 2};
 	// The tile is baked four times larger than it is drawn, so its dots stay
 	// round when the view is zoomed in.

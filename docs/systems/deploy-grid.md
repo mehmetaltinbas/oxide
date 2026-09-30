@@ -37,6 +37,28 @@ lattice diagonal while keeping the corner dots on the eights.
 Both live in `Terrain::drawScreen`. Changing either one changes where every
 building in the game appears to sit, so neither is a visual preference.
 
+### Moving the dots by hand
+
+`kScreenNudgeX` and `kScreenNudgeY`, in `world.tokens.hpp`, shift the whole
+lattice in world units. **Positive moves the dots left and up.** Both are
+nought, which is what puts a dot on every multiple of the step and therefore
+puts a foundation's corner on one.
+
+A whole step brings the pattern back to where it started, so anything outside
+plus or minus half a step is the same as a smaller number. Half a step exactly
+is a special case worth knowing: because the lattice is diagonal, shifting it
+half a step sideways lands it back on itself with the rows swapped, so it
+looks unchanged. Use a quarter step if you are checking which way it moves.
+
+### The rule that ties it together
+
+    kSpacing  x  kDeployGrid  =  kBuildCell
+        8            10            80
+
+The dot step times the squares in a foundation is the foundation. There is a
+`static_assert` on it in `Terrain::drawScreen`, so getting it wrong is a build
+error rather than something you notice weeks later.
+
 ## Footprints
 
 `deployFootprint(kind)` is the table, in fine squares, measured the way the

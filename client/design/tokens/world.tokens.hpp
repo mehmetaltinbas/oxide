@@ -90,6 +90,20 @@ constexpr float kNodeInnerScale = 0.38f;
  */
 constexpr float kGroundInkScale = 0.6f;
 
+/**
+ * Where the whole dot lattice sits, in world units.
+ *
+ * Nought puts a dot on every multiple of the dot step, which is what makes a
+ * foundation's corner land on one: see docs/systems/deploy-grid.md. These two
+ * are here for nudging the pattern by hand and nothing else. A whole step
+ * moves it back to where it was, so anything outside plus or minus half a
+ * step is the same as a smaller number.
+ *
+ * Positive moves the dots LEFT and UP. Negative moves them right and down.
+ */
+constexpr float kScreenNudgeX = 0.0f;
+constexpr float kScreenNudgeY = 0.0f;
+
 // ------------------------------------------------------------ item pictures
 //
 // These two are in PIXELS, not world units, because an item's picture is drawn
