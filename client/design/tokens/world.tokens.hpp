@@ -91,6 +91,21 @@ constexpr float kNodeInnerScale = 0.38f;
 constexpr float kGroundInkScale = 0.6f;
 
 /**
+ * The line where a road meets anything else, in world units.
+ *
+ * Two units, a fifth of a fine square: the border of a panel, bold enough to
+ * read as drawn rather than as a seam in a texture.
+ */
+constexpr float kRoadEdgeInk = 2.0f;
+/**
+ * The line where any two other grounds meet, in world units.
+ *
+ * Six tenths of a unit. The pencil under the picture, not the panel border:
+ * at anything like the road's weight the whole island reads as a jigsaw.
+ */
+constexpr float kBiomeSeamInk = 0.6f;
+
+/**
  * Where the whole dot lattice sits, in world units.
  *
  * Nought puts a dot on every multiple of the dot step, which is what makes a

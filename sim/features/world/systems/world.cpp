@@ -27,6 +27,13 @@ constexpr int kSnowPocketTiles = 400;
 constexpr double kSnowPocketShare = 0.6;
 /** Tiles of grass kept between the forest and the desert. */
 constexpr int kForestDesertBelt = 2;
+/**
+ * How many tiles of green a country will reach through to its own shore.
+ *
+ * Two. One leaves a stripe where the noise left two; more than two and a
+ * desert starts eating meadow that had a reason to be there.
+ */
+constexpr int kShoreGapPasses = 2;
 
 double clamp01(double v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
 
@@ -40,6 +47,7 @@ void World::generate(std::uint32_t seed) {
 	generateBiomes(rng);
 	closeSnowfield();
 	separateForestAndDesert();
+	closeGapsToTheShore();
 	drainLakesOnTheRoad();
 	growBeaches();
 
@@ -203,6 +211,47 @@ void World::separateForestAndDesert() {
 					}
 				}
 				if (touchesDesert) biomes_[y * kBiomeCols + x] = Biome::Grass;
+			}
+		}
+	}
+}
+
+void World::closeGapsToTheShore() {
+	// A country runs to its own shore.
+	//
+	// The noise likes to leave a stripe of grass between the desert and the
+	// sand, and between the snow and the sea, one or two tiles wide. It means
+	// nothing: there is no reason for a ribbon of meadow between a dune and a
+	// beach, and from the ground it reads as the island having been patched
+	// rather than grown. Anything green that touches a country on one side and
+	// open water on the other is given to that country.
+	//
+	// Written as one rule over a table rather than as a case for the desert
+	// and another for the snow, so a new country gets it by being added here.
+	struct Reaches {
+		Biome country;
+	};
+	static constexpr Reaches kReach[] = {{Biome::Desert}, {Biome::Snow}};
+	for (int pass = 0; pass < kShoreGapPasses; ++pass) {
+		const std::vector<Biome> was = biomes_;
+		for (int y = 1; y < kBiomeRows - 1; ++y) {
+			for (int x = 1; x < kBiomeCols - 1; ++x) {
+				if (!isGreen(was[y * kBiomeCols + x])) continue;
+				for (const Reaches& reach : kReach) {
+					bool touchesCountry = false;
+					bool touchesSea = false;
+					for (int oy = -1; oy <= 1; ++oy) {
+						for (int ox = -1; ox <= 1; ++ox) {
+							const Biome at = was[(y + oy) * kBiomeCols + x + ox];
+							if (at == reach.country) touchesCountry = true;
+							if (at == Biome::Water) touchesSea = true;
+						}
+					}
+					if (touchesCountry && touchesSea) {
+						biomes_[y * kBiomeCols + x] = reach.country;
+						break;
+					}
+				}
 			}
 		}
 	}

@@ -30,7 +30,7 @@ not a hypothetical here, it is where the collision bug came from.
 | What is solid, and standing against it | `sim/shared/utils/collide.util.hpp` |
 | Whether a health bar is on screen | `sim/shared/utils/health.util.hpp` |
 | Whether something taking time may carry on | `sim/features/survival/utils/channelled.util.hpp` |
-| How much floor a deployable takes | `sim/features/building/constants/deploy-footprint.constant.hpp` |
+| What a deployable is, in every respect | `sim/features/building/constants/deploy-defs.constant.cpp` |
 | Colour, ink weight, spacing of a mark | `client/design/tokens/world.tokens.hpp` |
 | Colour, radius, spacing of the interface | `client/design/tokens/interface.tokens.hpp` |
 | How one item is drawn, anywhere | `client/features/items/draw/item-glyph.cpp`, one glyph per item |

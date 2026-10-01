@@ -10,11 +10,17 @@ namespace sim {
  * anywhere. Carried over from the TypeScript game, where 20736 was chosen
  * because it divides evenly by both the biome tile and the build cell.
  */
-// A multiple of both the biome tile and the build cell, which is what the
-// assertions below are about: 20640 is 215 tiles and 258 foundations. It was
-// 20736, which divides by ninety-six and by sixty-four but not by eighty.
-inline constexpr int kWorldWidth = 20640;
-inline constexpr int kWorldHeight = 20640;
+/**
+ * How big the island is.
+ *
+ * Nineteen thousand two hundred, which is the one size near twenty thousand
+ * that divides three ways at once: two hundred biome tiles, two hundred and
+ * forty foundations, and twenty lettered map squares of **twelve foundations
+ * each**. A map square that was not a whole number of foundations meant the
+ * two grids crossed each other at an angle nobody could use.
+ */
+inline constexpr int kWorldWidth = 19200;
+inline constexpr int kWorldHeight = 19200;
 
 /** Terrain is painted from a coarse grid; everything alive lives in world units. */
 inline constexpr int kBiomeTile = 96;

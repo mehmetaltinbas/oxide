@@ -137,6 +137,7 @@ private:
 	void closeSnowfield();
 	/** A belt of grass between the forest and the desert, which never meet. */
 	void separateForestAndDesert();
+	void closeGapsToTheShore();
 	/** Any lake the road would cross is drained before the road is laid. */
 	void drainLakesOnTheRoad();
 	/** Sand where the land meets the sea, snowed over on a cold coast. */

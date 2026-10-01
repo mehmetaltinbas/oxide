@@ -81,6 +81,9 @@ and there are flags for every state worth looking at: see
   bandage, a syringe: each asks `stillInHand` in its own tick and stops when
   the item leaves the hand. Never cancel one from wherever the slot changed.
   See [docs/systems/channelled-actions.md](docs/systems/channelled-actions.md).
+- **One row per deployable.** A campfire, a box or a bench is one row of
+  `kDefs`, checked against the enum at compile time. Never a new `switch` case
+  in five files. See [docs/systems/deployables.md](docs/systems/deployables.md).
 - **A health bar obeys one rule.** Anything that can be hurt carries
   `sinceHurt`, calls `tookDamage` wherever health drops and `ageWound` every
   tick, and the drawing asks `showsHealth`. See

@@ -1877,11 +1877,54 @@ int main(int argc, char** argv) {
 			client::drawBuilt(paint, piece, camX, camY, scale, width, height);
 			anyFloor = true;
 		}
-		// The dots again, over the floors. They are the unit everything you
-		// put down is measured in, so they have to be there to measure
-		// against: a foundation that hid them left you placing a bench by eye
-		// on the one ground where the size of it matters.
-		if (anyFloor) terrain.drawScreen(camX, camY, scale, width, height);
+		if (deploying) {
+			// The floor it would take, at its own size and its own turn, with
+			// the fine grid drawn inside it: what matters is the footprint,
+			// and a whole cell lit up said nothing about a two by one bench.
+			double halfWide = 0;
+			double halfDeep = 0;
+			sim::BuildSystem::deployBounds(deployKind, deployTurned, deployX, deployY, halfWide,
+										   halfDeep);
+			const float gx =
+				static_cast<float>((deployX - halfWide - camX) * scale) + width * 0.5f;
+			const float gy =
+				static_cast<float>((deployY - halfDeep - camY) * scale) + height * 0.5f;
+			const float w = static_cast<float>(halfWide * 2 * scale);
+			const float h = static_cast<float>(halfDeep * 2 * scale);
+			const client::Color tint = deployRefusal ? client::Color{224, 80, 60, 150}
+													 : client::Color{124, 200, 255, 150};
+			paint.fillRect(gx, gy, w, h, tint);
+			// The thing itself, under the wash: which way round it would go is
+			// the whole reason you turn it before putting it down, and a plain
+			// rectangle says nothing about that. Drawn first and then washed
+			// over, so it reads as a shadow of the thing rather than as the
+			// thing already standing there.
+			sim::Deployable preview{};
+			preview.kind = deployKind;
+			preview.turned = deployTurned;
+			preview.x = deployX;
+			preview.y = deployY;
+			preview.hp = 1;
+			preview.maxHp = 1;
+			client::drawDeployable(paint, preview,
+								   static_cast<float>((deployX - camX) * scale) + width * 0.5f,
+								   static_cast<float>((deployY - camY) * scale) + height * 0.5f,
+								   static_cast<float>(scale), static_cast<float>(clock));
+			paint.fillRect(gx, gy, w, h, tint);
+			// One world unit, in world units: Paint multiplies every stroke by
+			// the view's own scale, so a width already multiplied by it comes
+			// out squared. At zoom four that was a sixty-four pixel border
+			// round a box forty units wide.
+			paint.outlineRoundRect(gx, gy, w, h, 0, 1.0f, client::kInk);
+
+		}
+		// The dots again, over the floors and over the placement box. They are
+		// the unit everything you put down is measured in, so they have to be
+		// there to measure against: a foundation that hid them left you
+		// placing a bench by eye on the one ground where the size of it
+		// matters, and a placement box that hid them hid the very squares it
+		// was there to count.
+		if (anyFloor || deploying) terrain.drawScreen(camX, camY, scale, width, height);
 
 		const int myRegion = build.regionAt(player.x, player.y);
 		// What is sealed in a room you are not in is out of sight, roof and all.
@@ -1889,6 +1932,25 @@ int main(int argc, char** argv) {
 			const int region = build.regionAt(wx, wy);
 			return region != 0 && region != myRegion;
 		};
+
+		// Where something was taken from: a hole in the ground that closes over
+		// as it grows back. Drawn with the ground rather than with the things
+		// standing on it, because that is what it is: a stack lying in one was
+		// being covered by it.
+		for (const sim::ResourceNode& node : world.nodes()) {
+			if (node.hp > 0) continue;
+			const float hx = static_cast<float>((node.x - camX) * scale) + width * 0.5f;
+			const float hy = static_cast<float>((node.y - camY) * scale) + height * 0.5f;
+			if (hx < -80 || hy < -80 || hx > width + 80 || hy > height + 80) continue;
+			if (hidden(node.x, node.y)) continue;
+			const float rx = static_cast<float>(node.radius * scale) * 0.6f;
+			const float ry = static_cast<float>(node.radius * scale) * 0.35f;
+			// Inked like everything else standing on the island, or it read as
+			// a smudge on the grass rather than a hole in it.
+			paint.fillPoly(client::ellipsePoints(hx, hy, rx, ry), client::Color{22, 24, 20, 210});
+			paint.outlinePoly(client::ellipsePoints(hx, hy, rx, ry), client::kInkWidth,
+							  client::kInk);
+		}
 
 		for (const sim::Dropped& drop : world.drops()) {
 			const float sx = static_cast<float>((drop.x - camX) * scale) + width * 0.5f;
@@ -2036,22 +2098,8 @@ int main(int argc, char** argv) {
 			drawAnimalsUpTo(node->y);
 			// Felled, broken or picked: gone from the island until it grows
 			// back, rather than standing there at nought health.
-			if (node->hp <= 0) {
-				// What is left where it stood: a hole in the ground the size of
-				// its own foot, which closes over as it grows back.
-				const float hx = static_cast<float>((node->x - camX) * scale) + width * 0.5f;
-				const float hy = static_cast<float>((node->y - camY) * scale) + height * 0.5f;
-				if (hx < -80 || hy < -80 || hx > width + 80 || hy > height + 80) continue;
-				const float rx = static_cast<float>(node->radius * scale) * 0.6f;
-				const float ry = static_cast<float>(node->radius * scale) * 0.35f;
-				// Inked like everything else standing on the island, or it read
-				// as a smudge on the grass rather than a hole in it.
-				paint.fillPoly(client::ellipsePoints(hx, hy, rx, ry),
-							   client::Color{22, 24, 20, 210});
-				paint.outlinePoly(client::ellipsePoints(hx, hy, rx, ry), client::kInkWidth,
-								  client::kInk);
-				continue;
-			}
+			// Its hole was drawn with the ground, before anything lay on it.
+			if (node->hp <= 0) continue;
 			if (!playerDrawn && node->y > player.y) drawPlayer();
 			const float sx = static_cast<float>((node->x - camX) * scale) + width * 0.5f;
 			const float sy = static_cast<float>((node->y - camY) * scale) + height * 0.5f;
@@ -2264,47 +2312,7 @@ int main(int argc, char** argv) {
 			client::drawGhost(paint, target, sim::BuildTier::Twig, refusal == nullptr, camX, camY,
 							  scale, width, height);
 		}
-		if (deploying) {
-			// The floor it would take, at its own size and its own turn, with
-			// the fine grid drawn inside it: what matters is the footprint,
-			// and a whole cell lit up said nothing about a two by one bench.
-			double halfWide = 0;
-			double halfDeep = 0;
-			sim::BuildSystem::deployBounds(deployKind, deployTurned, deployX, deployY, halfWide,
-										   halfDeep);
-			const float gx =
-				static_cast<float>((deployX - halfWide - camX) * scale) + width * 0.5f;
-			const float gy =
-				static_cast<float>((deployY - halfDeep - camY) * scale) + height * 0.5f;
-			const float w = static_cast<float>(halfWide * 2 * scale);
-			const float h = static_cast<float>(halfDeep * 2 * scale);
-			const client::Color tint = deployRefusal ? client::Color{224, 80, 60, 150}
-													 : client::Color{124, 200, 255, 150};
-			paint.fillRect(gx, gy, w, h, tint);
-			// The thing itself, under the wash: which way round it would go is
-			// the whole reason you turn it before putting it down, and a plain
-			// rectangle says nothing about that. Drawn first and then washed
-			// over, so it reads as a shadow of the thing rather than as the
-			// thing already standing there.
-			sim::Deployable preview{};
-			preview.kind = deployKind;
-			preview.turned = deployTurned;
-			preview.x = deployX;
-			preview.y = deployY;
-			preview.hp = 1;
-			preview.maxHp = 1;
-			client::drawDeployable(paint, preview,
-								   static_cast<float>((deployX - camX) * scale) + width * 0.5f,
-								   static_cast<float>((deployY - camY) * scale) + height * 0.5f,
-								   static_cast<float>(scale), static_cast<float>(clock));
-			paint.fillRect(gx, gy, w, h, tint);
-			// One world unit, in world units: Paint multiplies every stroke by
-			// the view's own scale, so a width already multiplied by it comes
-			// out squared. At zoom four that was a sixty-four pixel border
-			// round a box forty units wide.
-			paint.outlineRoundRect(gx, gy, w, h, 0, 1.0f, client::kInk);
 
-		}
 
 		for (const sim::Bullet& bullet : projectiles.list()) {
 			const float bx = static_cast<float>((bullet.x - camX) * scale) + width * 0.5f;

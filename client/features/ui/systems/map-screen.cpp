@@ -31,6 +31,10 @@ namespace {
  * it is sixteen, which is a place rather than a district.
  */
 constexpr int kCellsAcross = 20;
+// A lettered square has to be a whole number of foundations, or the map's
+// grid and the building grid cross each other at an angle nobody can use.
+static_assert(sim::kWorldWidth % (kCellsAcross * sim::kBuildCell) == 0,
+			  "a map square must be a whole number of foundations");
 constexpr double kGridSize =
 	(sim::kWorldWidth > sim::kWorldHeight ? sim::kWorldWidth : sim::kWorldHeight) / kCellsAcross;
 

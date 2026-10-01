@@ -17,4 +17,7 @@ enum class DeployKind : std::uint8_t {
 	Workbench3,
 };
 
+/** How many there are, which is what the one table of them is checked against. */
+inline constexpr int kDeployKindCount = 9;
+
 }  // namespace sim

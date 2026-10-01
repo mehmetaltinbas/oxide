@@ -209,7 +209,9 @@ void Terrain::drawOver(Paint& paint, const sim::World& world, double cameraX, do
 				const float y0 =
 					static_cast<float>((row * sim::kBiomeTile - cameraY) * zoom) + screenH * 0.5f;
 				const float w = static_cast<float>(sim::kBiomeTile * zoom);
-				const float hair = kInkFine * 0.8f * static_cast<float>(zoom);
+				// In world units: Paint multiplies by the view's own scale, so
+				// multiplying by it here as well squared it.
+				const float hair = kBiomeSeamInk;
 				const auto at = [&](int dc, int dr) {
 					const int c = col + dc;
 					const int r = row + dr;
@@ -238,10 +240,9 @@ void Terrain::drawOver(Paint& paint, const sim::World& world, double cameraX, do
 				const float y0 = static_cast<float>((row * sim::kBiomeTile - cameraY) * zoom) +
 								 screenH * 0.5f;
 				const float w = static_cast<float>(sim::kBiomeTile * zoom);
-				// Heavier than a node's outline: this is a panel border between
-				// two grounds, not a line round an object, and at a node's
-				// weight it came out under a pixel and could not be seen.
-				const float ink = kInkWidth * 3.0f * static_cast<float>(zoom);
+				// Heavier than the seam between two ordinary grounds: a road is
+				// a panel border. In world units, like every other stroke.
+				const float ink = kRoadEdgeInk;
 				const auto other = [&](int dc, int dr) {
 					const int c = col + dc;
 					const int r = row + dr;

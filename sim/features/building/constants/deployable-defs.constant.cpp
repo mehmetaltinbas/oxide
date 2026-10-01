@@ -4,38 +4,15 @@
 #include "sim/features/items/constants/item-defs.constant.hpp"
 #include "sim/features/items/types/item-id.enum.hpp"
 #include "sim/features/items/types/item-stack.struct.hpp"
+#include "sim/features/building/constants/deploy-defs.constant.hpp"
 
 #include <algorithm>
 
 namespace sim {
 
-int benchTier(DeployKind kind) {
-	switch (kind) {
-		case DeployKind::Workbench1: return 1;
-		case DeployKind::Workbench2: return 2;
-		case DeployKind::Workbench3: return 3;
-		default: return 0;
-	}
-}
+int benchTier(DeployKind kind) { return deployDef(kind).bench; }
 
-int containerSlots(DeployKind kind) {
-	switch (kind) {
-		// Three rows of six.
-		case DeployKind::WoodenBox: return 18;
-		// Seven rows of six: a large box is the reason a base has a loot room
-		// rather than a wall of crates.
-		case DeployKind::LargeBox: return 42;
-		case DeployKind::Furnace: return 6;
-		case DeployKind::Campfire: return 4;
-		// A cupboard holds the upkeep, which is not in yet, and a bag holds you.
-		case DeployKind::ToolCupboard: return 6;
-		case DeployKind::SleepingBag: return 0;
-		case DeployKind::Workbench1:
-		case DeployKind::Workbench2:
-		case DeployKind::Workbench3: return 0;
-	}
-	return 0;
-}
+int containerSlots(DeployKind kind) { return deployDef(kind).slots; }
 
 int Container::add(ItemId id, int count) {
 	if (id == ItemId::None || count <= 0) return 0;
@@ -80,33 +57,15 @@ int Container::take(ItemId id, int count) {
 }
 
 bool deployableOf(ItemId id, DeployKind& out) {
-	switch (id) {
-		case ItemId::Campfire: out = DeployKind::Campfire; return true;
-		case ItemId::Furnace: out = DeployKind::Furnace; return true;
-		case ItemId::ToolCupboard: out = DeployKind::ToolCupboard; return true;
-		case ItemId::WoodenBox: out = DeployKind::WoodenBox; return true;
-		case ItemId::LargeBox: out = DeployKind::LargeBox; return true;
-		case ItemId::SleepingBag: out = DeployKind::SleepingBag; return true;
-		case ItemId::Workbench1: out = DeployKind::Workbench1; return true;
-		case ItemId::Workbench2: out = DeployKind::Workbench2; return true;
-		case ItemId::Workbench3: out = DeployKind::Workbench3; return true;
-		default: return false;
+	for (int i = 0; i < kDeployKindCount; ++i) {
+		const DeployKind kind = static_cast<DeployKind>(i);
+		if (deployDef(kind).item != id) continue;
+		out = kind;
+		return true;
 	}
+	return false;
 }
 
-ItemId itemOf(DeployKind kind) {
-	switch (kind) {
-		case DeployKind::Campfire: return ItemId::Campfire;
-		case DeployKind::Furnace: return ItemId::Furnace;
-		case DeployKind::ToolCupboard: return ItemId::ToolCupboard;
-		case DeployKind::WoodenBox: return ItemId::WoodenBox;
-		case DeployKind::LargeBox: return ItemId::LargeBox;
-		case DeployKind::SleepingBag: return ItemId::SleepingBag;
-		case DeployKind::Workbench1: return ItemId::Workbench1;
-		case DeployKind::Workbench2: return ItemId::Workbench2;
-		case DeployKind::Workbench3: return ItemId::Workbench3;
-	}
-	return ItemId::None;
-}
+ItemId itemOf(DeployKind kind) { return deployDef(kind).item; }
 
 }  // namespace sim
