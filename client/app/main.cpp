@@ -2278,23 +2278,32 @@ int main(int argc, char** argv) {
 				static_cast<float>((deployY - halfDeep - camY) * scale) + height * 0.5f;
 			const float w = static_cast<float>(halfWide * 2 * scale);
 			const float h = static_cast<float>(halfDeep * 2 * scale);
-			const client::Color tint = deployRefusal ? client::Color{224, 80, 60, 90}
-													 : client::Color{124, 200, 255, 90};
+			const client::Color tint = deployRefusal ? client::Color{224, 80, 60, 150}
+													 : client::Color{124, 200, 255, 150};
+			paint.fillRect(gx, gy, w, h, tint);
+			// The thing itself, under the wash: which way round it would go is
+			// the whole reason you turn it before putting it down, and a plain
+			// rectangle says nothing about that. Drawn first and then washed
+			// over, so it reads as a shadow of the thing rather than as the
+			// thing already standing there.
+			sim::Deployable preview{};
+			preview.kind = deployKind;
+			preview.turned = deployTurned;
+			preview.x = deployX;
+			preview.y = deployY;
+			preview.hp = 1;
+			preview.maxHp = 1;
+			client::drawDeployable(paint, preview,
+								   static_cast<float>((deployX - camX) * scale) + width * 0.5f,
+								   static_cast<float>((deployY - camY) * scale) + height * 0.5f,
+								   static_cast<float>(scale), static_cast<float>(clock));
 			paint.fillRect(gx, gy, w, h, tint);
 			// One world unit, in world units: Paint multiplies every stroke by
 			// the view's own scale, so a width already multiplied by it comes
 			// out squared. At zoom four that was a sixty-four pixel border
 			// round a box forty units wide.
 			paint.outlineRoundRect(gx, gy, w, h, 0, 1.0f, client::kInk);
-			const float step = static_cast<float>(sim::kDeployCell * scale);
-			// Half a unit for the squares inside it: they are a reading aid
-			// under the border, not a second border.
-			for (float lx = gx + step; lx < gx + w - 0.5f; lx += step) {
-				paint.line(lx, gy, lx, gy + h, 0.5f, client::Color{20, 17, 13, 70});
-			}
-			for (float ly = gy + step; ly < gy + h - 0.5f; ly += step) {
-				paint.line(gx, ly, gx + w, ly, 0.5f, client::Color{20, 17, 13, 70});
-			}
+
 		}
 
 		for (const sim::Bullet& bullet : projectiles.list()) {
