@@ -83,6 +83,7 @@
 #include "sim/features/building/constants/deploy-footprint.constant.hpp"
 #include "sim/features/items/utils/is-belt-item.util.hpp"
 #include "sim/features/monuments/utils/raise-monuments.util.hpp"
+#include "sim/features/world/constants/regrowth.constant.hpp"
 
 /**
  * The game as you play it: an island from a seed, someone standing on it, and
@@ -489,13 +490,30 @@ int main(int argc, char** argv) {
 
 	// Nothing grows back up through a floor: the world asks the building
 	// system before it puts anything back.
-	world.setRegrowthBlocked(&build, [](const void* owner, double x, double y) {
-		const auto* build = static_cast<const sim::BuildSystem*>(owner);
+	// Two things hold a regrowth back, and they hold it rather than cancel it:
+	// a floor over the spot, and anybody standing near it. The first keeps the
+	// ground yours for as long as the base is up; the second stops a tree
+	// growing through somebody. Both are asked here, every second, and the
+	// moment neither is true the thing comes back.
+	struct Ground {
+		const sim::BuildSystem* build;
+		const sim::Player* player;
+	};
+	static Ground ground{&build, &player};
+	world.setRegrowthBlocked(&ground, [](const void* owner, double x, double y) {
+		const auto* at = static_cast<const Ground*>(owner);
 		const int gx = static_cast<int>(std::floor(x / sim::kBuildCell));
 		const int gy = static_cast<int>(std::floor(y / sim::kBuildCell));
-		if (build->foundationAt(gx, gy)) return true;
-		return const_cast<sim::BuildSystem*>(build)->deployableNear(x, y, sim::kDeployHalf * 2) !=
-			   nullptr;
+		if (at->build->foundationAt(gx, gy)) return true;
+		if (const_cast<sim::BuildSystem*>(at->build)->deployableNear(x, y, sim::kDeployHalf * 2)) {
+			return true;
+		}
+		if (at->player->alive) {
+			const double dx = at->player->x - x;
+			const double dy = at->player->y - y;
+			if (dx * dx + dy * dy < sim::kRegrowthClearance * sim::kRegrowthClearance) return true;
+		}
+		return false;
 	});
 
 	sim::NpcSystem npcs;
@@ -1957,6 +1975,13 @@ int main(int argc, char** argv) {
 			const float hy = static_cast<float>((node.y - camY) * scale) + height * 0.5f;
 			if (hx < -80 || hy < -80 || hx > width + 80 || hy > height + 80) continue;
 			if (hidden(node.x, node.y)) continue;
+			// Not under a floor. A hole is where something will come back, and
+			// nothing is coming back through a foundation: the ground is yours
+			// until the base is gone, and then the hole is there again.
+			if (build.foundationAt(static_cast<int>(SDL_floor(node.x / sim::kBuildCell)),
+								   static_cast<int>(SDL_floor(node.y / sim::kBuildCell)))) {
+				continue;
+			}
 			const float rx = static_cast<float>(node.radius * scale) * 0.6f;
 			const float ry = static_cast<float>(node.radius * scale) * 0.35f;
 			// Inked like everything else standing on the island, or it read as

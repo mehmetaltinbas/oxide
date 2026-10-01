@@ -28,12 +28,13 @@ constexpr double kSnowPocketShare = 0.6;
 /** Tiles of grass kept between the forest and the desert. */
 constexpr int kForestDesertBelt = 2;
 /**
- * How many tiles of green a country will reach through to its own shore.
+ * How wide a ribbon of green a country will swallow to reach its own shore.
  *
- * Two. One leaves a stripe where the noise left two; more than two and a
- * desert starts eating meadow that had a reason to be there.
+ * Four tiles, which at eighty units each is a strip you could not do anything
+ * with anyway. Wider than that and the meadow had a reason to be there, so it
+ * is left alone.
  */
-constexpr int kShoreGapPasses = 2;
+constexpr int kShoreGapReach = 4;
 
 double clamp01(double v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
 
@@ -219,42 +220,51 @@ void World::separateForestAndDesert() {
 void World::closeGapsToTheShore() {
 	// A country runs to its own shore.
 	//
-	// The noise likes to leave a stripe of grass between the desert and the
-	// sand, and between the snow and the sea, one or two tiles wide. It means
-	// nothing: there is no reason for a ribbon of meadow between a dune and a
-	// beach, and from the ground it reads as the island having been patched
-	// rather than grown. Anything green that touches a country on one side and
-	// open water on the other is given to that country.
+	// The noise likes to leave a ribbon of meadow between the desert and the
+	// sea, or between the snowfield and it. It means nothing: there is no
+	// reason for a strip of grass between a dune and the water, and from the
+	// ground it reads as the island having been patched rather than grown.
 	//
-	// Written as one rule over a table rather than as a case for the desert
-	// and another for the snow, so a new country gets it by being added here.
-	struct Reaches {
-		Biome country;
-	};
-	static constexpr Reaches kReach[] = {{Biome::Desert}, {Biome::Snow}};
-	for (int pass = 0; pass < kShoreGapPasses; ++pass) {
-		const std::vector<Biome> was = biomes_;
-		for (int y = 1; y < kBiomeRows - 1; ++y) {
-			for (int x = 1; x < kBiomeCols - 1; ++x) {
-				if (!isGreen(was[y * kBiomeCols + x])) continue;
-				for (const Reaches& reach : kReach) {
-					bool touchesCountry = false;
-					bool touchesSea = false;
-					for (int oy = -1; oy <= 1; ++oy) {
-						for (int ox = -1; ox <= 1; ++ox) {
-							const Biome at = was[(y + oy) * kBiomeCols + x + ox];
-							if (at == reach.country) touchesCountry = true;
-							if (at == Biome::Water) touchesSea = true;
-						}
+	// Done as a scan rather than as a neighbour test, because a neighbour test
+	// only catches a ribbon one tile wide: it asks whether a green tile sits
+	// between this country and the water **at all**, however many tiles of it
+	// there are, and gives the whole run to the country when the run is short
+	// enough to be nonsense.
+	//
+	// One table, so a new country gets this by being added to it.
+	static constexpr Biome kReach[] = {Biome::Desert, Biome::Snow};
+	const auto sweep = [&](int dx, int dy) {
+		for (int y = 0; y < kBiomeRows; ++y) {
+			for (int x = 0; x < kBiomeCols; ++x) {
+				const Biome here = biomes_[y * kBiomeCols + x];
+				for (const Biome country : kReach) {
+					if (here != country) continue;
+					// Walk out from the country: green all the way, and water
+					// at the end of it inside the reach.
+					int run = 0;
+					int cx = x + dx;
+					int cy = y + dy;
+					while (run <= kShoreGapReach && cx >= 0 && cy >= 0 && cx < kBiomeCols &&
+						   cy < kBiomeRows && isGreen(biomes_[cy * kBiomeCols + cx])) {
+						++run;
+						cx += dx;
+						cy += dy;
 					}
-					if (touchesCountry && touchesSea) {
-						biomes_[y * kBiomeCols + x] = reach.country;
-						break;
+					if (run == 0 || run > kShoreGapReach) break;
+					if (cx < 0 || cy < 0 || cx >= kBiomeCols || cy >= kBiomeRows) break;
+					if (biomes_[cy * kBiomeCols + cx] != Biome::Water) break;
+					for (int i = 1; i <= run; ++i) {
+						biomes_[(y + dy * i) * kBiomeCols + (x + dx * i)] = country;
 					}
+					break;
 				}
 			}
 		}
-	}
+	};
+	sweep(1, 0);
+	sweep(-1, 0);
+	sweep(0, 1);
+	sweep(0, -1);
 }
 
 void World::drainLakesOnTheRoad() {

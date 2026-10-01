@@ -44,3 +44,26 @@ into somebody's private stash, which is the one thing it must never be.
 `REGROWTH.blockedRetrySeconds` (90s) is not a resource timer. It is how long to
 wait before checking again when the spot is still built over, so a node under
 somebody's base is not lost for good if the base ever comes down.
+
+## What holds a regrowth back
+
+A node that has been taken comes back after `kRegrowthSeconds`, in the place
+it stood. Two things hold that back, and they **hold** it rather than cancel
+it: the node stays ready and comes back the moment neither is true.
+
+**A floor over the spot.** The ground under a base is yours for as long as the
+base is up. Nothing grows through a foundation, the black hole is not drawn
+under one, and when the base comes down the hole is there again and the timer
+carries on. It does not pop a tree out the instant the last wall falls.
+
+**Anybody standing near it**, within `kRegrowthClearance` (100 units, a
+foundation and a quarter). A tree that grows through somebody is a tree that
+was not there a moment ago and is now inside them. The regrowth keeps its
+place and happens as soon as the ground is clear.
+
+Both are asked through one hook, `World::setRegrowthBlocked`, wired once by
+whoever owns the world, the building system and the player. Asking again costs
+`kRegrowthRetry`, one second: this is a poll, not a timer, so walking away from
+a spot brings the tree back while you are still looking at it.
+
+Both numbers are in `sim/features/world/constants/regrowth.constant.hpp`.

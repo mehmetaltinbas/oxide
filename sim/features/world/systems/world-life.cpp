@@ -14,6 +14,7 @@
 #include "sim/features/world/types/dropped.struct.hpp"
 #include "sim/features/world/types/resource-node.struct.hpp"
 #include "sim/shared/utils/health.util.hpp"
+#include "sim/features/world/constants/regrowth.constant.hpp"
 
 namespace sim {
 
@@ -57,8 +58,7 @@ constexpr Loot kBarrelLoot[4] = {
  */
 constexpr double kRegrowthSeconds = 5400;
 constexpr double kRegrowthSpread = 0.08;
-/** How long it waits before asking again when something is standing on it. */
-constexpr double kRegrowthRetry = 90;
+
 
 }  // namespace
 
