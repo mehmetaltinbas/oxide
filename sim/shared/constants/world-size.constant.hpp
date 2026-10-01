@@ -13,21 +13,15 @@ namespace sim {
 /**
  * How big the island is.
  *
- * Nineteen thousand two hundred, which is the one size near twenty thousand
- * that divides three ways at once: two hundred biome tiles, two hundred and
- * forty foundations, and twenty lettered map squares of **twelve foundations
- * each**. A map square that was not a whole number of foundations meant the
- * two grids crossed each other at an angle nobody could use.
+ * Nineteen thousand two hundred: two hundred and forty foundations, two
+ * hundred and forty ground tiles, and twenty lettered map squares of twelve
+ * foundations each. Everything on the island is measured in foundations, and
+ * anything that is not a whole number of them crosses the building grid at an
+ * angle nobody can use.
  */
 inline constexpr int kWorldWidth = 19200;
 inline constexpr int kWorldHeight = 19200;
 
-/** Terrain is painted from a coarse grid; everything alive lives in world units. */
-inline constexpr int kBiomeTile = 96;
-inline constexpr int kBiomeCols = kWorldWidth / kBiomeTile;
-inline constexpr int kBiomeRows = kWorldHeight / kBiomeTile;
-
-/** Building snaps to this grid. */
 /**
  * How big one foundation is.
  *
@@ -37,5 +31,18 @@ inline constexpr int kBiomeRows = kWorldHeight / kBiomeTile;
  * a room between them.
  */
 inline constexpr int kBuildCell = 80;
+
+/**
+ * The square the ground is painted in.
+ *
+ * The same as a foundation, so where one country ends is somewhere you could
+ * put a floor. At ninety-six it was close enough to eighty to look like it
+ * ought to line up and never did, which is worse than being obviously
+ * different: every shoreline and every treeline stepped across the building
+ * grid at an angle.
+ */
+inline constexpr int kBiomeTile = kBuildCell;
+inline constexpr int kBiomeCols = kWorldWidth / kBiomeTile;
+inline constexpr int kBiomeRows = kWorldHeight / kBiomeTile;
 
 }  // namespace sim
