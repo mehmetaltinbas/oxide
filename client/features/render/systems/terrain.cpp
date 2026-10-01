@@ -147,11 +147,20 @@ void Terrain::drawScreen(double cameraX, double cameraY, double zoom, int screen
 	// of each tile lands on one. Shifted half a tile either way they fall
 	// between the cells instead, and one edge of a foundation lines up while
 	// the other does not.
-	const float offX =
-		static_cast<float>(std::fmod(cameraX * zoom, tile)) + kScreenNudgeX * static_cast<float>(zoom);
-	const float offY =
-		static_cast<float>(std::fmod(cameraY * zoom, tile)) + kScreenNudgeY * static_cast<float>(zoom);
-	const SDL_FRect dst{-offX - tile, -offY - tile, screenW + tile * 2, screenH + tile * 2};
+	// Pinned to world nought, not to the window's left edge.
+	//
+	// Everything else on screen is placed at (X - camera) * zoom + half the
+	// screen. This left the half-screen out, so the lattice was offset by
+	// whatever half the window happened to be: a foundation's corner sat half
+	// a step off the dots, and no amount of nudging fixed it because the error
+	// changed with the window's width.
+	const auto originOf = [&](double camera, int span, float nudge) {
+		const double zero = -camera * zoom + span * 0.5 - nudge * zoom;
+		return static_cast<float>(std::fmod(zero, static_cast<double>(tile))) - tile;
+	};
+	const SDL_FRect dst{originOf(cameraX, screenW, kScreenNudgeX),
+						originOf(cameraY, screenH, kScreenNudgeY), screenW + tile * 2,
+						screenH + tile * 2};
 	// The tile is baked four times larger than it is drawn, so its dots stay
 	// round when the view is zoomed in.
 	SDL_RenderTextureTiled(renderer_, screen_, nullptr,

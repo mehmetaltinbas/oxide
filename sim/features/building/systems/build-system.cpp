@@ -52,17 +52,6 @@ void closestOnSegment(double px, double py, double ax, double ay, double bx, dou
 }
 
 /** The two cells an edge separates. */
-void edgeCells(int gx, int gy, EdgeSide side, int& ax, int& ay, int& bx, int& by) {
-	if (side == EdgeSide::North) {
-		ax = gx;
-		ay = gy - 1;
-	} else {
-		ax = gx - 1;
-		ay = gy;
-	}
-	bx = gx;
-	by = gy;
-}
 
 /** Whether a spot belongs to a monument, and so to everybody. */
 bool onMonumentGround(const World& world, double x, double y) {
@@ -84,6 +73,18 @@ bool naturalCover(const World& world, double x, double y, double radius) {
 }
 
 }  // namespace
+
+void edgeCells(int gx, int gy, EdgeSide side, int& ax, int& ay, int& bx, int& by) {
+	if (side == EdgeSide::North) {
+		ax = gx;
+		ay = gy - 1;
+	} else {
+		ax = gx - 1;
+		ay = gy;
+	}
+	bx = gx;
+	by = gy;
+}
 
 const TierDef& tierDef(BuildTier tier) { return kTiers[static_cast<int>(tier)]; }
 

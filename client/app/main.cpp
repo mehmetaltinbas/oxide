@@ -218,6 +218,8 @@ int main(int argc, char** argv) {
 	double bleedFor = 0;
 	/** A thing to put down, held, with the cursor over the floor beside you. */
 	bool showGhost = false;
+	/** And with the building plan rather than a thing to put down. */
+	bool ghostPlan = false;
 	/** The building plan's ring, held open for a screenshot. */
 	bool showWheel = false;
 	/** Something worn from the off, for a screenshot. */
@@ -302,6 +304,10 @@ int main(int argc, char** argv) {
 			dragOver = SDL_atoi(argv[++i]);
 		} else if (SDL_strcmp(argv[i], "--ghost") == 0) {
 			showGhost = true;
+			if (i + 1 < argc && SDL_strcmp(argv[i + 1], "plan") == 0) {
+				++i;
+				ghostPlan = true;
+			}
 		} else if (SDL_strcmp(argv[i], "--wheel") == 0) {
 			showWheel = true;
 		} else if (SDL_strcmp(argv[i], "--wear") == 0 && i + 1 < argc) {
@@ -570,7 +576,7 @@ int main(int argc, char** argv) {
 	if (showBase) {
 		// Two by two, walled in, with a doorway at the front and a door in it,
 		// put up a few cells away so you can see it from outside.
-		const int gx = static_cast<int>(player.x / sim::kBuildCell);
+		const int gx = static_cast<int>(player.x / sim::kBuildCell) + 1;
 		const int gy = static_cast<int>(player.y / sim::kBuildCell);
 		for (int oy = 0; oy < 2; ++oy) {
 			for (int ox = 0; ox < 2; ++ox) {
@@ -592,6 +598,7 @@ int main(int argc, char** argv) {
 		sim::Structure& doorway = build.placeEdge(gx + 1, gy + 2, sim::EdgeSide::North,
 												  sim::BuildKind::Doorway, 0, sim::BuildTier::Wood);
 		doorway.kind = sim::BuildKind::Door;
+		doorway.open = false;
 		// And a roof on it, so the ceiling has somewhere to be looked at.
 		for (int oy = 0; oy < 2; ++oy) {
 			for (int ox = 0; ox < 2; ++ox) {
@@ -849,8 +856,10 @@ int main(int argc, char** argv) {
 	if (showGhost) {
 		// Something to put down in hand, and the cursor parked a little way
 		// off, so the placement box can be looked at standing still.
-		inventory.hotbar()[1] = sim::ItemStack{sim::ItemId::LargeBox, 1};
+		inventory.hotbar()[1] =
+			sim::ItemStack{ghostPlan ? sim::ItemId::BuildingPlan : sim::ItemId::LargeBox, 1};
 		inventory.selectSlot(1);
+		inventory.add(sim::ItemId::Wood, 200);
 		int pw = 0;
 		int ph = 0;
 		SDL_GetWindowSizeInPixels(window, &pw, &ph);
@@ -1871,12 +1880,24 @@ int main(int argc, char** argv) {
 				  [](const sim::ResourceNode* a, const sim::ResourceNode* b) { return a->y < b->y; });
 
 
+		const int myRegion = build.regionAt(player.x, player.y);
+		// What is sealed in a room you are not in is out of sight, roof and all.
+		const auto hidden = [&](double wx, double wy) {
+			const int region = build.regionAt(wx, wy);
+			return region != 0 && region != myRegion;
+		};
+
 		bool anyFloor = false;
 		for (const sim::Structure& piece : build.list()) {
 			if (piece.kind != sim::BuildKind::Foundation) continue;
+			// The floor of a sealed room you are not in is under its roof.
+			if (hidden((piece.gx + 0.5) * sim::kBuildCell, (piece.gy + 0.5) * sim::kBuildCell)) {
+				continue;
+			}
 			client::drawBuilt(paint, piece, camX, camY, scale, width, height);
 			anyFloor = true;
 		}
+
 		if (deploying) {
 			// The floor it would take, at its own size and its own turn, with
 			// the fine grid drawn inside it: what matters is the footprint,
@@ -1925,13 +1946,6 @@ int main(int argc, char** argv) {
 		// matters, and a placement box that hid them hid the very squares it
 		// was there to count.
 		if (anyFloor || deploying) terrain.drawScreen(camX, camY, scale, width, height);
-
-		const int myRegion = build.regionAt(player.x, player.y);
-		// What is sealed in a room you are not in is out of sight, roof and all.
-		const auto hidden = [&](double wx, double wy) {
-			const int region = build.regionAt(wx, wy);
-			return region != 0 && region != myRegion;
-		};
 
 		// Where something was taken from: a hole in the ground that closes over
 		// as it grows back. Drawn with the ground rather than with the things
@@ -2227,6 +2241,8 @@ int main(int argc, char** argv) {
 			}
 		}
 
+
+
 		// The ceilings you have built, over the top of what is under them. Not
 		// the one you are standing under: from above you are looking down
 		// through the cell you occupy, which is how a roofed room is a room
@@ -2255,7 +2271,6 @@ int main(int argc, char** argv) {
 				}
 			}
 		}
-
 		// A roof over every sealed room but the one you are in: a base is a
 		// thing you cannot see into, which is most of what makes one worth
 		// building.
@@ -2278,11 +2293,26 @@ int main(int argc, char** argv) {
 			}
 		}
 
+		// What is inside a sealed room you are not in is not drawn at all: not
+		// its floor, not the walls between its rooms. A base you can see the
+		// plan of from outside is a base you can raid without opening it, and
+		// the whole point of a roof is that it is a mystery under there.
+		const auto wallHidden = [&](const sim::Structure& piece) {
+			int ax = 0;
+			int ay = 0;
+			int bx = 0;
+			int by = 0;
+			sim::edgeCells(piece.gx, piece.gy, piece.side, ax, ay, bx, by);
+			return hidden((ax + 0.5) * sim::kBuildCell, (ay + 0.5) * sim::kBuildCell) &&
+				   hidden((bx + 0.5) * sim::kBuildCell, (by + 0.5) * sim::kBuildCell);
+		};
 		for (const sim::Structure& piece : build.list()) {
 			if (piece.kind == sim::BuildKind::Foundation) continue;
 			// A ceiling is over your head, so it is drawn after everything
 			// that stands under it, and not at all over the cell you are on.
 			if (piece.kind == sim::BuildKind::Ceiling) continue;
+			// A wall with sealed rooms on both sides of it is an inside wall.
+			if (wallHidden(piece)) continue;
 			client::drawBuilt(paint, piece, camX, camY, scale, width, height);
 			if (sim::showsHealth(piece)) {
 				double cx = 0;

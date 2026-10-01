@@ -37,6 +37,20 @@ lattice diagonal while keeping the corner dots on the eights.
 Both live in `Terrain::drawScreen`. Changing either one changes where every
 building in the game appears to sit, so neither is a visual preference.
 
+### Pinned to world nought
+
+The lattice is placed from **world nought**, not from the window's left edge:
+
+```cpp
+const double zero = -camera * zoom + span * 0.5 - nudge * zoom;
+```
+
+Everything else on screen is placed at `(X - camera) * zoom + half the screen`.
+The dots once left the half-screen out, so the lattice was offset by whatever
+half the window happened to be. A foundation's corner sat half a step off the
+dots, and no nudge could fix it, because the error changed with the window's
+width.
+
 ### Moving the dots by hand
 
 `kScreenNudgeX` and `kScreenNudgeY`, in `world.tokens.hpp`, shift the whole

@@ -132,6 +132,9 @@ struct Structure {
 /** The world-space ends of an edge piece. */
 void edgeSegment(int gx, int gy, EdgeSide side, double& x0, double& y0, double& x1, double& y1);
 
+/** The two cells an edge divides, which is what decides who can see it. */
+void edgeCells(int gx, int gy, EdgeSide side, int& ax, int& ay, int& bx, int& by);
+
 /**
  * What everybody has built.
  *

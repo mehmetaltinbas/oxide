@@ -96,14 +96,14 @@ constexpr float kGroundInkScale = 0.6f;
  * Two units, a fifth of a fine square: the border of a panel, bold enough to
  * read as drawn rather than as a seam in a texture.
  */
-constexpr float kRoadEdgeInk = 2.0f;
+constexpr float kRoadEdgeInk = 5.0f;
 /**
  * The line where any two other grounds meet, in world units.
  *
  * Six tenths of a unit. The pencil under the picture, not the panel border:
  * at anything like the road's weight the whole island reads as a jigsaw.
  */
-constexpr float kBiomeSeamInk = 0.6f;
+constexpr float kBiomeSeamInk = 2.5f;
 
 /**
  * Where the whole dot lattice sits, in world units.
@@ -116,8 +116,8 @@ constexpr float kBiomeSeamInk = 0.6f;
  *
  * Positive moves the dots LEFT and UP. Negative moves them right and down.
  */
-constexpr float kScreenNudgeX = -0.45;
-constexpr float kScreenNudgeY = 0.025f;
+constexpr float kScreenNudgeX = 0.0f;
+constexpr float kScreenNudgeY = 0.0f;
 
 // ------------------------------------------------------------ item pictures
 //
